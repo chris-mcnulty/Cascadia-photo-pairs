@@ -18,6 +18,8 @@ export const photos = pgTable("photos", {
 export const votes = pgTable("votes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   photoId: varchar("photo_id").notNull().references(() => photos.id),
+  winnerPhotoId: varchar("winner_photo_id").notNull().references(() => photos.id),
+  loserPhotoId: varchar("loser_photo_id").notNull().references(() => photos.id),
   timestamp: text("timestamp").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -40,6 +42,9 @@ export const insertPhotoSchema = createInsertSchema(photos).omit({
 export const insertVoteSchema = createInsertSchema(votes).omit({
   id: true,
   timestamp: true,
+}).extend({
+  winnerPhotoId: z.string().optional(),
+  loserPhotoId: z.string().optional(),
 });
 
 export const insertSettingsSchema = createInsertSchema(settings).omit({

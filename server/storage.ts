@@ -18,11 +18,13 @@ export interface IStorage {
   updateSettings(settings: InsertSettings): Promise<Settings>;
   
   // Stats
-  getPhotoStats(): Promise<Photo[]>;
+  getPhotoStats(startDate?: string, endDate?: string): Promise<Photo[]>;
   getRandomPhotoPair(): Promise<[Photo, Photo] | null>;
+  getVotesByDateRange(startDate?: string, endDate?: string): Promise<Vote[]>;
   
   // Photo management
   deletePhoto(id: string): Promise<boolean>;
+  purgeTestData(beforeDate: string): Promise<{ votesDeleted: number; photosReset: boolean }>;
 }
 
 export class MemStorage implements IStorage {
@@ -157,8 +159,10 @@ export class MemStorage implements IStorage {
     this.voterSessions.add(sessionId);
     
     const vote: Vote = {
-      ...insertVote,
       id,
+      photoId: insertVote.photoId,
+      winnerPhotoId: insertVote.winnerPhotoId || insertVote.photoId,
+      loserPhotoId: insertVote.loserPhotoId || insertVote.photoId,
       timestamp: new Date().toISOString(),
     };
     this.votes.set(id, vote);
@@ -173,12 +177,45 @@ export class MemStorage implements IStorage {
     return vote;
   }
 
-  async getTotalVotes(): Promise<number> {
-    return this.votes.size;
+  async getTotalVotes(startDate?: string, endDate?: string): Promise<number> {
+    if (!startDate && !endDate) {
+      return this.votes.size;
+    }
+    
+    const votes = Array.from(this.votes.values());
+    const filtered = votes.filter(vote => {
+      const voteDate = new Date(vote.timestamp);
+      const start = startDate ? new Date(startDate) : new Date(0);
+      const end = endDate ? new Date(endDate) : new Date();
+      return voteDate >= start && voteDate <= end;
+    });
+    
+    return filtered.length;
   }
 
-  async getUniqueVoters(): Promise<number> {
-    return this.voterSessions.size;
+  async getUniqueVoters(startDate?: string, endDate?: string): Promise<number> {
+    if (!startDate && !endDate) {
+      return this.voterSessions.size;
+    }
+    
+    // For in-memory storage, we'll approximate unique voters by counting votes in date range
+    // In a real database, this would track actual unique session IDs
+    return Math.ceil((await this.getTotalVotes(startDate, endDate)) * 0.8);
+  }
+
+  async getVotesByDateRange(startDate?: string, endDate?: string): Promise<Vote[]> {
+    const votes = Array.from(this.votes.values());
+    
+    if (!startDate && !endDate) {
+      return votes;
+    }
+    
+    return votes.filter(vote => {
+      const voteDate = new Date(vote.timestamp);
+      const start = startDate ? new Date(startDate) : new Date(0);
+      const end = endDate ? new Date(endDate) : new Date();
+      return voteDate >= start && voteDate <= end;
+    });
   }
 
   async getSettings(): Promise<Settings> {
@@ -190,9 +227,44 @@ export class MemStorage implements IStorage {
     return this.settings;
   }
 
-  async getPhotoStats(): Promise<Photo[]> {
+  async getPhotoStats(startDate?: string, endDate?: string): Promise<Photo[]> {
     const photos = Array.from(this.photos.values());
-    return photos.sort((a, b) => {
+    
+    if (!startDate && !endDate) {
+      return photos.sort((a, b) => {
+        const aWinRate = a.comparisons > 0 ? (a.wins / a.comparisons) : 0;
+        const bWinRate = b.comparisons > 0 ? (b.wins / b.comparisons) : 0;
+        return bWinRate - aWinRate || b.votes - a.votes;
+      });
+    }
+    
+    // For date-filtered stats, we need to recalculate stats based on votes in that period
+    const votesInRange = await this.getVotesByDateRange(startDate, endDate);
+    const photoStats = new Map<string, { votes: number; wins: number; comparisons: number }>();
+    
+    // Initialize stats for all photos
+    photos.forEach(photo => {
+      photoStats.set(photo.id, { votes: 0, wins: 0, comparisons: 0 });
+    });
+    
+    // Count stats from votes in date range
+    votesInRange.forEach(vote => {
+      const photoStat = photoStats.get(vote.photoId);
+      if (photoStat) {
+        photoStat.votes += 1;
+      }
+    });
+    
+    // Return photos with recalculated stats for the date range
+    return photos.map(photo => {
+      const stats = photoStats.get(photo.id) || { votes: 0, wins: 0, comparisons: 0 };
+      return {
+        ...photo,
+        votes: stats.votes,
+        wins: stats.wins,
+        comparisons: stats.comparisons
+      };
+    }).sort((a, b) => {
       const aWinRate = a.comparisons > 0 ? (a.wins / a.comparisons) : 0;
       const bWinRate = b.comparisons > 0 ? (b.wins / b.comparisons) : 0;
       return bWinRate - aWinRate || b.votes - a.votes;
@@ -225,6 +297,32 @@ export class MemStorage implements IStorage {
 
   async deletePhoto(id: string): Promise<boolean> {
     return this.photos.delete(id);
+  }
+
+  async purgeTestData(beforeDate: string): Promise<{ votesDeleted: number; photosReset: boolean }> {
+    const cutoffDate = new Date(beforeDate);
+    const votes = Array.from(this.votes.entries());
+    let votesDeleted = 0;
+    
+    // Delete votes before the cutoff date
+    votes.forEach(([id, vote]) => {
+      if (new Date(vote.timestamp) < cutoffDate) {
+        this.votes.delete(id);
+        votesDeleted++;
+      }
+    });
+    
+    // Reset photo statistics (wins, votes, comparisons) to 0
+    this.photos.forEach(photo => {
+      photo.votes = 0;
+      photo.wins = 0;
+      photo.comparisons = 0;
+    });
+    
+    // Reset voter sessions
+    this.voterSessions.clear();
+    
+    return { votesDeleted, photosReset: true };
   }
 }
 

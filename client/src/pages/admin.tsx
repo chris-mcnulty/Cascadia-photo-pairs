@@ -6,12 +6,13 @@ import AdminStats from "@/components/admin-stats";
 import AdminSettings from "@/components/admin-settings";
 import PhotoManager from "@/components/photo-manager";
 import AdminLogin from "@/components/admin-login";
+import AdminAnalytics from "@/components/admin-analytics";
 import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut } from "lucide-react";
 import { Link } from "wouter";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 
 function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"stats" | "settings" | "photos">("stats");
+  const [activeTab, setActiveTab] = useState<"analytics" | "stats" | "settings" | "photos">("analytics");
   const { logout } = useAuth();
 
   const { data: stats } = useQuery<{
@@ -98,6 +99,14 @@ function AdminDashboard() {
         {/* Tabs */}
         <div className="flex space-x-1 mb-8">
           <Button
+            variant={activeTab === "analytics" ? "default" : "outline"}
+            onClick={() => setActiveTab("analytics")}
+            className="flex items-center"
+          >
+            <BarChart3 className="w-4 h-4 mr-2" />
+            Analytics
+          </Button>
+          <Button
             variant={activeTab === "stats" ? "default" : "outline"}
             onClick={() => setActiveTab("stats")}
             className="flex items-center"
@@ -124,6 +133,7 @@ function AdminDashboard() {
         </div>
 
         {/* Tab Content */}
+        {activeTab === "analytics" && <AdminAnalytics />}
         {activeTab === "stats" && <AdminStats />}
         {activeTab === "photos" && <PhotoManager />}
         {activeTab === "settings" && <AdminSettings />}

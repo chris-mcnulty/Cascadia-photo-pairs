@@ -50,11 +50,16 @@ Preferred communication style: Simple, everyday language.
 - Session handling prepared with connect-pg-simple for future auth implementation
 
 **Key Features**
-- Photo pair randomization for fair voting comparisons
+- Photo pair randomization for fair voting comparisons  
 - Win/loss ratio tracking with comprehensive statistics
-- Admin dashboard with top 20 rankings and analytics
+- Admin dashboard with top 20 rankings and advanced analytics
+- Date range filtering for trend analysis without losing historical data
+- Test data purging functionality for production deployment
+- Photo hiding/showing feature to curate voting collection while preserving stats
 - Configurable purchase links (can be enabled/disabled per photo or globally)
 - Real-time vote counting and statistics updates
+- File upload support with drag-and-drop for photos up to 10MB
+- SMS-based two-factor authentication for admin security
 - Responsive design optimized for both desktop and mobile voting
 
 **Development Workflow**

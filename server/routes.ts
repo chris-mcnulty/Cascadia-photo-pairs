@@ -169,7 +169,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const voteData = insertVoteSchema.parse(req.body);
       const { winnerPhotoId, loserPhotoId } = req.body;
       
-      const vote = await storage.createVote({ photoId: voteData.photoId });
+      const vote = await storage.createVote({ 
+        photoId: voteData.photoId, 
+        winnerPhotoId: winnerPhotoId || voteData.photoId,
+        loserPhotoId: loserPhotoId || voteData.photoId
+      });
       
       // Record comparison stats
       if (winnerPhotoId && loserPhotoId) {
@@ -185,19 +189,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get voting statistics (admin only)
   app.get("/api/stats", requireAuth, async (req, res) => {
     try {
-      const totalVotes = await storage.getTotalVotes();
-      const uniqueVoters = await storage.getUniqueVoters();
+      const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+      
+      const totalVotes = await storage.getTotalVotes(startDate, endDate);
+      const uniqueVoters = await storage.getUniqueVoters(startDate, endDate);
       const avgVotesPerUser = uniqueVoters > 0 ? totalVotes / uniqueVoters : 0;
-      const topPhotos = await storage.getPhotoStats();
+      const topPhotos = await storage.getPhotoStats(startDate, endDate);
       
       res.json({
         totalVotes,
         uniqueVoters,
         avgVotesPerUser: Math.round(avgVotesPerUser * 10) / 10,
         topPhotos: topPhotos.slice(0, 20),
+        dateRange: startDate && endDate ? { startDate, endDate } : null
       });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch statistics" });
+    }
+  });
+
+  // Purge test data (admin only)
+  app.post("/api/admin/purge-test-data", requireAuth, async (req, res) => {
+    try {
+      const { beforeDate } = req.body;
+      
+      if (!beforeDate) {
+        return res.status(400).json({ message: "Before date is required" });
+      }
+      
+      const result = await storage.purgeTestData(beforeDate);
+      res.json({
+        message: "Test data purged successfully",
+        ...result
+      });
+    } catch (error) {
+      console.error('Purge test data error:', error);
+      res.status(500).json({ message: "Failed to purge test data" });
     }
   });
 

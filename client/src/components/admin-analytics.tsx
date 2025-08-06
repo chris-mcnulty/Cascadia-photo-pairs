@@ -1,0 +1,300 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { Calendar, Trash2, TrendingUp, BarChart3, AlertTriangle } from "lucide-react";
+
+interface StatsData {
+  totalVotes: number;
+  uniqueVoters: number;
+  avgVotesPerUser: number;
+  topPhotos: Array<{
+    id: string;
+    title: string;
+    votes: number;
+    wins: number;
+    comparisons: number;
+    hidden: boolean;
+  }>;
+  dateRange: { startDate: string; endDate: string } | null;
+}
+
+export default function AdminAnalytics() {
+  const { toast } = useToast();
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [purgeDate, setPurgeDate] = useState("");
+  const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
+
+  const { data: stats, isLoading } = useQuery<StatsData>({
+    queryKey: ["/api/stats", startDate, endDate],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (startDate) params.append("startDate", startDate);
+      if (endDate) params.append("endDate", endDate);
+      
+      const response = await fetch(`/api/stats?${params.toString()}`, {
+        credentials: "include",
+      });
+      
+      if (!response.ok) throw new Error("Failed to fetch stats");
+      return response.json();
+    },
+  });
+
+  const purgeTestDataMutation = useMutation({
+    mutationFn: async (beforeDate: string) => {
+      const response = await apiRequest("POST", "/api/admin/purge-test-data", { beforeDate });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      toast({
+        title: "Test data purged",
+        description: `Deleted ${data.votesDeleted} votes and reset photo statistics.`,
+      });
+      setPurgeDate("");
+      setShowPurgeConfirm(false);
+    },
+    onError: () => {
+      toast({
+        title: "Failed to purge test data",
+        description: "There was an error purging the test data.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleDateFilter = () => {
+    if (startDate && endDate && startDate > endDate) {
+      toast({
+        title: "Invalid date range",
+        description: "Start date must be before end date.",
+        variant: "destructive",
+      });
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+  };
+
+  const clearDateFilter = () => {
+    setStartDate("");
+    setEndDate("");
+    queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+  };
+
+  const handlePurgeTestData = () => {
+    if (!purgeDate) {
+      toast({
+        title: "Date required",
+        description: "Please select a date to purge data before.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setShowPurgeConfirm(true);
+  };
+
+  const confirmPurge = () => {
+    purgeTestDataMutation.mutate(purgeDate);
+  };
+
+  if (isLoading) {
+    return <div className="flex justify-center py-12">Loading analytics...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Date Range Filter */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="w-5 h-5" />
+            Date Range Filter
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label htmlFor="startDate">Start Date</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="endDate">End Date</Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+            <div className="flex items-end gap-2">
+              <Button onClick={handleDateFilter} className="flex-1">
+                Apply Filter
+              </Button>
+              {(startDate || endDate) && (
+                <Button variant="outline" onClick={clearDateFilter}>
+                  Clear
+                </Button>
+              )}
+            </div>
+          </div>
+          
+          {stats?.dateRange && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <p className="text-sm text-blue-800 dark:text-blue-200">
+                Showing data from {new Date(stats.dateRange.startDate).toLocaleDateString()} 
+                {" "}to {new Date(stats.dateRange.endDate).toLocaleDateString()}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Statistics Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold">{stats?.totalVotes || 0}</p>
+                <p className="text-sm text-gray-600">Total Votes</p>
+              </div>
+              <BarChart3 className="w-8 h-8 text-blue-600" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold">{stats?.uniqueVoters || 0}</p>
+                <p className="text-sm text-gray-600">Unique Voters</p>
+              </div>
+              <TrendingUp className="w-8 h-8 text-green-600" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold">{stats?.avgVotesPerUser || 0}</p>
+                <p className="text-sm text-gray-600">Avg Votes/User</p>
+              </div>
+              <BarChart3 className="w-8 h-8 text-purple-600" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Top Photos Rankings */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Top 20 Photo Rankings</CardTitle>
+          <p className="text-sm text-gray-600">
+            {stats?.dateRange ? "Rankings for selected date range" : "All-time rankings"}
+          </p>
+        </CardHeader>
+        <CardContent>
+          {stats?.topPhotos && stats.topPhotos.length > 0 ? (
+            <div className="space-y-2">
+              {stats.topPhotos.map((photo, index) => (
+                <div key={photo.id} className="flex items-center gap-4 p-3 border rounded-lg">
+                  <div className="text-lg font-bold text-gray-500 min-w-[2rem]">
+                    #{index + 1}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-medium">{photo.title}</h4>
+                      {photo.hidden && (
+                        <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
+                          Hidden
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {photo.votes} votes • {photo.comparisons > 0 ? Math.round((photo.wins / photo.comparisons) * 100) : 0}% win rate
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              No photos found for the selected criteria.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Test Data Purge */}
+      <Card className="border-red-200 dark:border-red-800">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-300">
+            <AlertTriangle className="w-5 h-5" />
+            Test Data Management
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
+            <p className="text-sm text-red-800 dark:text-red-200">
+              <strong>Warning:</strong> This will permanently delete all votes cast before the selected date 
+              and reset photo statistics (votes, wins, comparisons) to zero. This action cannot be undone.
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="purgeDate">Purge votes before this date</Label>
+              <Input
+                id="purgeDate"
+                type="date"
+                value={purgeDate}
+                onChange={(e) => setPurgeDate(e.target.value)}
+              />
+            </div>
+            <div className="flex items-end">
+              <Button 
+                variant="destructive" 
+                onClick={handlePurgeTestData}
+                disabled={purgeTestDataMutation.isPending || !purgeDate}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                {purgeTestDataMutation.isPending ? "Purging..." : "Purge Test Data"}
+              </Button>
+            </div>
+          </div>
+
+          {showPurgeConfirm && (
+            <div className="p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 rounded-lg">
+              <p className="text-red-800 dark:text-red-200 mb-3">
+                Are you absolutely sure? This will delete all votes before {new Date(purgeDate).toLocaleDateString()} 
+                and reset all photo statistics.
+              </p>
+              <div className="flex gap-2">
+                <Button variant="destructive" onClick={confirmPurge}>
+                  Yes, Purge Data
+                </Button>
+                <Button variant="outline" onClick={() => setShowPurgeConfirm(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

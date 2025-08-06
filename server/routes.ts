@@ -287,8 +287,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get settings (admin only)  
-  app.get("/api/settings", requireAuth, async (req, res) => {
+  // Get public settings (for home page)
+  app.get("/api/settings", async (req, res) => {
+    try {
+      const settings = await storage.getSettings();
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  // Get full settings (admin only)  
+  app.get("/api/admin/settings", requireAuth, async (req, res) => {
     try {
       const settings = await storage.getSettings();
       res.json(settings);

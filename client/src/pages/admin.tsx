@@ -147,9 +147,22 @@ function AuthenticatedAdmin() {
   
   console.log('AuthenticatedAdmin render - isAuthenticated:', isAuthenticated);
 
+  // Force clear any old session data
+  if (typeof window !== 'undefined') {
+    const oldSession = localStorage.getItem('admin-session-id');
+    if (oldSession) {
+      console.log('Clearing old session data:', oldSession);
+      localStorage.removeItem('admin-session-id');
+    }
+  }
+
   if (!isAuthenticated) {
     console.log('Rendering AdminLogin component');
-    return <AdminLogin onAuthenticated={login} />;
+    return (
+      <div className="min-h-screen bg-gray-50" key="login-container">
+        <AdminLogin onAuthenticated={login} />
+      </div>
+    );
   }
 
   console.log('Rendering AdminDashboard component');
@@ -157,9 +170,10 @@ function AuthenticatedAdmin() {
 }
 
 export default function Admin() {
+  console.log('Admin component render');
   return (
     <AuthProvider>
-      <AuthenticatedAdmin />
+      <AuthenticatedAdmin key="auth-admin" />
     </AuthProvider>
   );
 }

@@ -147,15 +147,16 @@ function AuthenticatedAdmin() {
   
   console.log('AuthenticatedAdmin render - isAuthenticated:', isAuthenticated);
 
-  // Force clear any old session data
-  if (typeof window !== 'undefined') {
-    const oldSession = localStorage.getItem('admin-session-id');
-    if (oldSession) {
-      console.log('Clearing old session data:', oldSession);
-      localStorage.removeItem('admin-session-id');
-    }
-  }
+  // TEMPORARY: Force login form to show regardless of auth state
+  console.log('FORCING LOGIN FORM TO SHOW');
+  return (
+    <div className="min-h-screen bg-gray-50" key="login-container-forced">
+      <AdminLogin onAuthenticated={login} />
+    </div>
+  );
 
+  // Original auth logic (commented out for testing)
+  /*
   if (!isAuthenticated) {
     console.log('Rendering AdminLogin component');
     return (
@@ -167,6 +168,7 @@ function AuthenticatedAdmin() {
 
   console.log('Rendering AdminDashboard component');
   return <AdminDashboard />;
+  */
 }
 
 export default function Admin() {

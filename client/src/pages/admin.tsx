@@ -22,38 +22,6 @@ function AdminDashboard() {
     topPhotos: any[];
   }>({
     queryKey: ["/api/stats"],
-    queryFn: async () => {
-      const sessionId = localStorage.getItem('admin-session-id');
-      console.log('Admin dashboard loading stats with session:', sessionId);
-      
-      if (!sessionId) {
-        throw new Error('No session ID found - please log in to admin');
-      }
-      
-      const response = await fetch('/api/stats', {
-        credentials: "include",
-        headers: {
-          'x-session-id': sessionId,
-          'Content-Type': 'application/json'
-        },
-      });
-      
-      console.log('Admin dashboard stats response:', response.status);
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem('admin-session-id');
-          throw new Error('Session expired - please log in again');
-        }
-        throw new Error(`API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('Admin dashboard stats loaded:', data);
-      return data;
-    },
-    retry: false,
-    enabled: !!localStorage.getItem('admin-session-id'),
   });
 
   const handleExportData = async () => {

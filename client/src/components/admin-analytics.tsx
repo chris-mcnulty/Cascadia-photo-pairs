@@ -30,7 +30,7 @@ export default function AdminAnalytics() {
   const [purgeDate, setPurgeDate] = useState("");
   const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
 
-  const { data: stats, isLoading, error, refetch } = useQuery<StatsData>({
+  const { data: stats, isLoading } = useQuery<StatsData>({
     queryKey: ["/api/stats", startDate, endDate],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -38,36 +38,14 @@ export default function AdminAnalytics() {
       if (endDate) params.append("endDate", endDate);
       
       const sessionId = localStorage.getItem('admin-session-id');
-      console.log('Analytics session ID:', sessionId);
-      
-      if (!sessionId) {
-        throw new Error('No session ID found - please log in to admin');
-      }
-      
       const response = await fetch(`/api/stats?${params.toString()}`, {
         credentials: "include",
-        headers: {
-          'x-session-id': sessionId,
-          'Content-Type': 'application/json'
-        },
+        headers: sessionId ? { 'x-session-id': sessionId } : {},
       });
       
-      console.log('Analytics response status:', response.status);
-      
-      if (!response.ok) {
-        if (response.status === 401) {
-          localStorage.removeItem('admin-session-id');
-          throw new Error('Session expired - please log in again');
-        }
-        throw new Error(`API error: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      console.log('Analytics data received:', data);
-      return data;
+      if (!response.ok) throw new Error("Failed to fetch stats");
+      return response.json();
     },
-    retry: false,
-    enabled: !!localStorage.getItem('admin-session-id'),
   });
 
   const purgeTestDataMutation = useMutation({

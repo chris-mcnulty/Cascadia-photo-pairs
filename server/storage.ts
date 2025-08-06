@@ -1,7 +1,7 @@
-import { type Photo, type InsertPhoto, type UpdatePhoto, type Vote, type InsertVote, type Settings, type InsertSettings } from "@shared/schema";
+import { type Photo, type InsertPhoto, type Vote, type InsertVote, type Settings, type InsertSettings } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { photos, votes, settings } from "@shared/schema";
+import { photos, votes, settings, users } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 
 export interface IStorage {
@@ -9,7 +9,7 @@ export interface IStorage {
   getAllPhotos(): Promise<Photo[]>;
   getPhoto(id: string): Promise<Photo | undefined>;
   createPhoto(photo: InsertPhoto): Promise<Photo>;
-  updatePhoto(id: string, updates: UpdatePhoto): Promise<Photo | undefined>;
+  updatePhoto(id: string, updates: Partial<Photo>): Promise<Photo | undefined>;
   
   // Votes
   createVote(vote: InsertVote): Promise<Vote>;
@@ -116,7 +116,6 @@ export class MemStorage implements IStorage {
         title: photoData.title,
         description: photoData.description,
         imageUrl: photoData.imageUrl,
-        createdAt: new Date().toISOString(),
         votes: 0,
         wins: 0,
         comparisons: 0,
@@ -140,7 +139,6 @@ export class MemStorage implements IStorage {
     const photo: Photo = {
       ...insertPhoto,
       id,
-      createdAt: new Date().toISOString(),
       votes: 0,
       wins: 0,
       comparisons: 0,
@@ -152,7 +150,7 @@ export class MemStorage implements IStorage {
     return photo;
   }
 
-  async updatePhoto(id: string, updates: UpdatePhoto): Promise<Photo | undefined> {
+  async updatePhoto(id: string, updates: Partial<Photo>): Promise<Photo | undefined> {
     const photo = this.photos.get(id);
     if (!photo) return undefined;
     
@@ -361,7 +359,7 @@ export class DatabaseStorage implements IStorage {
     return photo;
   }
 
-  async updatePhoto(id: string, updates: UpdatePhoto): Promise<Photo | undefined> {
+  async updatePhoto(id: string, updates: Partial<Photo>): Promise<Photo | undefined> {
     const [photo] = await db
       .update(photos)
       .set(updates)

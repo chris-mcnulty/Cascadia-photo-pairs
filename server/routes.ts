@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertVoteSchema, insertSettingsSchema, insertPhotoSchema, updatePhotoSchema } from "@shared/schema";
+import { insertVoteSchema, insertSettingsSchema, insertPhotoSchema } from "@shared/schema";
 import { 
   generateSessionId, 
   generateMfaCode, 
@@ -157,21 +157,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update a photo (admin only)
-  app.put("/api/photos/:id", requireAuth, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const photoData = updatePhotoSchema.parse(req.body);
-      const photo = await storage.updatePhoto(id, photoData);
-      if (!photo) {
-        return res.status(404).json({ message: "Photo not found" });
-      }
-      res.json(photo);
-    } catch (error) {
-      res.status(400).json({ message: "Invalid photo data" });
-    }
-  });
-
   // Delete a photo (admin only)
   app.delete("/api/photos/:id", requireAuth, async (req, res) => {
     try {
@@ -202,26 +187,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Cast a vote
   app.post("/api/votes", async (req, res) => {
     try {
-      console.log('Vote request body:', req.body);
       const voteData = insertVoteSchema.parse(req.body);
-      console.log('Parsed vote data:', voteData);
+      const { winnerPhotoId, loserPhotoId } = req.body;
       
-      const vote = await storage.createVote(voteData);
+      const vote = await storage.createVote({ 
+        photoId: voteData.photoId, 
+        winnerPhotoId: winnerPhotoId || voteData.photoId,
+        loserPhotoId: loserPhotoId || voteData.photoId
+      });
       
-      // Record comparison stats  
-      if (voteData.winnerPhotoId && voteData.loserPhotoId) {
-        await storage.recordComparison(voteData.winnerPhotoId, voteData.loserPhotoId);
+      // Record comparison stats
+      if (winnerPhotoId && loserPhotoId) {
+        await storage.recordComparison(winnerPhotoId, loserPhotoId);
       }
       
-      console.log('Vote created successfully:', vote);
       res.json(vote);
     } catch (error) {
-      console.error('Vote creation error:', error);
-      if (error instanceof Error) {
-        res.status(400).json({ message: error.message });
-      } else {
-        res.status(400).json({ message: "Invalid vote data" });
-      }
+      res.status(400).json({ message: "Invalid vote data" });
     }
   });
 

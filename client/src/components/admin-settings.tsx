@@ -14,7 +14,6 @@ export default function AdminSettings() {
   
   const { data: settings, isLoading } = useQuery<Settings>({
     queryKey: ["/api/settings"],
-    enabled: !!localStorage.getItem('admin-session-id'),
   });
 
   const [formData, setFormData] = useState({

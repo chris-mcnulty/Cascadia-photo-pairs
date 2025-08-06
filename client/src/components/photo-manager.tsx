@@ -102,10 +102,19 @@ export default function PhotoManager() {
 
   const editPhotoMutation = useMutation({
     mutationFn: async ({ photoId, data }: { photoId: string; data: Partial<Photo> }) => {
+      console.log('Editing photo mutation:', { photoId, data });
       const response = await apiRequest("PUT", `/api/photos/${photoId}`, data);
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Edit photo API error:', errorData);
+        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+      }
+      
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Photo edit successful:', data);
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
       queryClient.invalidateQueries({ queryKey: ["/api/photos/random-pair"] });
       setEditingPhoto(null);
@@ -115,10 +124,21 @@ export default function PhotoManager() {
         description: "Your photo has been updated successfully.",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('Edit photo mutation error:', error);
+      
+      let errorMessage = "There was an error updating the photo.";
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      if (errorMessage.includes('401') || errorMessage.includes('unauthorized') || errorMessage.includes('Session ID required')) {
+        errorMessage = "Authentication failed. Please log out and log back in.";
+      }
+      
       toast({
         title: "Failed to update photo",
-        description: "There was an error updating the photo.",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -225,6 +245,22 @@ export default function PhotoManager() {
 
     // If we're editing a photo, include imageUrl in the update
     if (editingPhoto) {
+      if (!formData.imageUrl) {
+        toast({
+          title: "Missing image URL",
+          description: "Please provide an image URL.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      console.log('Submitting photo edit:', {
+        photoId: editingPhoto.id,
+        originalImageUrl: editingPhoto.imageUrl,
+        newImageUrl: formData.imageUrl,
+        hasChanged: editingPhoto.imageUrl !== formData.imageUrl
+      });
+      
       editPhotoMutation.mutate({
         photoId: editingPhoto.id,
         data: {

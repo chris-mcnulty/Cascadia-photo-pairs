@@ -585,14 +585,20 @@ async function initializeDatabase() {
         }
       ];
       
-      for (const photo of defaultPhotos) {
-        await storage.createPhoto(photo);
+      for (const photoData of defaultPhotos) {
+        await storage.createPhoto(photoData);
       }
       
-      console.log(`Initialized database with ${defaultPhotos.length} default photos`);
+      console.log(`Initialized database with ${defaultPhotos.length} photos`);
+    } else {
+      console.log(`Database already contains ${existingPhotos.length} photos`);
     }
+    
+    // Ensure settings exist
+    await storage.getSettings();
+    console.log('Database initialization completed successfully');
   } catch (error) {
-    console.error('Failed to initialize database:', error);
+    console.error('Database initialization error:', error);
   }
 }
 

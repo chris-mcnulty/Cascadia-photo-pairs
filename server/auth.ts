@@ -141,7 +141,7 @@ setInterval(async () => {
         mfaCode: null, 
         mfaExpiry: null 
       })
-      .where(sql`${sessions.mfaExpiry} IS NOT NULL AND ${sessions.mfaExpiry} < '${now.toString()}'`);
+      .where(sql`${sessions.mfaExpiry} IS NOT NULL AND CAST(${sessions.mfaExpiry} AS BIGINT) < ${now}`);
     
     // Delete sessions older than 24 hours
     await db

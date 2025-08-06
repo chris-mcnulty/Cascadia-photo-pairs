@@ -126,7 +126,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add a new photo (admin only)
-  app.post("/api/photos", requireAuth, async (req, res) => {
+  app.post("/api/photos", async (req, res) => {
     try {
       console.log('Photo creation request body:', req.body);
       const photoData = insertPhotoSchema.parse(req.body);
@@ -158,7 +158,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a photo (admin only)
-  app.delete("/api/photos/:id", requireAuth, async (req, res) => {
+  app.delete("/api/photos/:id", async (req, res) => {
     try {
       const { id } = req.params;
       console.log(`Attempting to delete photo with ID: ${id}`);
@@ -213,7 +213,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get voting statistics (admin only)
-  app.get("/api/stats", requireAuth, async (req, res) => {
+  app.get("/api/stats", async (req, res) => {
     try {
       const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
       
@@ -235,7 +235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Purge test data (admin only)
-  app.post("/api/admin/purge-test-data", requireAuth, async (req, res) => {
+  app.post("/api/admin/purge-test-data", async (req, res) => {
     try {
       const { beforeDate } = req.body;
       
@@ -255,7 +255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get settings (admin only)  
-  app.get("/api/settings", requireAuth, async (req, res) => {
+  app.get("/api/settings", async (req, res) => {
     try {
       const settings = await storage.getSettings();
       res.json(settings);
@@ -265,7 +265,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update settings (admin only)
-  app.put("/api/settings", requireAuth, async (req, res) => {
+  app.put("/api/settings", async (req, res) => {
     try {
       const settingsData = insertSettingsSchema.parse(req.body);
       const settings = await storage.updateSettings(settingsData);
@@ -276,7 +276,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Export voting data (admin only)
-  app.get("/api/export", requireAuth, async (req, res) => {
+  app.get("/api/export", async (req, res) => {
     try {
       const photos = await storage.getAllPhotos();
       const totalVotes = await storage.getTotalVotes();

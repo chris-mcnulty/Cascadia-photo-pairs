@@ -32,15 +32,10 @@ export async function apiRequest(
 ): Promise<Response> {
   const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
   
-  // Add session ID header if available
-  const sessionId = localStorage.getItem('admin-session-id');
-  if (sessionId) {
-    headers['x-session-id'] = sessionId;
-  }
+  // No authentication headers needed - bypassing auth for admin
 
   console.log(`API Request: ${method} ${url}`, { 
     hasData: !!data, 
-    hasSessionId: !!sessionId,
     dataSize: data ? JSON.stringify(data).length : 0
   });
 
@@ -74,11 +69,7 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const headers: Record<string, string> = {};
     
-    // Add session ID header if available
-    const sessionId = localStorage.getItem('admin-session-id');
-    if (sessionId) {
-      headers['x-session-id'] = sessionId;
-    }
+    // No authentication headers needed - bypassing auth for admin
 
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",

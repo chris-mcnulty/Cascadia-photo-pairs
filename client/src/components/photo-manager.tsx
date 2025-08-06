@@ -224,13 +224,14 @@ export default function PhotoManager() {
       return;
     }
 
-    // If we're editing a photo, we only need to update the text fields
+    // If we're editing a photo, we can update text fields and optionally the image URL
     if (editingPhoto) {
       editPhotoMutation.mutate({
         photoId: editingPhoto.id,
         data: {
           title: formData.title,
           description: formData.description || null,
+          imageUrl: formData.imageUrl, // Allow URL editing
           customPurchaseUrl: formData.customPurchaseUrl || null,
         },
       });
@@ -373,20 +374,36 @@ export default function PhotoManager() {
               </Tabs>
               )}
 
-              {/* Show current image when editing */}
+              {/* Show current image when editing with URL editing capability */}
               {editingPhoto && (
-                <div className="space-y-2">
-                  <Label>Current Image</Label>
-                  <div className="border rounded-lg p-2 bg-gray-50">
-                    <img 
-                      src={editingPhoto.imageUrl} 
-                      alt={editingPhoto.title} 
-                      className="max-w-full max-h-48 object-contain mx-auto rounded"
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="editImageUrl">Image URL *</Label>
+                    <Input
+                      id="editImageUrl"
+                      type="url"
+                      placeholder="https://example.com/photo.jpg"
+                      value={formData.imageUrl}
+                      onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
                     />
+                    <p className="text-sm text-gray-500">
+                      You can update the image URL to change the photo
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-500">
-                    Image cannot be changed during editing. Delete and re-add to change the image.
-                  </p>
+                  
+                  <div className="space-y-2">
+                    <Label>Current Image Preview</Label>
+                    <div className="border rounded-lg p-2 bg-gray-50">
+                      <img 
+                        src={formData.imageUrl} 
+                        alt={editingPhoto.title} 
+                        className="max-w-full max-h-48 object-contain mx-auto rounded"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = editingPhoto.imageUrl;
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 

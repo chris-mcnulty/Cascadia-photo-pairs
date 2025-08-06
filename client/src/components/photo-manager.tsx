@@ -409,24 +409,25 @@ export default function PhotoManager() {
               </Tabs>
               )}
 
-              {/* Image URL field when editing */}
+              {/* Image URL field when editing - Force render with timestamp */}
               {editingPhoto && (
-                <div className="space-y-4">
+                <div className="space-y-4" key={`edit-${editingPhoto.id}-${Date.now()}`}>
                   <div className="space-y-2">
-                    <Label htmlFor="editImageUrl">Image URL *</Label>
+                    <Label htmlFor="editImageUrl">Image URL * (EDITABLE)</Label>
                     <Input
                       id="editImageUrl"
                       type="url"
                       placeholder="https://example.com/photo.jpg"
                       value={formData.imageUrl}
                       onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                      className="border-2 border-blue-300 focus:border-blue-500"
                     />
-                    <p className="text-sm text-gray-500">
-                      Update the image URL to change the photo
+                    <p className="text-sm text-green-600 font-medium">
+                      ✓ You can now change the image URL - type a new URL above
                     </p>
                   </div>
                   <div className="space-y-2">
-                    <Label>Current Image Preview</Label>
+                    <Label>Live Image Preview</Label>
                     <div className="border rounded-lg p-2 bg-gray-50">
                       <img 
                         src={formData.imageUrl} 

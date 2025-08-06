@@ -143,7 +143,12 @@ function AdminDashboard() {
 }
 
 function AuthenticatedAdmin() {
-  // Skip authentication for now to fix production issues
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <AdminLogin />;
+  }
+
   return <AdminDashboard />;
 }
 

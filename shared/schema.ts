@@ -40,6 +40,14 @@ export const insertPhotoSchema = createInsertSchema(photos).omit({
   hidden: true,
 });
 
+export const updatePhotoSchema = createInsertSchema(photos).omit({
+  id: true,
+  votes: true,
+  wins: true,
+  comparisons: true,
+  hidden: true,
+}).partial();
+
 export const insertVoteSchema = createInsertSchema(votes).omit({
   id: true,
   timestamp: true,
@@ -53,6 +61,7 @@ export const insertSettingsSchema = createInsertSchema(settings).omit({
 });
 
 export type InsertPhoto = z.infer<typeof insertPhotoSchema>;
+export type UpdatePhoto = z.infer<typeof updatePhotoSchema>;
 export type Photo = typeof photos.$inferSelect;
 export type InsertVote = z.infer<typeof insertVoteSchema>;
 export type Vote = typeof votes.$inferSelect;

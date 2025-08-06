@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertVoteSchema, insertSettingsSchema, insertPhotoSchema } from "@shared/schema";
+import { insertVoteSchema, insertSettingsSchema, insertPhotoSchema, updatePhotoSchema } from "@shared/schema";
 import { 
   generateSessionId, 
   generateMfaCode, 
@@ -154,6 +154,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       res.status(500).json({ message: "Failed to create photo" });
+    }
+  });
+
+  // Update a photo (admin only)
+  app.put("/api/photos/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const photoData = updatePhotoSchema.parse(req.body);
+      const photo = await storage.updatePhoto(id, photoData);
+      if (!photo) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+      res.json(photo);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid photo data" });
     }
   });
 

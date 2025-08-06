@@ -8,8 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Photo, InsertPhoto } from "@shared/schema";
-import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff } from "lucide-react";
+import { Photo, InsertPhoto, UpdatePhoto } from "@shared/schema";
+import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 export default function PhotoManager() {
   const { toast } = useToast();
@@ -24,6 +25,8 @@ export default function PhotoManager() {
     imageUrl: "",
     customPurchaseUrl: "",
   });
+  const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
+  const [editFormData, setEditFormData] = useState<UpdatePhoto>({});
 
   const { data: photos, isLoading } = useQuery<Photo[]>({
     queryKey: ["/api/photos"],
@@ -123,6 +126,30 @@ export default function PhotoManager() {
     },
   });
 
+  const updatePhotoMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: UpdatePhoto }) => {
+      const response = await apiRequest("PUT", `/api/photos/${id}`, updates);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/photos/random-pair"] });
+      setEditingPhoto(null);
+      setEditFormData({});
+      toast({
+        title: "Photo updated",
+        description: "Your photo has been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to update photo",
+        description: "There was an error updating the photo.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const resetForm = () => {
     setFormData({ title: "", description: "", imageUrl: "", customPurchaseUrl: "" });
     setSelectedFile(null);
@@ -131,6 +158,25 @@ export default function PhotoManager() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const openEditDialog = (photo: Photo) => {
+    setEditingPhoto(photo);
+    setEditFormData({
+      title: photo.title,
+      description: photo.description || "",
+      customPurchaseUrl: photo.customPurchaseUrl || "",
+    });
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPhoto) return;
+    
+    updatePhotoMutation.mutate({
+      id: editingPhoto.id,
+      updates: editFormData,
+    });
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -416,6 +462,65 @@ export default function PhotoManager() {
                         <ExternalLink className="w-4 h-4" />
                       </a>
                     )}
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditDialog(photo)}
+                          title="Edit photo details"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Edit Photo</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={handleEditSubmit} className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="editTitle">Title</Label>
+                            <Input
+                              id="editTitle"
+                              value={editFormData.title || ""}
+                              onChange={(e) => setEditFormData(prev => ({ ...prev, title: e.target.value }))}
+                              placeholder="Enter photo title"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="editDescription">Description</Label>
+                            <Textarea
+                              id="editDescription"
+                              value={editFormData.description || ""}
+                              onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
+                              placeholder="Optional description"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="editPurchaseUrl">Purchase URL</Label>
+                            <Input
+                              id="editPurchaseUrl"
+                              type="url"
+                              value={editFormData.customPurchaseUrl || ""}
+                              onChange={(e) => setEditFormData(prev => ({ ...prev, customPurchaseUrl: e.target.value }))}
+                              placeholder="https://example.com/buy-this-print"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              type="submit" 
+                              disabled={updatePhotoMutation.isPending}
+                              className="flex-1"
+                            >
+                              {updatePhotoMutation.isPending ? "Saving..." : "Save Changes"}
+                            </Button>
+                            <DialogTrigger asChild>
+                              <Button type="button" variant="outline">Cancel</Button>
+                            </DialogTrigger>
+                          </div>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
                     <Button
                       variant="outline"
                       size="sm"

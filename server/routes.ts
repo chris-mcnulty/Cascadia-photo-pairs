@@ -202,23 +202,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Cast a vote
   app.post("/api/votes", async (req, res) => {
     try {
+      console.log('Vote request body:', req.body);
       const voteData = insertVoteSchema.parse(req.body);
-      const { winnerPhotoId, loserPhotoId } = req.body;
+      console.log('Parsed vote data:', voteData);
       
-      const vote = await storage.createVote({ 
-        photoId: voteData.photoId, 
-        winnerPhotoId: winnerPhotoId || voteData.photoId,
-        loserPhotoId: loserPhotoId || voteData.photoId
-      });
+      const vote = await storage.createVote(voteData);
       
-      // Record comparison stats
-      if (winnerPhotoId && loserPhotoId) {
-        await storage.recordComparison(winnerPhotoId, loserPhotoId);
+      // Record comparison stats  
+      if (voteData.winnerPhotoId && voteData.loserPhotoId) {
+        await storage.recordComparison(voteData.winnerPhotoId, voteData.loserPhotoId);
       }
       
+      console.log('Vote created successfully:', vote);
       res.json(vote);
     } catch (error) {
-      res.status(400).json({ message: "Invalid vote data" });
+      console.error('Vote creation error:', error);
+      if (error instanceof Error) {
+        res.status(400).json({ message: error.message });
+      } else {
+        res.status(400).json({ message: "Invalid vote data" });
+      }
     }
   });
 

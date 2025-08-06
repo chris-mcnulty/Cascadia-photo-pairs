@@ -117,6 +117,10 @@ export default function AdminLogin({ onAuthenticated }: AdminLoginProps) {
     onSuccess: (data) => {
       if (data.authenticated) {
         onAuthenticated(sessionId);
+        // Force refresh all admin queries after successful authentication
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
         toast({
           title: "Welcome!",
           description: "Successfully logged in to admin panel.",

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { queryClient } from '@/lib/queryClient';
 
 interface AuthContextType {
   sessionId: string | null;
@@ -52,6 +53,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSessionId(newSessionId);
     setIsAuthenticated(true);
     localStorage.setItem('admin-session-id', newSessionId);
+    // Invalidate all queries to force refetch with new session
+    queryClient.invalidateQueries();
   };
 
   const logout = async () => {

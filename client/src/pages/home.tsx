@@ -74,13 +74,13 @@ export default function Home() {
               <div className="w-12 h-12 rounded-lg overflow-hidden">
                 <img 
                   src={cascadiaLogoPath} 
-                  alt="ImageRank Logo" 
+                  alt="Cascadia Oceanic Logo" 
                   className="w-full h-full object-cover"
                 />
               </div>
               <div>
-                <h1 className="text-2xl font-semibold cascadia-green">ImageRank</h1>
-                <p className="text-sm text-gray-600">Photo Voting Platform</p>
+                <h1 className="text-2xl font-semibold cascadia-green">Cascadia Oceanic</h1>
+                <p className="text-sm text-gray-600">Public Art Exhibition Voting</p>
               </div>
             </div>
 
@@ -227,14 +227,14 @@ export default function Home() {
                 <div className="w-8 h-8 rounded overflow-hidden">
                   <img 
                     src={cascadiaLogoPath} 
-                    alt="ImageRank Logo" 
+                    alt="Cascadia Oceanic Logo" 
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <h3 className="text-lg font-semibold cascadia-green">ImageRank</h3>
+                <h3 className="text-lg font-semibold cascadia-green">Cascadia Oceanic</h3>
               </div>
               <p className="text-gray-600 text-sm mb-4">
-                Photo voting platform for ranking and discovering landscape photography.
+                Pacific Northwest photography celebrating the natural beauty of the Cascadia region.
               </p>
             </div>
 

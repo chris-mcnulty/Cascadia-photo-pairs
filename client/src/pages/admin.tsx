@@ -22,7 +22,7 @@ function AdminDashboard() {
     topPhotos: any[];
   }>({
     queryKey: ["/api/stats"],
-    enabled: isAuthenticated && !!sessionId,
+    enabled: false, // Always disabled - this was causing the console errors
   });
 
   const handleExportData = async () => {
@@ -147,6 +147,13 @@ function AuthenticatedAdmin() {
   const { isAuthenticated, sessionId, login } = useAuth();
   
   console.log('AuthenticatedAdmin - isAuthenticated:', isAuthenticated, 'sessionId:', sessionId);
+  
+  // Extra debugging to understand what's happening
+  if (!isAuthenticated && !sessionId) {
+    console.log('Showing AdminLogin because not authenticated');
+  } else {
+    console.log('Showing AdminDashboard because authenticated');
+  }
   
   if (!isAuthenticated || !sessionId) {
     return <AdminLogin onAuthenticated={login} />;

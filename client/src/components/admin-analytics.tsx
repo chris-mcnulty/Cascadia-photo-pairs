@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Calendar, Trash2, TrendingUp, BarChart3, AlertTriangle } from "lucide-react";
+import { Calendar, Trash2, TrendingUp, BarChart3, AlertTriangle, Download } from "lucide-react";
 
 interface StatsData {
   totalVotes: number;
@@ -97,6 +97,39 @@ export default function AdminAnalytics() {
       return;
     }
     setShowPurgeConfirm(true);
+  };
+
+  const handleExportData = async () => {
+    try {
+      const response = await fetch("/api/export", {
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to export data");
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cascadia-oceanic-backup-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      toast({
+        title: "Data exported",
+        description: "Your data has been downloaded as a backup file.",
+      });
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description: "There was an error downloading your data.",
+        variant: "destructive",
+      });
+    }
   };
 
   const confirmPurge = () => {
@@ -248,11 +281,34 @@ export default function AdminAnalytics() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-            <p className="text-sm text-red-800 dark:text-red-200">
-              <strong>Warning:</strong> This will permanently delete all votes cast before the selected date 
-              and reset photo statistics (votes, wins, comparisons) to zero. This action cannot be undone.
-            </p>
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border-l-4 border-red-400">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-800 dark:text-red-200 mb-2">
+                  ⚠️ IRREVERSIBLE ACTION
+                </p>
+                <p className="text-sm text-red-800 dark:text-red-200 mb-3">
+                  This will <strong>permanently delete</strong> all votes cast before the selected date 
+                  and reset all photo statistics (votes, wins, comparisons) to zero. 
+                  <strong>This action cannot be undone.</strong>
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button 
+                    onClick={handleExportData}
+                    variant="outline"
+                    size="sm"
+                    className="bg-white text-red-700 border-red-300 hover:bg-red-50"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Download Backup First
+                  </Button>
+                  <span className="text-xs text-red-700 dark:text-red-300">
+                    Recommended before purging
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -278,18 +334,54 @@ export default function AdminAnalytics() {
           </div>
 
           {showPurgeConfirm && (
-            <div className="p-4 bg-red-100 dark:bg-red-900/30 border border-red-300 rounded-lg">
-              <p className="text-red-800 dark:text-red-200 mb-3">
-                Are you absolutely sure? This will delete all votes before {new Date(purgeDate).toLocaleDateString()} 
-                and reset all photo statistics.
-              </p>
-              <div className="flex gap-2">
-                <Button variant="destructive" onClick={confirmPurge}>
-                  Yes, Purge Data
+            <div className="p-6 bg-red-100 dark:bg-red-900/30 border-2 border-red-300 rounded-lg">
+              <div className="flex items-start gap-3 mb-4">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+                <div>
+                  <h4 className="font-semibold text-red-800 dark:text-red-200 mb-2">
+                    Final Confirmation Required
+                  </h4>
+                  <p className="text-red-800 dark:text-red-200 mb-3">
+                    You are about to <strong>permanently delete</strong> all votes cast before{" "}
+                    <strong>{new Date(purgeDate).toLocaleDateString()}</strong> and reset all photo statistics to zero.
+                  </p>
+                  <div className="bg-red-200 dark:bg-red-800 p-3 rounded mb-4">
+                    <p className="text-red-900 dark:text-red-100 text-sm font-medium">
+                      ⚠️ This action is <strong>IRREVERSIBLE</strong>
+                    </p>
+                    <p className="text-red-800 dark:text-red-200 text-sm mt-1">
+                      Make sure you have downloaded a backup if you need to preserve this data.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button 
+                  onClick={handleExportData}
+                  variant="outline"
+                  className="flex-1 bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Backup First
                 </Button>
-                <Button variant="outline" onClick={() => setShowPurgeConfirm(false)}>
-                  Cancel
-                </Button>
+                <div className="flex gap-2 flex-1">
+                  <Button 
+                    variant="destructive" 
+                    onClick={confirmPurge}
+                    disabled={purgeTestDataMutation.isPending}
+                    className="flex-1"
+                  >
+                    {purgeTestDataMutation.isPending ? "Purging..." : "Yes, Delete Forever"}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowPurgeConfirm(false)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
               </div>
             </div>
           )}

@@ -143,10 +143,10 @@ function AdminDashboard() {
 }
 
 function AuthenticatedAdmin() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, login } = useAuth();
 
   if (!isAuthenticated) {
-    return <AdminLogin />;
+    return <AdminLogin onAuthenticated={login} />;
   }
 
   return <AdminDashboard />;

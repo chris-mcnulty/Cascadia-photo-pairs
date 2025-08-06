@@ -144,12 +144,12 @@ function AdminDashboard() {
 }
 
 function AuthenticatedAdmin() {
-  const { isAuthenticated, sessionId } = useAuth();
+  const { isAuthenticated, sessionId, login } = useAuth();
   
   console.log('AuthenticatedAdmin - isAuthenticated:', isAuthenticated, 'sessionId:', sessionId);
   
   if (!isAuthenticated || !sessionId) {
-    return <AdminLogin onAuthenticated={() => {}} />;
+    return <AdminLogin onAuthenticated={login} />;
   }
   
   return <AdminDashboard />;

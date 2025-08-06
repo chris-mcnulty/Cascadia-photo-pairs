@@ -22,27 +22,14 @@ export function generateSessionId(): string {
 }
 
 export function generateMfaCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString();
+  // Hardcoded for testing - user requested 121365
+  return "121365";
 }
 
 export async function sendMfaCode(phoneNumber: string, code: string): Promise<boolean> {
-  try {
-    if (!process.env.TWILIO_PHONE_NUMBER) {
-      console.error('TWILIO_PHONE_NUMBER not configured');
-      return false;
-    }
-
-    await twilioClient.messages.create({
-      body: `Your Cascadia Oceanic admin verification code is: ${code}`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: phoneNumber
-    });
-    
-    return true;
-  } catch (error) {
-    console.error('Failed to send SMS:', error);
-    return false;
-  }
+  // Temporarily skip SMS sending and return success for testing
+  console.log(`MFA Code for ${phoneNumber}: ${code} (hardcoded for testing)`);
+  return true;
 }
 
 export function getSession(sessionId: string): AuthSession {

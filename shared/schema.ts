@@ -8,6 +8,7 @@ export const photos = pgTable("photos", {
   title: text("title").notNull(),
   description: text("description"),
   imageUrl: text("image_url").notNull(),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   votes: integer("votes").default(0).notNull(),
   wins: integer("wins").default(0).notNull(),
   comparisons: integer("comparisons").default(0).notNull(),

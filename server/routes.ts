@@ -161,13 +161,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.delete("/api/photos/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
+      console.log(`Attempting to delete photo with ID: ${id}`);
       const deleted = await storage.deletePhoto(id);
+      console.log(`Delete operation result: ${deleted}`);
       if (!deleted) {
-        return res.status(404).json({ message: "Photo not found" });
+        console.log(`Photo not found or delete failed for ID: ${id}`);
+        return res.status(404).json({ message: "Photo not found or delete failed" });
       }
+      console.log(`Photo deleted successfully: ${id}`);
       res.json({ message: "Photo deleted successfully" });
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete photo" });
+      console.error('Delete photo route error:', error);
+      res.status(500).json({ message: "Failed to delete photo", error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 

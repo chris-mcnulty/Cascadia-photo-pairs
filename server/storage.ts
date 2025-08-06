@@ -508,8 +508,19 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePhoto(id: string): Promise<boolean> {
-    const [deleted] = await db.delete(photos).where(eq(photos.id, id)).returning();
-    return !!deleted;
+    try {
+      // First delete all votes related to this photo (both as winner and loser)
+      await db.delete(votes).where(eq(votes.photoId, id));
+      await db.delete(votes).where(eq(votes.winnerPhotoId, id));  
+      await db.delete(votes).where(eq(votes.loserPhotoId, id));
+      
+      // Then delete the photo itself
+      const [deleted] = await db.delete(photos).where(eq(photos.id, id)).returning();
+      return !!deleted;
+    } catch (error) {
+      console.error('Delete photo error:', error);
+      return false;
+    }
   }
 
   async purgeTestData(beforeDate: string): Promise<{ votesDeleted: number; photosReset: boolean }> {

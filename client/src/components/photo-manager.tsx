@@ -223,13 +223,14 @@ export default function PhotoManager() {
       return;
     }
 
-    // If we're editing a photo, we only need to update the text fields
+    // If we're editing a photo, include imageUrl in the update
     if (editingPhoto) {
       editPhotoMutation.mutate({
         photoId: editingPhoto.id,
         data: {
           title: formData.title,
           description: formData.description || null,
+          imageUrl: formData.imageUrl,
           customPurchaseUrl: formData.customPurchaseUrl || null,
         },
       });
@@ -372,20 +373,36 @@ export default function PhotoManager() {
               </Tabs>
               )}
 
-              {/* Show current image when editing */}
+              {/* Image URL field when editing */}
               {editingPhoto && (
-                <div className="space-y-2">
-                  <Label>Current Image</Label>
-                  <div className="border rounded-lg p-2 bg-gray-50">
-                    <img 
-                      src={editingPhoto.imageUrl} 
-                      alt={editingPhoto.title} 
-                      className="max-w-full max-h-48 object-contain mx-auto rounded"
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="editImageUrl">Image URL *</Label>
+                    <Input
+                      id="editImageUrl"
+                      type="url"
+                      placeholder="https://example.com/photo.jpg"
+                      value={formData.imageUrl}
+                      onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
                     />
+                    <p className="text-sm text-gray-500">
+                      Update the image URL to change the photo
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-500">
-                    Image cannot be changed during editing. Delete and re-add to change the image.
-                  </p>
+                  <div className="space-y-2">
+                    <Label>Current Image Preview</Label>
+                    <div className="border rounded-lg p-2 bg-gray-50">
+                      <img 
+                        src={formData.imageUrl} 
+                        alt={editingPhoto.title} 
+                        className="max-w-full max-h-48 object-contain mx-auto rounded"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 

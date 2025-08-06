@@ -163,6 +163,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update photo (admin only)
+  app.put("/api/photos/:id", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const photoData = req.body;
+      console.log('Photo update request:', { id, photoData });
+      
+      const updatedPhoto = await storage.updatePhoto(id, photoData);
+      if (!updatedPhoto) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+      
+      console.log('Photo updated successfully:', updatedPhoto);
+      res.json(updatedPhoto);
+    } catch (error) {
+      console.error('Photo update error:', error);
+      res.status(500).json({ message: "Failed to update photo" });
+    }
+  });
+
   // Delete a photo (admin only)
   app.delete("/api/photos/:id", requireAuth, async (req, res) => {
     try {

@@ -50,11 +50,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [sessionId]);
 
   const login = (newSessionId: string) => {
+    console.log('Setting session ID and authentication:', newSessionId);
     setSessionId(newSessionId);
     setIsAuthenticated(true);
     localStorage.setItem('admin-session-id', newSessionId);
-    // Invalidate all queries to force refetch with new session
+    // Clear cache and invalidate all queries to force refetch with new session
+    queryClient.clear();
     queryClient.invalidateQueries();
+    console.log('Authentication state updated, queries invalidated');
   };
 
   const logout = async () => {

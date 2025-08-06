@@ -38,6 +38,7 @@ export default function AdminStats() {
       return data;
     },
     retry: false,
+    enabled: !!localStorage.getItem('admin-session-id'),
   });
 
   if (isLoading) {

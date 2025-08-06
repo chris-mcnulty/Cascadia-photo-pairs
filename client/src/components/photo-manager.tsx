@@ -56,6 +56,7 @@ export default function PhotoManager() {
       return data;
     },
     retry: false,
+    enabled: !!localStorage.getItem('admin-session-id'),
   });
 
   const addPhotoMutation = useMutation({

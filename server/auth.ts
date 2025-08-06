@@ -12,6 +12,8 @@ interface AuthSession {
 // Simple in-memory session store (in production, use Redis or database)
 const sessions = new Map<string, AuthSession>();
 
+export { sessions };
+
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN

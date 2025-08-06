@@ -28,6 +28,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mfaCode = generateMfaCode();
       const mfaExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes
       
+      console.log(`Generated MFA code: "${mfaCode}" for session ${sessionId}`);
+      
       const smsSent = await sendMfaCode(settings.mfaPhoneNumber, mfaCode);
       
       if (!smsSent) {
@@ -40,6 +42,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mfaCode,
         mfaExpiry
       });
+      
+      console.log(`Session ${sessionId} created with MFA code: "${mfaCode}"`);
       
       res.json({ 
         sessionId, 
@@ -55,21 +59,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/verify-mfa", async (req, res) => {
     try {
       const { sessionId, code } = req.body;
+      console.log(`MFA verification attempt - SessionId: ${sessionId}, Code: ${code}`);
+      
       const session = getSession(sessionId);
+      console.log(`Session state:`, session);
       
       if (!session.pendingMfa || !session.mfaCode) {
+        console.log("No pending MFA verification");
         return res.status(401).json({ message: "No pending MFA verification" });
       }
       
       if (session.mfaExpiry && Date.now() > session.mfaExpiry) {
+        console.log("MFA code expired");
         clearSession(sessionId);
         return res.status(401).json({ message: "Verification code expired" });
       }
       
+      console.log(`Comparing codes - Received: "${code}", Expected: "${session.mfaCode}"`);
       if (code !== session.mfaCode) {
+        console.log("Code mismatch");
         return res.status(401).json({ message: "Invalid verification code" });
       }
       
+      console.log("MFA verification successful, setting authenticated session");
       setSession(sessionId, {
         isAuthenticated: true,
         pendingMfa: false

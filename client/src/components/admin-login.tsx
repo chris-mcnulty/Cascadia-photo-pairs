@@ -65,12 +65,18 @@ export default function AdminLogin({ onAuthenticated }: AdminLoginProps) {
 
   const mfaMutation = useMutation({
     mutationFn: async (code: string) => {
+      console.log('MFA Verification - SessionId:', sessionId, 'Code:', code);
       const response = await fetch('/api/auth/verify-mfa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, code })
       });
-      return response.json() as Promise<LoginResponse>;
+      const data = await response.json();
+      console.log('MFA Response:', data);
+      if (!response.ok) {
+        throw new Error(data.message || 'Verification failed');
+      }
+      return data as LoginResponse;
     },
     onSuccess: (data) => {
       if (data.authenticated) {

@@ -34,7 +34,7 @@ function AdminDashboard() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "cascadia-oceanic-voting-data.json";
+      a.download = "imagerank-voting-data.json";
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -54,7 +54,7 @@ function AdminDashboard() {
               <Link href="/" className="text-gray-500 hover:text-gray-700">
                 <ArrowLeft className="w-5 h-5" />
               </Link>
-              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900">ImageRank Admin</h1>
             </div>
             <div className="flex gap-2">
               <Button onClick={handleExportData} variant="outline" size="sm">

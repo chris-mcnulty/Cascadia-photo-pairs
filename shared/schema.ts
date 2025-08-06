@@ -24,6 +24,8 @@ export const settings = pgTable("settings", {
   id: varchar("id").primaryKey().default("main"),
   purchaseEnabled: boolean("purchase_enabled").default(false).notNull(),
   defaultPurchaseUrl: text("default_purchase_url").default("https://www.chrismcnulty.net/store"),
+  adminPassword: text("admin_password").default("BradyBunch12!").notNull(),
+  mfaPhoneNumber: text("mfa_phone_number").default("+16179809810").notNull(),
 });
 
 export const insertPhotoSchema = createInsertSchema(photos).omit({

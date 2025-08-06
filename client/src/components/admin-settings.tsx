@@ -19,6 +19,8 @@ export default function AdminSettings() {
   const [formData, setFormData] = useState({
     purchaseEnabled: false,
     defaultPurchaseUrl: "https://www.chrismcnulty.net/store",
+    adminPassword: "",
+    mfaPhoneNumber: "",
   });
 
   const updateSettingsMutation = useMutation({
@@ -48,6 +50,8 @@ export default function AdminSettings() {
       setFormData({
         purchaseEnabled: settings.purchaseEnabled,
         defaultPurchaseUrl: settings.defaultPurchaseUrl || "https://www.chrismcnulty.net/store",
+        adminPassword: settings.adminPassword || "",
+        mfaPhoneNumber: settings.mfaPhoneNumber || "",
       });
     }
   }, [settings]);
@@ -102,6 +106,46 @@ export default function AdminSettings() {
             />
             <div className="text-sm text-gray-500">
               This URL will be used when individual photos don't have custom purchase URLs set.
+            </div>
+          </div>
+
+          {/* Admin Password */}
+          <div className="space-y-2">
+            <Label htmlFor="adminPassword" className="text-base font-medium">
+              Admin Password
+            </Label>
+            <Input
+              id="adminPassword"
+              type="password"
+              placeholder="Enter new admin password"
+              value={formData.adminPassword}
+              onChange={(e) => 
+                setFormData(prev => ({ ...prev, adminPassword: e.target.value }))
+              }
+              className="w-full"
+            />
+            <div className="text-sm text-gray-500">
+              Change the password required to access the admin panel.
+            </div>
+          </div>
+
+          {/* MFA Phone Number */}
+          <div className="space-y-2">
+            <Label htmlFor="mfaPhoneNumber" className="text-base font-medium">
+              MFA Phone Number
+            </Label>
+            <Input
+              id="mfaPhoneNumber"
+              type="tel"
+              placeholder="+16179809810"
+              value={formData.mfaPhoneNumber}
+              onChange={(e) => 
+                setFormData(prev => ({ ...prev, mfaPhoneNumber: e.target.value }))
+              }
+              className="w-full"
+            />
+            <div className="text-sm text-gray-500">
+              Phone number to receive SMS verification codes. Include country code (e.g., +1 for US).
             </div>
           </div>
 

@@ -2,9 +2,107 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertVoteSchema, insertSettingsSchema, insertPhotoSchema } from "@shared/schema";
+import { 
+  generateSessionId, 
+  generateMfaCode, 
+  sendMfaCode, 
+  getSession, 
+  setSession, 
+  clearSession, 
+  requireAuth 
+} from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Authentication routes
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { password } = req.body;
+      const settings = await storage.getSettings();
+      
+      if (password !== settings.adminPassword) {
+        return res.status(401).json({ message: "Invalid password" });
+      }
+      
+      const sessionId = generateSessionId();
+      const mfaCode = generateMfaCode();
+      const mfaExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes
+      
+      const smsSent = await sendMfaCode(settings.mfaPhoneNumber, mfaCode);
+      
+      if (!smsSent) {
+        return res.status(500).json({ message: "Failed to send verification code" });
+      }
+      
+      setSession(sessionId, {
+        isAuthenticated: false,
+        pendingMfa: true,
+        mfaCode,
+        mfaExpiry
+      });
+      
+      res.json({ 
+        sessionId, 
+        requiresMfa: true,
+        message: `Verification code sent to ${settings.mfaPhoneNumber.replace(/(\+1)(\d{3})(\d{3})(\d{4})/, '$1-$2-$3-$4')}`
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
+  
+  app.post("/api/auth/verify-mfa", async (req, res) => {
+    try {
+      const { sessionId, code } = req.body;
+      const session = getSession(sessionId);
+      
+      if (!session.pendingMfa || !session.mfaCode) {
+        return res.status(401).json({ message: "No pending MFA verification" });
+      }
+      
+      if (session.mfaExpiry && Date.now() > session.mfaExpiry) {
+        clearSession(sessionId);
+        return res.status(401).json({ message: "Verification code expired" });
+      }
+      
+      if (code !== session.mfaCode) {
+        return res.status(401).json({ message: "Invalid verification code" });
+      }
+      
+      setSession(sessionId, {
+        isAuthenticated: true,
+        pendingMfa: false
+      });
+      
+      res.json({ message: "Authentication successful", authenticated: true });
+    } catch (error) {
+      console.error('MFA verification error:', error);
+      res.status(500).json({ message: "Verification failed" });
+    }
+  });
+  
+  app.post("/api/auth/logout", (req, res) => {
+    const sessionId = req.headers['x-session-id'] as string;
+    if (sessionId) {
+      clearSession(sessionId);
+    }
+    res.json({ message: "Logged out successfully" });
+  });
+  
+  app.get("/api/auth/status", (req, res) => {
+    const sessionId = req.headers['x-session-id'] as string;
+    if (!sessionId) {
+      return res.json({ authenticated: false });
+    }
+    
+    const session = getSession(sessionId);
+    res.json({ 
+      authenticated: session.isAuthenticated,
+      pendingMfa: session.pendingMfa 
+    });
+  });
+
   // Get all photos
   app.get("/api/photos", async (req, res) => {
     try {
@@ -15,8 +113,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add a new photo
-  app.post("/api/photos", async (req, res) => {
+  // Add a new photo (admin only)
+  app.post("/api/photos", requireAuth, async (req, res) => {
     try {
       const photoData = insertPhotoSchema.parse(req.body);
       const photo = await storage.createPhoto(photoData);
@@ -26,8 +124,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete a photo
-  app.delete("/api/photos/:id", async (req, res) => {
+  // Delete a photo (admin only)
+  app.delete("/api/photos/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deletePhoto(id);
@@ -72,8 +170,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get voting statistics
-  app.get("/api/stats", async (req, res) => {
+  // Get voting statistics (admin only)
+  app.get("/api/stats", requireAuth, async (req, res) => {
     try {
       const totalVotes = await storage.getTotalVotes();
       const uniqueVoters = await storage.getUniqueVoters();
@@ -91,8 +189,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get settings
-  app.get("/api/settings", async (req, res) => {
+  // Get settings (admin only)  
+  app.get("/api/settings", requireAuth, async (req, res) => {
     try {
       const settings = await storage.getSettings();
       res.json(settings);
@@ -101,8 +199,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update settings
-  app.put("/api/settings", async (req, res) => {
+  // Update settings (admin only)
+  app.put("/api/settings", requireAuth, async (req, res) => {
     try {
       const settingsData = insertSettingsSchema.parse(req.body);
       const settings = await storage.updateSettings(settingsData);
@@ -112,8 +210,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Export voting data
-  app.get("/api/export", async (req, res) => {
+  // Export voting data (admin only)
+  app.get("/api/export", requireAuth, async (req, res) => {
     try {
       const photos = await storage.getAllPhotos();
       const totalVotes = await storage.getTotalVotes();

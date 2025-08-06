@@ -39,6 +39,8 @@ export class MemStorage implements IStorage {
       id: "main",
       purchaseEnabled: false,
       defaultPurchaseUrl: "https://www.chrismcnulty.net/store",
+      adminPassword: "BradyBunch12!",
+      mfaPhoneNumber: "+16179809810",
     };
     
     // Initialize with sample photos (using stock photo URLs)

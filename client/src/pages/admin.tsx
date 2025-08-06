@@ -5,11 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AdminStats from "@/components/admin-stats";
 import AdminSettings from "@/components/admin-settings";
 import PhotoManager from "@/components/photo-manager";
-import { ArrowLeft, BarChart3, Settings, Download, ImageIcon } from "lucide-react";
+import AdminLogin from "@/components/admin-login";
+import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut } from "lucide-react";
 import { Link } from "wouter";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 
-export default function Admin() {
+function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"stats" | "settings" | "photos">("stats");
+  const { logout } = useAuth();
 
   const { data: stats } = useQuery<{
     totalVotes: number;
@@ -22,7 +25,10 @@ export default function Admin() {
 
   const handleExportData = async () => {
     try {
-      const response = await fetch("/api/export");
+      const sessionId = localStorage.getItem('admin-session-id');
+      const response = await fetch("/api/export", {
+        headers: sessionId ? { 'x-session-id': sessionId } : {},
+      });
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -49,10 +55,16 @@ export default function Admin() {
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
             </div>
-            <Button onClick={handleExportData} variant="outline" size="sm">
-              <Download className="w-4 h-4 mr-2" />
-              Export Data
-            </Button>
+            <div className="flex gap-2">
+              <Button onClick={handleExportData} variant="outline" size="sm">
+                <Download className="w-4 h-4 mr-2" />
+                Export Data
+              </Button>
+              <Button onClick={logout} variant="outline" size="sm">
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            </div>
           </div>
         </div>
       </div>
@@ -117,5 +129,23 @@ export default function Admin() {
         {activeTab === "settings" && <AdminSettings />}
       </div>
     </div>
+  );
+}
+
+function AuthenticatedAdmin() {
+  const { isAuthenticated, login } = useAuth();
+
+  if (!isAuthenticated) {
+    return <AdminLogin onAuthenticated={login} />;
+  }
+
+  return <AdminDashboard />;
+}
+
+export default function Admin() {
+  return (
+    <AuthProvider>
+      <AuthenticatedAdmin />
+    </AuthProvider>
   );
 }

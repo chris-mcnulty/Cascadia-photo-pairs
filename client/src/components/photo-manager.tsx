@@ -9,11 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Photo, InsertPhoto } from "@shared/schema";
-import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff } from "lucide-react";
+import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit } from "lucide-react";
 
 export default function PhotoManager() {
   const { toast } = useToast();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
   const [uploadMethod, setUploadMethod] = useState<"url" | "file">("url");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
@@ -99,6 +100,30 @@ export default function PhotoManager() {
     },
   });
 
+  const editPhotoMutation = useMutation({
+    mutationFn: async ({ photoId, data }: { photoId: string; data: Partial<Photo> }) => {
+      const response = await apiRequest("PUT", `/api/photos/${photoId}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/photos/random-pair"] });
+      setEditingPhoto(null);
+      resetForm();
+      toast({
+        title: "Photo updated",
+        description: "Your photo has been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to update photo",
+        description: "There was an error updating the photo.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const togglePhotoVisibilityMutation = useMutation({
     mutationFn: async ({ photoId, hidden }: { photoId: string; hidden: boolean }) => {
       const response = await apiRequest("PUT", `/api/photos/${photoId}`, { hidden });
@@ -128,9 +153,21 @@ export default function PhotoManager() {
     setSelectedFile(null);
     setPreviewUrl("");
     setShowAddForm(false);
+    setEditingPhoto(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const startEdit = (photo: Photo) => {
+    setEditingPhoto(photo);
+    setFormData({
+      title: photo.title,
+      description: photo.description || "",
+      imageUrl: photo.imageUrl,
+      customPurchaseUrl: photo.customPurchaseUrl || "",
+    });
+    setShowAddForm(false);
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -177,6 +214,29 @@ export default function PhotoManager() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!formData.title) {
+      toast({
+        title: "Missing title",
+        description: "Please provide a title for the photo.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // If we're editing a photo, we only need to update the text fields
+    if (editingPhoto) {
+      editPhotoMutation.mutate({
+        photoId: editingPhoto.id,
+        data: {
+          title: formData.title,
+          description: formData.description || null,
+          customPurchaseUrl: formData.customPurchaseUrl || null,
+        },
+      });
+      return;
+    }
+
+    // Handle adding new photo (original logic)
     let imageUrl = formData.imageUrl;
     
     if (uploadMethod === "file" && selectedFile) {
@@ -217,15 +277,6 @@ export default function PhotoManager() {
       return;
     }
 
-    if (!formData.title) {
-      toast({
-        title: "Missing title",
-        description: "Please provide a title for the photo.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     addPhotoMutation.mutate({
       ...formData,
       imageUrl,
@@ -241,8 +292,10 @@ export default function PhotoManager() {
       {/* Add Photo Button/Form */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Photo Management</CardTitle>
-          {!showAddForm && (
+          <CardTitle>
+            {editingPhoto ? `Edit Photo: ${editingPhoto.title}` : "Photo Management"}
+          </CardTitle>
+          {!showAddForm && !editingPhoto && (
             <Button 
               onClick={() => setShowAddForm(true)}
               className="bg-green-700 hover:bg-green-800"
@@ -253,22 +306,23 @@ export default function PhotoManager() {
           )}
         </CardHeader>
         
-        {showAddForm && (
+        {(showAddForm || editingPhoto) && (
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               
-              {/* Upload Method Tabs */}
-              <Tabs value={uploadMethod} onValueChange={(value) => setUploadMethod(value as "url" | "file")}>
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="url" className="flex items-center gap-2">
-                    <Link2 className="w-4 h-4" />
-                    URL
-                  </TabsTrigger>
-                  <TabsTrigger value="file" className="flex items-center gap-2">
-                    <Upload className="w-4 h-4" />
-                    Upload File
-                  </TabsTrigger>
-                </TabsList>
+              {/* Only show upload methods when adding new photos */}
+              {!editingPhoto && (
+                <Tabs value={uploadMethod} onValueChange={(value) => setUploadMethod(value as "url" | "file")}>
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="url" className="flex items-center gap-2">
+                      <Link2 className="w-4 h-4" />
+                      URL
+                    </TabsTrigger>
+                    <TabsTrigger value="file" className="flex items-center gap-2">
+                      <Upload className="w-4 h-4" />
+                      Upload File
+                    </TabsTrigger>
+                  </TabsList>
 
                 <TabsContent value="url" className="space-y-4">
                   <div className="space-y-2">
@@ -316,6 +370,24 @@ export default function PhotoManager() {
                   )}
                 </TabsContent>
               </Tabs>
+              )}
+
+              {/* Show current image when editing */}
+              {editingPhoto && (
+                <div className="space-y-2">
+                  <Label>Current Image</Label>
+                  <div className="border rounded-lg p-2 bg-gray-50">
+                    <img 
+                      src={editingPhoto.imageUrl} 
+                      alt={editingPhoto.title} 
+                      className="max-w-full max-h-48 object-contain mx-auto rounded"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-500">
+                    Image cannot be changed during editing. Delete and re-add to change the image.
+                  </p>
+                </div>
+              )}
 
               {/* Title Field */}
               <div className="space-y-2">
@@ -356,9 +428,12 @@ export default function PhotoManager() {
                 <Button 
                   type="submit" 
                   className="bg-green-700 hover:bg-green-800"
-                  disabled={addPhotoMutation.isPending}
+                  disabled={addPhotoMutation.isPending || editPhotoMutation.isPending}
                 >
-                  {addPhotoMutation.isPending ? "Adding..." : "Add Photo"}
+                  {editingPhoto 
+                    ? (editPhotoMutation.isPending ? "Updating..." : "Update Photo")
+                    : (addPhotoMutation.isPending ? "Adding..." : "Add Photo")
+                  }
                 </Button>
                 <Button 
                   type="button" 
@@ -416,6 +491,16 @@ export default function PhotoManager() {
                         <ExternalLink className="w-4 h-4" />
                       </a>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => startEdit(photo)}
+                      disabled={showAddForm || editingPhoto !== null}
+                      className="text-blue-600 hover:text-blue-800"
+                      title="Edit photo details"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"

@@ -32,12 +32,31 @@ export default function AdminLogin({ onAuthenticated }: AdminLoginProps) {
 
   const passwordMutation = useMutation({
     mutationFn: async (password: string) => {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ password })
-      });
-      return response.json() as Promise<LoginResponse>;
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        
+        if (!response.ok) {
+          let errorMessage = 'Login failed';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          } catch (e) {
+            errorMessage = response.statusText || errorMessage;
+          }
+          throw new Error(errorMessage);
+        }
+        
+        return response.json() as Promise<LoginResponse>;
+      } catch (error) {
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          throw new Error('Connection failed. Please check your network connection.');
+        }
+        throw error;
+      }
     },
     onSuccess: (data) => {
       if (data.requiresMfa && data.sessionId) {
@@ -66,17 +85,34 @@ export default function AdminLogin({ onAuthenticated }: AdminLoginProps) {
   const mfaMutation = useMutation({
     mutationFn: async (code: string) => {
       console.log('MFA Verification - SessionId:', sessionId, 'Code:', code);
-      const response = await fetch('/api/auth/verify-mfa', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, code })
-      });
-      const data = await response.json();
-      console.log('MFA Response:', data);
-      if (!response.ok) {
-        throw new Error(data.message || 'Verification failed');
+      try {
+        const response = await fetch('/api/auth/verify-mfa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, code })
+        });
+        
+        if (!response.ok) {
+          let errorMessage = 'Verification failed';
+          try {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorMessage;
+          } catch (e) {
+            // If response isn't JSON, use status text
+            errorMessage = response.statusText || errorMessage;
+          }
+          throw new Error(errorMessage);
+        }
+        
+        const data = await response.json();
+        console.log('MFA Response:', data);
+        return data as LoginResponse;
+      } catch (error) {
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+          throw new Error('Connection failed. Please check your network connection.');
+        }
+        throw error;
       }
-      return data as LoginResponse;
     },
     onSuccess: (data) => {
       if (data.authenticated) {

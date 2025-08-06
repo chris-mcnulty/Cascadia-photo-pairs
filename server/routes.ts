@@ -36,7 +36,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to send verification code" });
       }
       
-      setSession(sessionId, {
+      await setSession(sessionId, {
         isAuthenticated: false,
         pendingMfa: true,
         mfaCode,
@@ -61,7 +61,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { sessionId, code } = req.body;
       console.log(`MFA verification attempt - SessionId: ${sessionId}, Code: ${code}`);
       
-      const session = getSession(sessionId);
+      const session = await getSession(sessionId);
       console.log(`Session state:`, session);
       
       if (!session.pendingMfa || !session.mfaCode) {
@@ -71,7 +71,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (session.mfaExpiry && Date.now() > session.mfaExpiry) {
         console.log("MFA code expired");
-        clearSession(sessionId);
+        await clearSession(sessionId);
         return res.status(401).json({ message: "Verification code expired" });
       }
       
@@ -82,7 +82,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       console.log("MFA verification successful, setting authenticated session");
-      setSession(sessionId, {
+      await setSession(sessionId, {
         isAuthenticated: true,
         pendingMfa: false
       });
@@ -94,21 +94,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/logout", async (req, res) => {
     const sessionId = req.headers['x-session-id'] as string;
     if (sessionId) {
-      clearSession(sessionId);
+      await clearSession(sessionId);
     }
     res.json({ message: "Logged out successfully" });
   });
   
-  app.get("/api/auth/status", (req, res) => {
+  app.get("/api/auth/status", async (req, res) => {
     const sessionId = req.headers['x-session-id'] as string;
     if (!sessionId) {
       return res.json({ authenticated: false });
     }
     
-    const session = getSession(sessionId);
+    const session = await getSession(sessionId);
     res.json({ 
       authenticated: session.isAuthenticated,
       pendingMfa: session.pendingMfa 

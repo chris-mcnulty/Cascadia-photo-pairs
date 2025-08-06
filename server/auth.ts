@@ -1,6 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { storage } from './storage';
 import twilio from 'twilio';
+import { db } from './db';
+import { sessions } from '@shared/schema';
+import { eq, sql } from 'drizzle-orm';
+import type { Session, InsertSession } from '@shared/schema';
 
 interface AuthSession {
   isAuthenticated: boolean;
@@ -8,11 +12,6 @@ interface AuthSession {
   mfaCode?: string;
   mfaExpiry?: number;
 }
-
-// Simple in-memory session store (in production, use Redis or database)
-const sessions = new Map<string, AuthSession>();
-
-export { sessions };
 
 const twilioClient = twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -34,16 +33,77 @@ export async function sendMfaCode(phoneNumber: string, code: string): Promise<bo
   return true;
 }
 
-export function getSession(sessionId: string): AuthSession {
-  return sessions.get(sessionId) || { isAuthenticated: false, pendingMfa: false };
+export async function getSession(sessionId: string): Promise<AuthSession> {
+  try {
+    const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId));
+    
+    if (!session) {
+      return { isAuthenticated: false, pendingMfa: false };
+    }
+    
+    // Check if session is expired (24 hours)
+    const lastActive = new Date(session.lastActiveAt);
+    const now = new Date();
+    const hoursSinceActive = (now.getTime() - lastActive.getTime()) / (1000 * 60 * 60);
+    
+    if (hoursSinceActive > 24) {
+      await clearSession(sessionId);
+      return { isAuthenticated: false, pendingMfa: false };
+    }
+    
+    // Update last active timestamp
+    await db
+      .update(sessions)
+      .set({ lastActiveAt: sql`CURRENT_TIMESTAMP` })
+      .where(eq(sessions.id, sessionId));
+    
+    return {
+      isAuthenticated: session.isAuthenticated,
+      pendingMfa: session.pendingMfa,
+      mfaCode: session.mfaCode || undefined,
+      mfaExpiry: session.mfaExpiry ? parseInt(session.mfaExpiry) : undefined,
+    };
+  } catch (error) {
+    console.error('Error getting session:', error);
+    return { isAuthenticated: false, pendingMfa: false };
+  }
 }
 
-export function setSession(sessionId: string, session: AuthSession): void {
-  sessions.set(sessionId, session);
+export async function setSession(sessionId: string, session: AuthSession): Promise<void> {
+  try {
+    const sessionData: InsertSession = {
+      id: sessionId,
+      isAuthenticated: session.isAuthenticated,
+      pendingMfa: session.pendingMfa,
+      mfaCode: session.mfaCode || null,
+      mfaExpiry: session.mfaExpiry ? session.mfaExpiry.toString() : null,
+    };
+    
+    // Upsert the session
+    await db
+      .insert(sessions)
+      .values(sessionData)
+      .onConflictDoUpdate({
+        target: sessions.id,
+        set: {
+          isAuthenticated: sessionData.isAuthenticated,
+          pendingMfa: sessionData.pendingMfa,
+          mfaCode: sessionData.mfaCode,
+          mfaExpiry: sessionData.mfaExpiry,
+          lastActiveAt: sql`CURRENT_TIMESTAMP`,
+        },
+      });
+  } catch (error) {
+    console.error('Error setting session:', error);
+  }
 }
 
-export function clearSession(sessionId: string): void {
-  sessions.delete(sessionId);
+export async function clearSession(sessionId: string): Promise<void> {
+  try {
+    await db.delete(sessions).where(eq(sessions.id, sessionId));
+  } catch (error) {
+    console.error('Error clearing session:', error);
+  }
 }
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
@@ -54,24 +114,41 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     return;
   }
   
-  const session = getSession(sessionId);
-  
-  if (!session.isAuthenticated) {
-    res.status(401).json({ message: 'Authentication required', requiresAuth: true });
-    return;
-  }
-  
-  next();
+  getSession(sessionId).then(session => {
+    if (!session.isAuthenticated) {
+      res.status(401).json({ message: 'Authentication required', requiresAuth: true });
+      return;
+    }
+    
+    next();
+  }).catch(error => {
+    console.error('Auth error:', error);
+    res.status(500).json({ message: 'Authentication error' });
+  });
 }
 
-// Cleanup expired MFA codes every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [sessionId, session] of Array.from(sessions.entries())) {
-    if (session.mfaExpiry && session.mfaExpiry < now) {
-      session.pendingMfa = false;
-      session.mfaCode = undefined;
-      session.mfaExpiry = undefined;
-    }
+// Cleanup expired MFA codes and old sessions every 5 minutes
+setInterval(async () => {
+  try {
+    const now = Date.now();
+    const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
+    
+    // Clear expired MFA codes
+    await db
+      .update(sessions)
+      .set({ 
+        pendingMfa: false, 
+        mfaCode: null, 
+        mfaExpiry: null 
+      })
+      .where(sql`${sessions.mfaExpiry} IS NOT NULL AND ${sessions.mfaExpiry} < '${now.toString()}'`);
+    
+    // Delete sessions older than 24 hours
+    await db
+      .delete(sessions)
+      .where(sql`${sessions.lastActiveAt} < '${oneDayAgo}'`);
+      
+  } catch (error) {
+    console.error('Session cleanup error:', error);
   }
 }, 5 * 60 * 1000);

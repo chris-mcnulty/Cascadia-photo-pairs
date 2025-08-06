@@ -29,11 +29,12 @@ Preferred communication style: Simple, everyday language.
 
 **Data Storage**
 - PostgreSQL database configured through Drizzle ORM with persistent storage
-- Database schema includes photos, votes, and settings tables with proper indexing
+- Database schema includes photos, votes, settings, and sessions tables with proper indexing
 - Support for Neon Database serverless PostgreSQL hosting
 - Migration system using Drizzle Kit for schema management
 - DatabaseStorage class replaces MemStorage for full persistence
 - Automatic database seeding with default photos on first startup
+- Persistent session storage prevents authentication loss on server restarts
 
 **API Design**
 - RESTful endpoints following conventional patterns:
@@ -46,9 +47,11 @@ Preferred communication style: Simple, everyday language.
 - Request/response logging middleware
 
 **Authentication & Authorization**
-- Currently no authentication system implemented
-- Admin dashboard accessible without login (suitable for single-user deployments)
-- Session handling prepared with connect-pg-simple for future auth implementation
+- Full admin authentication system with password + SMS MFA verification
+- Database-backed persistent sessions that survive server restarts
+- Session timeout after 24 hours of inactivity with automatic cleanup
+- Admin dashboard protected with session-based authentication
+- Sessions stored in PostgreSQL sessions table with automatic expiration
 
 **Key Features**
 - Photo pair randomization for fair voting comparisons  

@@ -32,6 +32,16 @@ export const settings = pgTable("settings", {
   mfaPhoneNumber: text("mfa_phone_number").default("+16179809810").notNull(),
 });
 
+export const sessions = pgTable("sessions", {
+  id: varchar("id").primaryKey(),
+  isAuthenticated: boolean("is_authenticated").default(false).notNull(),
+  pendingMfa: boolean("pending_mfa").default(false).notNull(),
+  mfaCode: text("mfa_code"),
+  mfaExpiry: text("mfa_expiry"),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  lastActiveAt: text("last_active_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 export const insertPhotoSchema = createInsertSchema(photos).omit({
   id: true,
   votes: true,
@@ -52,9 +62,16 @@ export const insertSettingsSchema = createInsertSchema(settings).omit({
   id: true,
 });
 
+export const insertSessionSchema = createInsertSchema(sessions).omit({
+  createdAt: true,
+  lastActiveAt: true,
+});
+
 export type InsertPhoto = z.infer<typeof insertPhotoSchema>;
 export type Photo = typeof photos.$inferSelect;
 export type InsertVote = z.infer<typeof insertVoteSchema>;
 export type Vote = typeof votes.$inferSelect;
 export type InsertSettings = z.infer<typeof insertSettingsSchema>;
 export type Settings = typeof settings.$inferSelect;
+export type InsertSession = z.infer<typeof insertSessionSchema>;
+export type Session = typeof sessions.$inferSelect;

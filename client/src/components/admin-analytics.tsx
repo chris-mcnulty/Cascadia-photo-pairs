@@ -37,8 +37,10 @@ export default function AdminAnalytics() {
       if (startDate) params.append("startDate", startDate);
       if (endDate) params.append("endDate", endDate);
       
+      const sessionId = localStorage.getItem('admin-session-id');
       const response = await fetch(`/api/stats?${params.toString()}`, {
         credentials: "include",
+        headers: sessionId ? { 'x-session-id': sessionId } : {},
       });
       
       if (!response.ok) throw new Error("Failed to fetch stats");

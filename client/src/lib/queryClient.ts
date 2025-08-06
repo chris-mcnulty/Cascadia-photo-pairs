@@ -2,8 +2,26 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let errorMessage = res.statusText;
+    try {
+      const text = await res.text();
+      if (text) {
+        // Try to parse as JSON to get structured error
+        try {
+          const errorData = JSON.parse(text);
+          errorMessage = errorData.message || errorData.details || text;
+        } catch {
+          // If not JSON, use the text as-is
+          errorMessage = text;
+        }
+      }
+    } catch {
+      // If reading text fails, use statusText
+      errorMessage = res.statusText;
+    }
+    
+    console.error(`HTTP Error ${res.status}:`, errorMessage);
+    throw new Error(errorMessage);
   }
 }
 
@@ -20,15 +38,32 @@ export async function apiRequest(
     headers['x-session-id'] = sessionId;
   }
 
-  const res = await fetch(url, {
-    method,
-    headers,
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
+  console.log(`API Request: ${method} ${url}`, { 
+    hasData: !!data, 
+    hasSessionId: !!sessionId,
+    dataSize: data ? JSON.stringify(data).length : 0
   });
 
-  await throwIfResNotOk(res);
-  return res;
+  try {
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: data ? JSON.stringify(data) : undefined,
+      credentials: "include",
+    });
+
+    console.log(`API Response: ${method} ${url}`, { 
+      status: res.status, 
+      statusText: res.statusText,
+      ok: res.ok 
+    });
+
+    await throwIfResNotOk(res);
+    return res;
+  } catch (error) {
+    console.error(`API Request Failed: ${method} ${url}`, error);
+    throw error;
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";

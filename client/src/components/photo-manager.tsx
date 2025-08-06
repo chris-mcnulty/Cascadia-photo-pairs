@@ -57,9 +57,21 @@ export default function PhotoManager() {
     },
     onError: (error: any) => {
       console.error('Add photo mutation error:', error);
+      
+      // Extract more detailed error information
+      let errorMessage = "There was an error adding the photo.";
+      if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Check for specific authentication issues
+      if (errorMessage.includes('401') || errorMessage.includes('unauthorized') || errorMessage.includes('Session ID required')) {
+        errorMessage = "Authentication failed. Please log out and log back in.";
+      }
+      
       toast({
         title: "Failed to add photo",
-        description: error.message || "There was an error adding the photo.",
+        description: errorMessage,
         variant: "destructive",
       });
     },

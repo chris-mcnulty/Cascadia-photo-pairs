@@ -173,7 +173,7 @@ export default function PhotoManager() {
     setFormData({
       title: photo.title,
       description: photo.description || "",
-      imageUrl: photo.imageUrl,
+      imageUrl: photo.imageUrl.startsWith('data:') ? "" : photo.imageUrl, // Don't show base64 in URL field
       customPurchaseUrl: photo.customPurchaseUrl || "",
     });
     setShowAddForm(false);
@@ -223,10 +223,17 @@ export default function PhotoManager() {
     }
 
     if (editingPhoto) {
-      // Edit mode
+      // Edit mode - preserve original imageUrl if it's base64 and no new URL provided
+      const updateData = {
+        ...formData,
+        imageUrl: editingPhoto.imageUrl.startsWith('data:') && !formData.imageUrl 
+          ? editingPhoto.imageUrl 
+          : formData.imageUrl
+      };
+      
       editPhotoMutation.mutate({
         photoId: editingPhoto.id,
-        data: formData,
+        data: updateData,
       });
       return;
     }
@@ -490,25 +497,41 @@ export default function PhotoManager() {
                       </CardHeader>
                       <CardContent>
                         <form onSubmit={handleSubmit} className="space-y-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="editImageUrl">Image URL *</Label>
-                            <Input
-                              id="editImageUrl"
-                              type="url"
-                              placeholder="https://example.com/photo.jpg"
-                              value={formData.imageUrl}
-                              onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
-                            />
-                            <p className="text-sm text-gray-500">
-                              You can update the image URL to change the photo
-                            </p>
-                          </div>
+                          {/* Only show URL field if it's not a base64 image */}
+                          {!editingPhoto.imageUrl.startsWith('data:') && (
+                            <div className="space-y-2">
+                              <Label htmlFor="editImageUrl">Image URL *</Label>
+                              <Input
+                                id="editImageUrl"
+                                type="url"
+                                placeholder="https://example.com/photo.jpg"
+                                value={formData.imageUrl}
+                                onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                              />
+                              <p className="text-sm text-gray-500">
+                                You can update the image URL to change the photo
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* Show info for base64 images */}
+                          {editingPhoto.imageUrl.startsWith('data:') && (
+                            <div className="space-y-2">
+                              <Label>Image Source</Label>
+                              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-sm text-blue-800">
+                                  This photo was uploaded as a file and is stored directly in the database. 
+                                  To change the image, you'll need to delete this photo and add a new one.
+                                </p>
+                              </div>
+                            </div>
+                          )}
                           
                           <div className="space-y-2">
                             <Label>Current Image Preview</Label>
                             <div className="border rounded-lg p-2 bg-gray-50">
                               <img 
-                                src={formData.imageUrl} 
+                                src={editingPhoto.imageUrl.startsWith('data:') ? editingPhoto.imageUrl : formData.imageUrl} 
                                 alt={editingPhoto.title} 
                                 className="max-w-full max-h-48 object-contain mx-auto rounded"
                                 onError={(e) => {

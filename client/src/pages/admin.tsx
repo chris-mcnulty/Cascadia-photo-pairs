@@ -13,7 +13,7 @@ import { AuthProvider, useAuth } from "@/hooks/use-auth";
 
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"analytics" | "stats" | "settings" | "photos">("analytics");
-  const { logout } = useAuth();
+  const { logout, isAuthenticated, sessionId } = useAuth();
 
   const { data: stats } = useQuery<{
     totalVotes: number;
@@ -22,6 +22,7 @@ function AdminDashboard() {
     topPhotos: any[];
   }>({
     queryKey: ["/api/stats"],
+    enabled: isAuthenticated && !!sessionId,
   });
 
   const handleExportData = async () => {
@@ -143,7 +144,14 @@ function AdminDashboard() {
 }
 
 function AuthenticatedAdmin() {
-  // Skip authentication for now to fix production issues
+  const { isAuthenticated, sessionId } = useAuth();
+  
+  console.log('AuthenticatedAdmin - isAuthenticated:', isAuthenticated, 'sessionId:', sessionId);
+  
+  if (!isAuthenticated || !sessionId) {
+    return <AdminLogin onAuthenticated={() => {}} />;
+  }
+  
   return <AdminDashboard />;
 }
 

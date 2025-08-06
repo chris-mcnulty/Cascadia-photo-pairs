@@ -20,6 +20,9 @@ export interface IStorage {
   // Stats
   getPhotoStats(): Promise<Photo[]>;
   getRandomPhotoPair(): Promise<[Photo, Photo] | null>;
+  
+  // Photo management
+  deletePhoto(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -128,6 +131,8 @@ export class MemStorage implements IStorage {
       votes: 0,
       wins: 0,
       comparisons: 0,
+      description: insertPhoto.description || null,
+      customPurchaseUrl: insertPhoto.customPurchaseUrl || null,
     };
     this.photos.set(id, photo);
     return photo;
@@ -212,6 +217,10 @@ export class MemStorage implements IStorage {
       loser.comparisons += 1;
       this.photos.set(loserPhotoId, loser);
     }
+  }
+
+  async deletePhoto(id: string): Promise<boolean> {
+    return this.photos.delete(id);
   }
 }
 

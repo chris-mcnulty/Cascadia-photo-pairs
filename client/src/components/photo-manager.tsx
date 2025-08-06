@@ -1,0 +1,245 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { Photo, InsertPhoto } from "@shared/schema";
+import { Plus, Trash2, ExternalLink } from "lucide-react";
+
+export default function PhotoManager() {
+  const { toast } = useToast();
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [formData, setFormData] = useState<InsertPhoto>({
+    title: "",
+    description: "",
+    imageUrl: "",
+    customPurchaseUrl: "",
+  });
+
+  const { data: photos, isLoading } = useQuery<Photo[]>({
+    queryKey: ["/api/photos"],
+  });
+
+  const addPhotoMutation = useMutation({
+    mutationFn: async (data: InsertPhoto) => {
+      const response = await apiRequest("POST", "/api/photos", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/photos/random-pair"] });
+      setFormData({ title: "", description: "", imageUrl: "", customPurchaseUrl: "" });
+      setShowAddForm(false);
+      toast({
+        title: "Photo added",
+        description: "Your photo has been added successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to add photo",
+        description: "There was an error adding the photo.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deletePhotoMutation = useMutation({
+    mutationFn: async (photoId: string) => {
+      const response = await apiRequest("DELETE", `/api/photos/${photoId}`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/photos/random-pair"] });
+      toast({
+        title: "Photo deleted",
+        description: "The photo has been removed successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to delete photo",
+        description: "There was an error deleting the photo.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.title || !formData.imageUrl) {
+      toast({
+        title: "Missing required fields",
+        description: "Please provide at least a title and image URL.",
+        variant: "destructive",
+      });
+      return;
+    }
+    addPhotoMutation.mutate(formData);
+  };
+
+  const handleDeletePhoto = (photoId: string, title: string) => {
+    if (confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+      deletePhotoMutation.mutate(photoId);
+    }
+  };
+
+  if (isLoading) {
+    return <div className="flex justify-center py-12">Loading photos...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Add Photo Button/Form */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Photo Management</CardTitle>
+          {!showAddForm && (
+            <Button 
+              onClick={() => setShowAddForm(true)}
+              className="bg-green-700 hover:bg-green-800"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Photo
+            </Button>
+          )}
+        </CardHeader>
+        
+        {showAddForm && (
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Title *</Label>
+                  <Input
+                    id="title"
+                    placeholder="Enter photo title"
+                    value={formData.title}
+                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="imageUrl">Image URL *</Label>
+                  <Input
+                    id="imageUrl"
+                    type="url"
+                    placeholder="https://example.com/photo.jpg"
+                    value={formData.imageUrl}
+                    onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  placeholder="Optional description of the photo"
+                  value={formData.description || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="customPurchaseUrl">Custom Purchase URL</Label>
+                <Input
+                  id="customPurchaseUrl"
+                  type="url"
+                  placeholder="https://example.com/buy-this-print (optional)"
+                  value={formData.customPurchaseUrl || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, customPurchaseUrl: e.target.value }))}
+                />
+                <div className="text-sm text-gray-500">
+                  Leave blank to use the default store URL
+                </div>
+              </div>
+
+              <div className="flex gap-2">
+                <Button 
+                  type="submit" 
+                  className="bg-green-700 hover:bg-green-800"
+                  disabled={addPhotoMutation.isPending}
+                >
+                  {addPhotoMutation.isPending ? "Adding..." : "Add Photo"}
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => {
+                    setShowAddForm(false);
+                    setFormData({ title: "", description: "", imageUrl: "", customPurchaseUrl: "" });
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Photos List */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Current Photos ({photos?.length || 0})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {photos && photos.length > 0 ? (
+            <div className="grid gap-4">
+              {photos.map((photo) => (
+                <div key={photo.id} className="flex items-center gap-4 p-4 border rounded-lg">
+                  <img 
+                    src={photo.imageUrl} 
+                    alt={photo.title}
+                    className="w-20 h-14 object-cover rounded"
+                  />
+                  <div className="flex-1">
+                    <h4 className="font-medium">{photo.title}</h4>
+                    {photo.description && (
+                      <p className="text-sm text-gray-600 truncate">{photo.description}</p>
+                    )}
+                    <div className="text-xs text-gray-500 mt-1">
+                      Votes: {photo.votes} | Win Rate: {photo.comparisons > 0 ? Math.round((photo.wins / photo.comparisons) * 100) : 0}%
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    {photo.customPurchaseUrl && (
+                      <a 
+                        href={photo.customPurchaseUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeletePhoto(photo.id, photo.title)}
+                      disabled={deletePhotoMutation.isPending}
+                      className="text-red-600 hover:text-red-800"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-gray-500">
+              No photos added yet. Click "Add Photo" to get started.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

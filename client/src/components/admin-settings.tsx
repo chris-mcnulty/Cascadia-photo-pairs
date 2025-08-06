@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,8 +17,8 @@ export default function AdminSettings() {
   });
 
   const [formData, setFormData] = useState({
-    purchaseEnabled: settings?.purchaseEnabled || false,
-    defaultPurchaseUrl: settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store",
+    purchaseEnabled: false,
+    defaultPurchaseUrl: "https://www.chrismcnulty.net/store",
   });
 
   const updateSettingsMutation = useMutation({
@@ -43,14 +43,14 @@ export default function AdminSettings() {
   });
 
   // Update form data when settings are loaded
-  useState(() => {
+  useEffect(() => {
     if (settings) {
       setFormData({
         purchaseEnabled: settings.purchaseEnabled,
         defaultPurchaseUrl: settings.defaultPurchaseUrl || "https://www.chrismcnulty.net/store",
       });
     }
-  });
+  }, [settings]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

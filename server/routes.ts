@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertVoteSchema, insertSettingsSchema } from "@shared/schema";
+import { insertVoteSchema, insertSettingsSchema, insertPhotoSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -12,6 +12,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(photos);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch photos" });
+    }
+  });
+
+  // Add a new photo
+  app.post("/api/photos", async (req, res) => {
+    try {
+      const photoData = insertPhotoSchema.parse(req.body);
+      const photo = await storage.createPhoto(photoData);
+      res.json(photo);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid photo data" });
+    }
+  });
+
+  // Delete a photo
+  app.delete("/api/photos/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deletePhoto(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+      res.json({ message: "Photo deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete photo" });
     }
   });
 

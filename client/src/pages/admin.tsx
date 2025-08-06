@@ -4,13 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import AdminStats from "@/components/admin-stats";
 import AdminSettings from "@/components/admin-settings";
-import { ArrowLeft, BarChart3, Settings, Download } from "lucide-react";
+import PhotoManager from "@/components/photo-manager";
+import { ArrowLeft, BarChart3, Settings, Download, ImageIcon } from "lucide-react";
 import { Link } from "wouter";
 
 export default function Admin() {
-  const [activeTab, setActiveTab] = useState<"stats" | "settings">("stats");
+  const [activeTab, setActiveTab] = useState<"stats" | "settings" | "photos">("stats");
 
-  const { data: stats } = useQuery({
+  const { data: stats } = useQuery<{
+    totalVotes: number;
+    uniqueVoters: number;
+    avgVotesPerUser: number;
+    topPhotos: any[];
+  }>({
     queryKey: ["/api/stats"],
   });
 
@@ -88,6 +94,14 @@ export default function Admin() {
             Statistics
           </Button>
           <Button
+            variant={activeTab === "photos" ? "default" : "outline"}
+            onClick={() => setActiveTab("photos")}
+            className="flex items-center"
+          >
+            <ImageIcon className="w-4 h-4 mr-2" />
+            Photos
+          </Button>
+          <Button
             variant={activeTab === "settings" ? "default" : "outline"}
             onClick={() => setActiveTab("settings")}
             className="flex items-center"
@@ -99,6 +113,7 @@ export default function Admin() {
 
         {/* Tab Content */}
         {activeTab === "stats" && <AdminStats />}
+        {activeTab === "photos" && <PhotoManager />}
         {activeTab === "settings" && <AdminSettings />}
       </div>
     </div>

@@ -28,7 +28,7 @@ export default function PhotoManager() {
 
   const { data: photos, isLoading } = useQuery<Photo[]>({
     queryKey: ["/api/photos"],
-    enabled: true, // Re-enable for testing
+    enabled: true,
   });
 
   const addPhotoMutation = useMutation({
@@ -38,42 +38,67 @@ export default function PhotoManager() {
         const response = await apiRequest("POST", "/api/photos", data);
         
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to add photo');
         }
         
-        return response.json();
+        const result = await response.json();
+        console.log('Photo added successfully:', result);
+        return result;
       } catch (error) {
-        console.error('Photo upload error:', error);
+        console.error('Failed to add photo:', error);
         throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/photos/random-pair"] });
       resetForm();
       toast({
-        title: "Photo added",
-        description: "Your photo has been added successfully.",
+        title: "Photo added successfully",
+        description: "The photo has been added to the collection.",
       });
     },
-    onError: (error: any) => {
-      console.error('Add photo mutation error:', error);
-      
-      // Extract more detailed error information
-      let errorMessage = "There was an error adding the photo.";
-      if (error?.message) {
-        errorMessage = error.message;
-      }
-      
-      // Check for specific authentication issues
-      if (errorMessage.includes('401') || errorMessage.includes('unauthorized') || errorMessage.includes('Session ID required')) {
-        errorMessage = "Authentication failed. Please log out and log back in.";
-      }
-      
+    onError: (error: Error) => {
       toast({
         title: "Failed to add photo",
-        description: errorMessage,
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const editPhotoMutation = useMutation({
+    mutationFn: async ({ photoId, data }: { photoId: string; data: Partial<InsertPhoto> }) => {
+      console.log('Updating photo with ID:', photoId, 'Data:', data);
+      try {
+        const response = await apiRequest("PUT", `/api/photos/${photoId}`, data);
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to update photo');
+        }
+        
+        const result = await response.json();
+        console.log('Photo updated successfully:', result);
+        return result;
+      } catch (error) {
+        console.error('Failed to update photo:', error);
+        throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+      setEditingPhoto(null);
+      resetForm();
+      toast({
+        title: "Photo updated successfully",
+        description: "The photo details have been updated.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to update photo",
+        description: error.message,
         variant: "destructive",
       });
     },
@@ -81,45 +106,23 @@ export default function PhotoManager() {
 
   const deletePhotoMutation = useMutation({
     mutationFn: async (photoId: string) => {
-      const response = await apiRequest("DELETE", `/api/photos/${photoId}`, {});
-      return response.json();
+      const response = await apiRequest("DELETE", `/api/photos/${photoId}`);
+      if (!response.ok) {
+        throw new Error("Failed to delete photo");
+      }
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/photos/random-pair"] });
       toast({
         title: "Photo deleted",
-        description: "The photo has been removed successfully.",
+        description: "The photo has been removed from the collection.",
       });
     },
     onError: () => {
       toast({
         title: "Failed to delete photo",
-        description: "There was an error deleting the photo.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const editPhotoMutation = useMutation({
-    mutationFn: async ({ photoId, data }: { photoId: string; data: Partial<Photo> }) => {
-      const response = await apiRequest("PUT", `/api/photos/${photoId}`, data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/photos/random-pair"] });
-      setEditingPhoto(null);
-      resetForm();
-      toast({
-        title: "Photo updated",
-        description: "Your photo has been updated successfully.",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Failed to update photo",
-        description: "There was an error updating the photo.",
+        description: "Could not delete the photo. Please try again.",
         variant: "destructive",
       });
     },
@@ -127,41 +130,45 @@ export default function PhotoManager() {
 
   const togglePhotoVisibilityMutation = useMutation({
     mutationFn: async ({ photoId, hidden }: { photoId: string; hidden: boolean }) => {
-      const response = await apiRequest("PUT", `/api/photos/${photoId}`, { hidden });
+      const response = await apiRequest("PUT", `/api/photos/${photoId}/visibility`, { hidden });
+      if (!response.ok) {
+        throw new Error("Failed to update photo visibility");
+      }
       return response.json();
     },
-    onSuccess: (data, variables) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/photos/random-pair"] });
       toast({
-        title: variables.hidden ? "Photo hidden" : "Photo shown",
-        description: variables.hidden 
-          ? "The photo is now hidden from voting but stats are preserved." 
-          : "The photo is now visible in voting again.",
+        title: "Photo visibility updated",
+        description: "The photo visibility has been changed.",
       });
     },
     onError: () => {
       toast({
-        title: "Failed to update photo",
-        description: "There was an error updating the photo visibility.",
+        title: "Failed to update visibility",
+        description: "Could not update photo visibility. Please try again.",
         variant: "destructive",
       });
     },
   });
 
   const resetForm = () => {
-    setFormData({ title: "", description: "", imageUrl: "", customPurchaseUrl: "" });
-    setSelectedFile(null);
-    setPreviewUrl("");
+    setFormData({
+      title: "",
+      description: "",
+      imageUrl: "",
+      customPurchaseUrl: "",
+    });
     setShowAddForm(false);
     setEditingPhoto(null);
+    setSelectedFile(null);
+    setPreviewUrl("");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
   };
 
   const startEdit = (photo: Photo) => {
-    console.log('Starting edit for photo:', photo.title);
     setEditingPhoto(photo);
     setFormData({
       title: photo.title,
@@ -170,54 +177,43 @@ export default function PhotoManager() {
       customPurchaseUrl: photo.customPurchaseUrl || "",
     });
     setShowAddForm(false);
-    console.log('Edit form should now be visible');
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        toast({
-          title: "Invalid file type",
-          description: "Please select an image file.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      setSelectedFile(file);
-      
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          setPreviewUrl(e.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
   const convertFileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
+      reader.onerror = () => reject(new Error("Failed to read file"));
       reader.readAsDataURL(file);
     });
   };
 
-  const handleDeletePhoto = async (photoId: string, photoTitle: string) => {
-    if (!confirm(`Are you sure you want to permanently delete "${photoTitle}"? This will remove all voting statistics and cannot be undone.`)) {
-      return;
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image smaller than 10MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
     }
-    deletePhotoMutation.mutate(photoId);
+  };
+
+  const handleDeletePhoto = (photoId: string, photoTitle: string) => {
+    if (confirm(`Are you sure you want to delete "${photoTitle}"? This action cannot be undone.`)) {
+      deletePhotoMutation.mutate(photoId);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.title) {
+
+    if (!formData.title.trim()) {
       toast({
         title: "Missing title",
         description: "Please provide a title for the photo.",
@@ -226,35 +222,19 @@ export default function PhotoManager() {
       return;
     }
 
-    // If we're editing a photo, we can update text fields and optionally the image URL
     if (editingPhoto) {
+      // Edit mode
       editPhotoMutation.mutate({
         photoId: editingPhoto.id,
-        data: {
-          title: formData.title,
-          description: formData.description || null,
-          imageUrl: formData.imageUrl, // Allow URL editing
-          customPurchaseUrl: formData.customPurchaseUrl || null,
-        },
+        data: formData,
       });
       return;
     }
 
-    // Handle adding new photo (original logic)
+    // Add mode
     let imageUrl = formData.imageUrl;
-    
+
     if (uploadMethod === "file" && selectedFile) {
-      // Check file size (limit to ~10MB for base64)
-      if (selectedFile.size > 10 * 1024 * 1024) {
-        toast({
-          title: "File too large",
-          description: "Please select an image smaller than 10MB.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Convert file to base64 data URL for storage
       try {
         imageUrl = await convertFileToBase64(selectedFile);
       } catch (error) {
@@ -296,9 +276,7 @@ export default function PhotoManager() {
       {/* Add Photo Button/Form */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>
-            {editingPhoto ? `Edit Photo: ${editingPhoto.title}` : "Photo Management"}
-          </CardTitle>
+          <CardTitle>Photo Management</CardTitle>
           {!showAddForm && !editingPhoto && (
             <Button 
               onClick={() => setShowAddForm(true)}
@@ -310,23 +288,20 @@ export default function PhotoManager() {
           )}
         </CardHeader>
         
-        {(showAddForm || editingPhoto) && (
+        {showAddForm && (
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              
-              {/* Only show upload methods when adding new photos */}
-              {!editingPhoto && (
-                <Tabs value={uploadMethod} onValueChange={(value) => setUploadMethod(value as "url" | "file")}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="url" className="flex items-center gap-2">
-                      <Link2 className="w-4 h-4" />
-                      URL
-                    </TabsTrigger>
-                    <TabsTrigger value="file" className="flex items-center gap-2">
-                      <Upload className="w-4 h-4" />
-                      Upload File
-                    </TabsTrigger>
-                  </TabsList>
+              <Tabs value={uploadMethod} onValueChange={(value) => setUploadMethod(value as "url" | "file")}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="url" className="flex items-center gap-2">
+                    <Link2 className="w-4 h-4" />
+                    URL
+                  </TabsTrigger>
+                  <TabsTrigger value="file" className="flex items-center gap-2">
+                    <Upload className="w-4 h-4" />
+                    Upload File
+                  </TabsTrigger>
+                </TabsList>
 
                 <TabsContent value="url" className="space-y-4">
                   <div className="space-y-2">
@@ -374,42 +349,7 @@ export default function PhotoManager() {
                   )}
                 </TabsContent>
               </Tabs>
-              )}
 
-              {/* Show current image when editing with URL editing capability */}
-              {editingPhoto && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="editImageUrl">Image URL *</Label>
-                    <Input
-                      id="editImageUrl"
-                      type="url"
-                      placeholder="https://example.com/photo.jpg"
-                      value={formData.imageUrl}
-                      onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
-                    />
-                    <p className="text-sm text-gray-500">
-                      You can update the image URL to change the photo
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Current Image Preview</Label>
-                    <div className="border rounded-lg p-2 bg-gray-50">
-                      <img 
-                        src={formData.imageUrl} 
-                        alt={editingPhoto.title} 
-                        className="max-w-full max-h-48 object-contain mx-auto rounded"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = editingPhoto.imageUrl;
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Title Field */}
               <div className="space-y-2">
                 <Label htmlFor="title">Title *</Label>
                 <Input
@@ -448,12 +388,9 @@ export default function PhotoManager() {
                 <Button 
                   type="submit" 
                   className="bg-green-700 hover:bg-green-800"
-                  disabled={addPhotoMutation.isPending || editPhotoMutation.isPending}
+                  disabled={addPhotoMutation.isPending}
                 >
-                  {editingPhoto 
-                    ? (editPhotoMutation.isPending ? "Updating..." : "Update Photo")
-                    : (addPhotoMutation.isPending ? "Adding..." : "Add Photo")
-                  }
+                  {addPhotoMutation.isPending ? "Adding..." : "Add Photo"}
                 </Button>
                 <Button 
                   type="button" 
@@ -477,70 +414,164 @@ export default function PhotoManager() {
           {photos && photos.length > 0 ? (
             <div className="grid gap-4">
               {photos.map((photo) => (
-                <div key={photo.id} className="flex items-center gap-4 p-4 border rounded-lg">
-                  <img 
-                    src={photo.imageUrl} 
-                    alt={photo.title}
-                    className="w-20 h-14 object-cover rounded"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-medium">{photo.title}</h4>
-                      {photo.hidden && (
-                        <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
-                          Hidden
-                        </span>
+                <div key={photo.id} className="space-y-4">
+                  {/* Photo display row */}
+                  <div className="flex items-center gap-4 p-4 border rounded-lg">
+                    <img 
+                      src={photo.imageUrl} 
+                      alt={photo.title}
+                      className="w-20 h-14 object-cover rounded"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium">{photo.title}</h4>
+                        {photo.hidden && (
+                          <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
+                            Hidden
+                          </span>
+                        )}
+                      </div>
+                      {photo.description && (
+                        <p className="text-sm text-gray-600 truncate">{photo.description}</p>
                       )}
+                      <div className="text-xs text-gray-500 mt-1">
+                        Votes: {photo.votes} | Win Rate: {photo.comparisons > 0 ? Math.round((photo.wins / photo.comparisons) * 100) : 0}%
+                        {photo.hidden && " (Hidden from voting)"}
+                      </div>
                     </div>
-                    {photo.description && (
-                      <p className="text-sm text-gray-600 truncate">{photo.description}</p>
-                    )}
-                    <div className="text-xs text-gray-500 mt-1">
-                      Votes: {photo.votes} | Win Rate: {photo.comparisons > 0 ? Math.round((photo.wins / photo.comparisons) * 100) : 0}%
-                      {photo.hidden && " (Hidden from voting)"}
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    {photo.customPurchaseUrl && (
-                      <a 
-                        href={photo.customPurchaseUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                    <div className="flex gap-2">
+                      {photo.customPurchaseUrl && (
+                        <a 
+                          href={photo.customPurchaseUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => startEdit(photo)}
+                        disabled={showAddForm || editingPhoto !== null}
                         className="text-blue-600 hover:text-blue-800"
+                        title="Edit photo details"
                       >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                    )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => startEdit(photo)}
-                      disabled={showAddForm || editingPhoto !== null}
-                      className="text-blue-600 hover:text-blue-800"
-                      title="Edit photo details"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => togglePhotoVisibilityMutation.mutate({ photoId: photo.id, hidden: !photo.hidden })}
-                      disabled={togglePhotoVisibilityMutation.isPending}
-                      className={photo.hidden ? "text-green-600 hover:text-green-800" : "text-orange-600 hover:text-orange-800"}
-                      title={photo.hidden ? "Show photo in voting" : "Hide photo from voting"}
-                    >
-                      {photo.hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeletePhoto(photo.id, photo.title)}
-                      disabled={deletePhotoMutation.isPending}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => togglePhotoVisibilityMutation.mutate({ photoId: photo.id, hidden: !photo.hidden })}
+                        disabled={togglePhotoVisibilityMutation.isPending}
+                        className={photo.hidden ? "text-green-600 hover:text-green-800" : "text-orange-600 hover:text-orange-800"}
+                        title={photo.hidden ? "Show photo in voting" : "Hide photo from voting"}
+                      >
+                        {photo.hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeletePhoto(photo.id, photo.title)}
+                        disabled={deletePhotoMutation.isPending}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
+
+                  {/* Inline edit form - appears below the selected photo */}
+                  {editingPhoto?.id === photo.id && (
+                    <Card className="ml-6 border-l-4 border-l-blue-500">
+                      <CardHeader>
+                        <CardTitle className="text-lg">Edit Photo: {editingPhoto.title}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="editImageUrl">Image URL *</Label>
+                            <Input
+                              id="editImageUrl"
+                              type="url"
+                              placeholder="https://example.com/photo.jpg"
+                              value={formData.imageUrl}
+                              onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                            />
+                            <p className="text-sm text-gray-500">
+                              You can update the image URL to change the photo
+                            </p>
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label>Current Image Preview</Label>
+                            <div className="border rounded-lg p-2 bg-gray-50">
+                              <img 
+                                src={formData.imageUrl} 
+                                alt={editingPhoto.title} 
+                                className="max-w-full max-h-48 object-contain mx-auto rounded"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = editingPhoto.imageUrl;
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="editTitle">Title *</Label>
+                            <Input
+                              id="editTitle"
+                              placeholder="Enter photo title"
+                              value={formData.title}
+                              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="editDescription">Description</Label>
+                            <Textarea
+                              id="editDescription"
+                              placeholder="Optional description of the photo"
+                              value={formData.description || ""}
+                              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="editCustomPurchaseUrl">Custom Purchase URL</Label>
+                            <Input
+                              id="editCustomPurchaseUrl"
+                              type="url"
+                              placeholder="https://example.com/buy-this-print (optional)"
+                              value={formData.customPurchaseUrl || ""}
+                              onChange={(e) => setFormData(prev => ({ ...prev, customPurchaseUrl: e.target.value }))}
+                            />
+                            <div className="text-sm text-gray-500">
+                              Leave blank to use the default store URL
+                            </div>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Button 
+                              type="submit" 
+                              className="bg-green-700 hover:bg-green-800"
+                              disabled={editPhotoMutation.isPending}
+                            >
+                              {editPhotoMutation.isPending ? "Updating..." : "Update Photo"}
+                            </Button>
+                            <Button 
+                              type="button" 
+                              variant="outline"
+                              onClick={resetForm}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </form>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               ))}
             </div>

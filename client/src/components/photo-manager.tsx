@@ -1,18 +1,23 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Photo, InsertPhoto } from "@shared/schema";
-import { Plus, Trash2, ExternalLink } from "lucide-react";
+import { Plus, Trash2, ExternalLink, Upload, Link2 } from "lucide-react";
 
 export default function PhotoManager() {
   const { toast } = useToast();
   const [showAddForm, setShowAddForm] = useState(false);
+  const [uploadMethod, setUploadMethod] = useState<"url" | "file">("url");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<InsertPhoto>({
     title: "",
     description: "",
@@ -32,8 +37,7 @@ export default function PhotoManager() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
       queryClient.invalidateQueries({ queryKey: ["/api/photos/random-pair"] });
-      setFormData({ title: "", description: "", imageUrl: "", customPurchaseUrl: "" });
-      setShowAddForm(false);
+      resetForm();
       toast({
         title: "Photo added",
         description: "Your photo has been added successfully.",
@@ -70,17 +74,96 @@ export default function PhotoManager() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const resetForm = () => {
+    setFormData({ title: "", description: "", imageUrl: "", customPurchaseUrl: "" });
+    setSelectedFile(null);
+    setPreviewUrl("");
+    setShowAddForm(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select an image file.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setSelectedFile(file);
+      
+      // Create preview URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          setPreviewUrl(e.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const convertFileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title || !formData.imageUrl) {
+    
+    let imageUrl = formData.imageUrl;
+    
+    if (uploadMethod === "file" && selectedFile) {
+      // Convert file to base64 data URL for storage
+      try {
+        imageUrl = await convertFileToBase64(selectedFile);
+      } catch (error) {
+        toast({
+          title: "File processing failed",
+          description: "Could not process the selected file.",
+          variant: "destructive",
+        });
+        return;
+      }
+    } else if (uploadMethod === "url" && !formData.imageUrl) {
       toast({
-        title: "Missing required fields",
-        description: "Please provide at least a title and image URL.",
+        title: "Missing image URL",
+        description: "Please provide an image URL.",
+        variant: "destructive",
+      });
+      return;
+    } else if (uploadMethod === "file" && !selectedFile) {
+      toast({
+        title: "No file selected",
+        description: "Please select an image file to upload.",
         variant: "destructive",
       });
       return;
     }
-    addPhotoMutation.mutate(formData);
+
+    if (!formData.title) {
+      toast({
+        title: "Missing title",
+        description: "Please provide a title for the photo.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    addPhotoMutation.mutate({
+      ...formData,
+      imageUrl,
+    });
   };
 
   const handleDeletePhoto = (photoId: string, title: string) => {
@@ -112,29 +195,77 @@ export default function PhotoManager() {
         
         {showAddForm && (
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title *</Label>
-                  <Input
-                    id="title"
-                    placeholder="Enter photo title"
-                    value={formData.title}
-                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="imageUrl">Image URL *</Label>
-                  <Input
-                    id="imageUrl"
-                    type="url"
-                    placeholder="https://example.com/photo.jpg"
-                    value={formData.imageUrl}
-                    onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
-                    required
-                  />
-                </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              
+              {/* Upload Method Tabs */}
+              <Tabs value={uploadMethod} onValueChange={(value) => setUploadMethod(value as "url" | "file")}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="url" className="flex items-center gap-2">
+                    <Link2 className="w-4 h-4" />
+                    URL
+                  </TabsTrigger>
+                  <TabsTrigger value="file" className="flex items-center gap-2">
+                    <Upload className="w-4 h-4" />
+                    Upload File
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="url" className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="imageUrl">Image URL *</Label>
+                    <Input
+                      id="imageUrl"
+                      type="url"
+                      placeholder="https://example.com/photo.jpg"
+                      value={formData.imageUrl}
+                      onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                    />
+                    <p className="text-sm text-gray-500">
+                      Paste the direct URL to an image (JPG, PNG, WebP, etc.)
+                    </p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="file" className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="fileUpload">Select Image File *</Label>
+                    <Input
+                      id="fileUpload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelect}
+                      ref={fileInputRef}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-sm text-gray-500">
+                      Select a JPG, PNG, WebP or other image file from your computer
+                    </p>
+                  </div>
+                  
+                  {previewUrl && (
+                    <div className="space-y-2">
+                      <Label>Preview</Label>
+                      <div className="border rounded-lg p-2 bg-gray-50">
+                        <img 
+                          src={previewUrl} 
+                          alt="Preview" 
+                          className="max-w-full max-h-48 object-contain mx-auto rounded"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+
+              {/* Title Field */}
+              <div className="space-y-2">
+                <Label htmlFor="title">Title *</Label>
+                <Input
+                  id="title"
+                  placeholder="Enter photo title"
+                  value={formData.title}
+                  onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                />
               </div>
               
               <div className="space-y-2">
@@ -172,10 +303,7 @@ export default function PhotoManager() {
                 <Button 
                   type="button" 
                   variant="outline"
-                  onClick={() => {
-                    setShowAddForm(false);
-                    setFormData({ title: "", description: "", imageUrl: "", customPurchaseUrl: "" });
-                  }}
+                  onClick={resetForm}
                 >
                   Cancel
                 </Button>

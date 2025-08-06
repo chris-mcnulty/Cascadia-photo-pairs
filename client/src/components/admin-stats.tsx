@@ -12,7 +12,7 @@ interface StatsData {
 export default function AdminStats() {
   const { data: stats, isLoading } = useQuery<StatsData>({
     queryKey: ["/api/stats"],
-    enabled: false, // Disable automatic query execution - parent will handle auth
+    enabled: true, // Re-enable for testing
   });
 
   if (isLoading) {

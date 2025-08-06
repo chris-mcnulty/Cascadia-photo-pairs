@@ -28,7 +28,7 @@ export default function PhotoManager() {
 
   const { data: photos, isLoading } = useQuery<Photo[]>({
     queryKey: ["/api/photos"],
-    enabled: false, // Disable automatic query execution - parent will handle auth
+    enabled: true, // Re-enable for testing
   });
 
   const addPhotoMutation = useMutation({

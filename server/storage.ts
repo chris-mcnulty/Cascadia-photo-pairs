@@ -631,5 +631,8 @@ async function initializeDatabase() {
   }
 }
 
-// Initialize database on startup
-initializeDatabase();
+// Initialize database on startup with a delay to ensure server is ready
+setTimeout(() => {
+  console.log('Delayed database initialization starting...');
+  initializeDatabase();
+}, 2000);

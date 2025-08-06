@@ -321,6 +321,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Force database initialization (for production debugging)
+  app.post("/api/force-init", async (req, res) => {
+    try {
+      console.log('Force initialization requested...');
+      
+      console.log('Checking current photos count...');
+      const currentPhotos = await storage.getAllPhotos();
+      console.log(`Current photos: ${currentPhotos.length}`);
+      
+      if (currentPhotos.length === 0) {
+        console.log('No photos found, creating default photos...');
+        
+        const defaultPhotos = [
+          {
+            imageUrl: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&h=600&fit=crop",
+            title: "Mountain Lake Reflection",
+            description: "Crystal clear lake reflecting towering peaks in golden hour light"
+          },
+          {
+            imageUrl: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&h=600&fit=crop",
+            title: "Forest Trail", 
+            description: "Misty morning path through ancient evergreen forest"
+          },
+          {
+            imageUrl: "https://images.unsplash.com/photo-1511593358241-7eea1f3c84e5?w=800&h=600&fit=crop",
+            title: "Desert Canyon",
+            description: "Dramatic red rock formations under expansive desert sky"
+          }
+        ];
+        
+        for (let i = 0; i < defaultPhotos.length; i++) {
+          const photoData = defaultPhotos[i];
+          console.log(`Creating photo ${i + 1}/${defaultPhotos.length}: ${photoData.title}`);
+          await storage.createPhoto(photoData);
+        }
+      }
+      
+      const finalPhotos = await storage.getAllPhotos();
+      console.log(`Final photo count: ${finalPhotos.length}`);
+      
+      res.json({ 
+        message: "Database initialization completed",
+        initialPhotoCount: currentPhotos.length,
+        finalPhotoCount: finalPhotos.length,
+        photos: finalPhotos.slice(0, 5).map(p => ({ id: p.id, title: p.title }))
+      });
+    } catch (error) {
+      console.error('Force init error:', error);
+      res.status(500).json({ 
+        message: "Failed to initialize database",
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -53,8 +53,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSessionId(newSessionId);
     setIsAuthenticated(true);
     localStorage.setItem('admin-session-id', newSessionId);
-    // Invalidate all queries to force refetch with new session
+    // Clear all queries and force refetch with new session
+    queryClient.clear();
     queryClient.invalidateQueries();
+    // Force a page reload after a short delay to ensure clean state
+    setTimeout(() => {
+      window.location.reload();
+    }, 100);
   };
 
   const logout = async () => {

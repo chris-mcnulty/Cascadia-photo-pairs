@@ -14,6 +14,7 @@ export default function AdminSettings() {
   
   const { data: settings, isLoading } = useQuery<Settings>({
     queryKey: ["/api/settings"],
+    enabled: false, // Disable automatic query execution - parent will handle auth
   });
 
   const [formData, setFormData] = useState({

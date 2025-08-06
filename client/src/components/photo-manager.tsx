@@ -142,12 +142,29 @@ export default function PhotoManager() {
     });
   };
 
+  const handleDeletePhoto = async (photoId: string, photoTitle: string) => {
+    if (!confirm(`Are you sure you want to permanently delete "${photoTitle}"? This will remove all voting statistics and cannot be undone.`)) {
+      return;
+    }
+    deletePhotoMutation.mutate(photoId);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     let imageUrl = formData.imageUrl;
     
     if (uploadMethod === "file" && selectedFile) {
+      // Check file size (limit to ~10MB for base64)
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select an image smaller than 10MB.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       // Convert file to base64 data URL for storage
       try {
         imageUrl = await convertFileToBase64(selectedFile);
@@ -188,12 +205,6 @@ export default function PhotoManager() {
       ...formData,
       imageUrl,
     });
-  };
-
-  const handleDeletePhoto = (photoId: string, title: string) => {
-    if (confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
-      deletePhotoMutation.mutate(photoId);
-    }
   };
 
   if (isLoading) {

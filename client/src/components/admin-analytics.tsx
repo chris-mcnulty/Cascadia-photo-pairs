@@ -37,7 +37,31 @@ export default function AdminAnalytics() {
       if (startDate) params.append("startDate", startDate);
       if (endDate) params.append("endDate", endDate);
       
-      const response = await apiRequest("GET", `/api/stats?${params.toString()}`);
+      const sessionId = localStorage.getItem('admin-session-id');
+      console.log('Analytics session ID:', sessionId);
+      
+      if (!sessionId) {
+        throw new Error('No session ID found - please log in to admin');
+      }
+      
+      const response = await fetch(`/api/stats?${params.toString()}`, {
+        credentials: "include",
+        headers: {
+          'x-session-id': sessionId,
+          'Content-Type': 'application/json'
+        },
+      });
+      
+      console.log('Analytics response status:', response.status);
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem('admin-session-id');
+          throw new Error('Session expired - please log in again');
+        }
+        throw new Error(`API error: ${response.status}`);
+      }
+      
       const data = await response.json();
       console.log('Analytics data received:', data);
       return data;

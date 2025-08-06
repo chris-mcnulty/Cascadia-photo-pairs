@@ -1,8 +1,8 @@
-# ImageRank Photo Voting App
+# Cascadia Oceanic Photo Voting App
 
 ## Overview
 
-ImageRank is a full-stack photo voting application built for displaying and ranking landscape photography. Users can vote between pairs of photos in a tournament-style system, with the app tracking wins, losses, and overall rankings. The application includes an admin dashboard for viewing statistics and managing settings, plus the ability to enable/disable purchase links for photos.
+This is a full-stack photo voting application built for displaying and ranking landscape photography. Users can vote between pairs of photos in a tournament-style system, with the app tracking wins, losses, and overall rankings. The application includes an admin dashboard for viewing statistics and managing settings, plus the ability to enable/disable purchase links for photos.
 
 The app uses a modern React frontend with shadcn/ui components, Express.js backend, and is designed to work with PostgreSQL database through Drizzle ORM. It includes features like real-time voting statistics, photo pair randomization, and comprehensive admin analytics.
 

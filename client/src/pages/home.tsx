@@ -227,7 +227,7 @@ export default function Home() {
                 <div className="w-8 h-8 rounded overflow-hidden">
                   <img 
                     src={cascadiaLogoPath} 
-                    alt="Cascadia Oceanic Logo" 
+                    alt="Cascadia Oceanic" 
                     className="w-full h-full object-cover"
                   />
                 </div>

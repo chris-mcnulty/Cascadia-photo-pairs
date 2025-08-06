@@ -144,11 +144,15 @@ function AdminDashboard() {
 
 function AuthenticatedAdmin() {
   const { isAuthenticated, login } = useAuth();
+  
+  console.log('AuthenticatedAdmin render - isAuthenticated:', isAuthenticated);
 
   if (!isAuthenticated) {
+    console.log('Rendering AdminLogin component');
     return <AdminLogin onAuthenticated={login} />;
   }
 
+  console.log('Rendering AdminDashboard component');
   return <AdminDashboard />;
 }
 

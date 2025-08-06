@@ -16,6 +16,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return storedSessionId;
   });
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  
+  console.log('AuthProvider render - sessionId:', sessionId, 'isAuthenticated:', isAuthenticated);
 
   // Check auth status on mount and when sessionId changes
   useEffect(() => {

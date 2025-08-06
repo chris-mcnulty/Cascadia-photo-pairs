@@ -115,12 +115,15 @@ export default function AdminLogin({ onAuthenticated }: AdminLoginProps) {
       }
     },
     onSuccess: (data) => {
-      if (data.authenticated) {
+      if (data.authenticated && sessionId) {
+        console.log('MFA successful, calling onAuthenticated with session:', sessionId);
         onAuthenticated(sessionId);
         toast({
           title: "Welcome!",
           description: "Successfully logged in to admin panel.",
         });
+      } else {
+        console.error('MFA successful but missing session ID or authenticated flag:', { authenticated: data.authenticated, sessionId });
       }
     },
     onError: (error: any) => {

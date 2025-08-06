@@ -146,7 +146,7 @@ setInterval(async () => {
     // Delete sessions older than 24 hours
     await db
       .delete(sessions)
-      .where(sql`${sessions.lastActiveAt} < '${oneDayAgo}'`);
+      .where(sql`${sessions.lastActiveAt} < ${oneDayAgo}`);
       
   } catch (error) {
     console.error('Session cleanup error:', error);

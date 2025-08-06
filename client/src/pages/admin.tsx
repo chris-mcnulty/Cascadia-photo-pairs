@@ -143,7 +143,10 @@ function AdminDashboard() {
 }
 
 function AuthenticatedAdmin() {
-  const { isAuthenticated, login } = useAuth();
+  const { isAuthenticated, login, sessionId } = useAuth();
+
+  // Debug logging for production issues
+  console.log('AuthenticatedAdmin render:', { isAuthenticated, hasSessionId: !!sessionId });
 
   if (!isAuthenticated) {
     return <AdminLogin onAuthenticated={login} />;

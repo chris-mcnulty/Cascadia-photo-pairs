@@ -337,7 +337,15 @@ export class MemStorage implements IStorage {
 // DatabaseStorage implementation
 export class DatabaseStorage implements IStorage {
   async getAllPhotos(): Promise<Photo[]> {
-    return await db.select().from(photos);
+    try {
+      console.log('DatabaseStorage: Starting getAllPhotos query...');
+      const result = await db.select().from(photos);
+      console.log(`DatabaseStorage: Successfully retrieved ${result.length} photos`);
+      return result;
+    } catch (error) {
+      console.error('DatabaseStorage: Error in getAllPhotos:', error);
+      throw error;
+    }
   }
 
   async getPhoto(id: string): Promise<Photo | undefined> {
@@ -552,10 +560,19 @@ export const storage = new DatabaseStorage();
 // Initialize database with default photos if empty
 async function initializeDatabase() {
   try {
+    console.log('Starting database initialization check...');
+    
+    // Test database connection first
+    console.log('Testing database connection...');
+    await storage.getSettings();
+    console.log('Database connection successful');
+    
+    console.log('Checking for existing photos...');
     const existingPhotos = await storage.getAllPhotos();
+    console.log(`Found ${existingPhotos.length} existing photos`);
     
     if (existingPhotos.length === 0) {
-      console.log('Initializing database with default photos...');
+      console.log('Database empty, initializing with default photos...');
       
       const defaultPhotos = [
         {
@@ -565,7 +582,7 @@ async function initializeDatabase() {
         },
         {
           imageUrl: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&h=600&fit=crop",
-          title: "Forest Trail",
+          title: "Forest Trail", 
           description: "Misty morning path through ancient evergreen forest"
         },
         {
@@ -585,20 +602,32 @@ async function initializeDatabase() {
         }
       ];
       
-      for (const photoData of defaultPhotos) {
-        await storage.createPhoto(photoData);
+      console.log(`Creating ${defaultPhotos.length} default photos...`);
+      for (let i = 0; i < defaultPhotos.length; i++) {
+        const photoData = defaultPhotos[i];
+        console.log(`Creating photo ${i + 1}/${defaultPhotos.length}: ${photoData.title}`);
+        try {
+          await storage.createPhoto(photoData);
+          console.log(`✓ Successfully created: ${photoData.title}`);
+        } catch (error) {
+          console.error(`✗ Failed to create photo ${photoData.title}:`, error);
+        }
       }
       
-      console.log(`Initialized database with ${defaultPhotos.length} photos`);
+      console.log('Verifying photo creation...');
+      const newPhotos = await storage.getAllPhotos();
+      console.log(`✓ Database now contains ${newPhotos.length} photos`);
     } else {
-      console.log(`Database already contains ${existingPhotos.length} photos`);
+      console.log(`✓ Database already contains ${existingPhotos.length} photos - no initialization needed`);
     }
     
-    // Ensure settings exist
-    await storage.getSettings();
-    console.log('Database initialization completed successfully');
+    console.log('✓ Database initialization completed successfully');
   } catch (error) {
-    console.error('Database initialization error:', error);
+    console.error('✗ Database initialization failed:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
+    }
   }
 }
 

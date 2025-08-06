@@ -118,10 +118,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get all photos
   app.get("/api/photos", async (req, res) => {
     try {
+      console.log('Fetching all photos...');
       const photos = await storage.getAllPhotos();
+      console.log(`Retrieved ${photos.length} photos successfully`);
       res.json(photos);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch photos" });
+      console.error('Error fetching photos:', error);
+      res.status(500).json({ 
+        message: "Failed to fetch photos", 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
     }
   });
 
@@ -215,12 +221,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get voting statistics (admin only)
   app.get("/api/stats", async (req, res) => {
     try {
+      console.log('Fetching statistics...');
       const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
       
       const totalVotes = await storage.getTotalVotes(startDate, endDate);
       const uniqueVoters = await storage.getUniqueVoters(startDate, endDate);
       const avgVotesPerUser = uniqueVoters > 0 ? totalVotes / uniqueVoters : 0;
       const topPhotos = await storage.getPhotoStats(startDate, endDate);
+      
+      console.log(`Statistics: ${totalVotes} votes, ${uniqueVoters} voters, ${topPhotos.length} photos`);
       
       res.json({
         totalVotes,
@@ -230,7 +239,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         dateRange: startDate && endDate ? { startDate, endDate } : null
       });
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch statistics" });
+      console.error('Error fetching statistics:', error);
+      res.status(500).json({ 
+        message: "Failed to fetch statistics",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
 

@@ -28,11 +28,12 @@ Preferred communication style: Simple, everyday language.
 - Development server integrates with Vite for hot module replacement
 
 **Data Storage**
-- PostgreSQL database configured through Drizzle ORM
-- Database schema includes photos, votes, and settings tables
+- PostgreSQL database configured through Drizzle ORM with persistent storage
+- Database schema includes photos, votes, and settings tables with proper indexing
 - Support for Neon Database serverless PostgreSQL hosting
 - Migration system using Drizzle Kit for schema management
-- In-memory fallback storage for development/testing
+- DatabaseStorage class replaces MemStorage for full persistence
+- Automatic database seeding with default photos on first startup
 
 **API Design**
 - RESTful endpoints following conventional patterns:

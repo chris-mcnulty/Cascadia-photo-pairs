@@ -1,7 +1,7 @@
 import { type Photo, type InsertPhoto, type Vote, type InsertVote, type Settings, type InsertSettings } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { photos, votes, settings, users } from "@shared/schema";
+import { photos, votes, settings } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 
 export interface IStorage {
@@ -348,7 +348,6 @@ export class DatabaseStorage implements IStorage {
     const photoData = {
       ...insertPhoto,
       id,
-      createdAt: new Date().toISOString(),
       votes: 0,
       wins: 0,
       comparisons: 0,
@@ -390,19 +389,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getTotalVotes(startDate?: string, endDate?: string): Promise<number> {
-    let query = db.select({ count: sql<number>`count(*)` }).from(votes);
+    let baseQuery = db.select({ count: sql<number>`count(*)` }).from(votes);
     
-    if (startDate || endDate) {
-      if (startDate && endDate) {
-        query = query.where(sql`${votes.timestamp} >= ${startDate} AND ${votes.timestamp} <= ${endDate}`);
-      } else if (startDate) {
-        query = query.where(sql`${votes.timestamp} >= ${startDate}`);
-      } else if (endDate) {
-        query = query.where(sql`${votes.timestamp} <= ${endDate}`);
-      }
+    if (startDate && endDate) {
+      const [result] = await baseQuery.where(sql`${votes.timestamp} >= ${startDate} AND ${votes.timestamp} <= ${endDate}`);
+      return result.count;
+    } else if (startDate) {
+      const [result] = await baseQuery.where(sql`${votes.timestamp} >= ${startDate}`);
+      return result.count;
+    } else if (endDate) {
+      const [result] = await baseQuery.where(sql`${votes.timestamp} <= ${endDate}`);
+      return result.count;
     }
     
-    const [result] = await query;
+    const [result] = await baseQuery;
     return result.count;
   }
 
@@ -419,7 +419,7 @@ export class DatabaseStorage implements IStorage {
       // Create default settings
       const defaultSettings = {
         id: "default",
-        purchaseLinksEnabled: true,
+        purchaseEnabled: true,
         defaultPurchaseUrl: "https://chrismcnulty.net/store",
         adminPassword: "BradyBunch12!",
         mfaPhoneNumber: "+16179809810",
@@ -475,19 +475,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getVotesByDateRange(startDate?: string, endDate?: string): Promise<Vote[]> {
-    let query = db.select().from(votes);
-    
-    if (startDate || endDate) {
-      if (startDate && endDate) {
-        query = query.where(sql`${votes.timestamp} >= ${startDate} AND ${votes.timestamp} <= ${endDate}`);
-      } else if (startDate) {
-        query = query.where(sql`${votes.timestamp} >= ${startDate}`);
-      } else if (endDate) {
-        query = query.where(sql`${votes.timestamp} <= ${endDate}`);
-      }
+    if (startDate && endDate) {
+      return await db.select().from(votes).where(sql`${votes.timestamp} >= ${startDate} AND ${votes.timestamp} <= ${endDate}`);
+    } else if (startDate) {
+      return await db.select().from(votes).where(sql`${votes.timestamp} >= ${startDate}`);
+    } else if (endDate) {
+      return await db.select().from(votes).where(sql`${votes.timestamp} <= ${endDate}`);
     }
     
-    return await query;
+    return await db.select().from(votes);
   }
 
   async recordComparison(winnerPhotoId: string, loserPhotoId: string): Promise<void> {

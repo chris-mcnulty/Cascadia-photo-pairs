@@ -30,7 +30,7 @@ export default function AdminAnalytics() {
   const [purgeDate, setPurgeDate] = useState("");
   const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
 
-  const { data: stats, isLoading } = useQuery<StatsData>({
+  const { data: stats, isLoading, error } = useQuery<StatsData>({
     queryKey: ["/api/stats", startDate, endDate],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -38,14 +38,26 @@ export default function AdminAnalytics() {
       if (endDate) params.append("endDate", endDate);
       
       const sessionId = localStorage.getItem('admin-session-id');
+      console.log('Analytics fetching stats with session:', sessionId);
+      
       const response = await fetch(`/api/stats?${params.toString()}`, {
         credentials: "include",
         headers: sessionId ? { 'x-session-id': sessionId } : {},
       });
       
-      if (!response.ok) throw new Error("Failed to fetch stats");
-      return response.json();
+      console.log('Analytics API response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Analytics API error:', errorText);
+        throw new Error(`Failed to fetch stats: ${response.status} ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log('Analytics data received:', data);
+      return data;
     },
+    retry: false,
   });
 
   const purgeTestDataMutation = useMutation({

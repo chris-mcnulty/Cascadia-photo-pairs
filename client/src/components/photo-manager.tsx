@@ -30,6 +30,32 @@ export default function PhotoManager() {
 
   const { data: photos, isLoading } = useQuery<Photo[]>({
     queryKey: ["/api/photos"],
+    queryFn: async () => {
+      const sessionId = localStorage.getItem('admin-session-id');
+      if (!sessionId) {
+        throw new Error('No session ID found - please log in to admin');
+      }
+      
+      const response = await fetch('/api/photos', {
+        credentials: "include",
+        headers: {
+          'x-session-id': sessionId,
+          'Content-Type': 'application/json'
+        },
+      });
+      
+      if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem('admin-session-id');
+          throw new Error('Session expired - please log in again');
+        }
+        throw new Error(`API error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    },
+    retry: false,
   });
 
   const addPhotoMutation = useMutation({

@@ -24,6 +24,8 @@ function AdminDashboard() {
     queryKey: ["/api/stats"],
     queryFn: async () => {
       const sessionId = localStorage.getItem('admin-session-id');
+      console.log('Admin dashboard loading stats with session:', sessionId);
+      
       if (!sessionId) {
         throw new Error('No session ID found - please log in to admin');
       }
@@ -36,6 +38,8 @@ function AdminDashboard() {
         },
       });
       
+      console.log('Admin dashboard stats response:', response.status);
+      
       if (!response.ok) {
         if (response.status === 401) {
           localStorage.removeItem('admin-session-id');
@@ -45,9 +49,11 @@ function AdminDashboard() {
       }
       
       const data = await response.json();
+      console.log('Admin dashboard stats loaded:', data);
       return data;
     },
     retry: false,
+    enabled: !!localStorage.getItem('admin-session-id'),
   });
 
   const handleExportData = async () => {

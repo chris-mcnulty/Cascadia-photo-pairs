@@ -111,6 +111,7 @@ export class MemStorage implements IStorage {
         votes: 0,
         wins: 0,
         comparisons: 0,
+        hidden: false,
         customPurchaseUrl: null,
       };
       this.photos.set(id, photo);
@@ -133,6 +134,7 @@ export class MemStorage implements IStorage {
       votes: 0,
       wins: 0,
       comparisons: 0,
+      hidden: false,
       description: insertPhoto.description || null,
       customPurchaseUrl: insertPhoto.customPurchaseUrl || null,
     };
@@ -198,10 +200,10 @@ export class MemStorage implements IStorage {
   }
 
   async getRandomPhotoPair(): Promise<[Photo, Photo] | null> {
-    const photos = Array.from(this.photos.values());
-    if (photos.length < 2) return null;
+    const visiblePhotos = Array.from(this.photos.values()).filter(photo => !photo.hidden);
+    if (visiblePhotos.length < 2) return null;
     
-    const shuffled = [...photos].sort(() => Math.random() - 0.5);
+    const shuffled = [...visiblePhotos].sort(() => Math.random() - 0.5);
     return [shuffled[0], shuffled[1]];
   }
 

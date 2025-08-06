@@ -11,6 +11,7 @@ export const photos = pgTable("photos", {
   votes: integer("votes").default(0).notNull(),
   wins: integer("wins").default(0).notNull(),
   comparisons: integer("comparisons").default(0).notNull(),
+  hidden: boolean("hidden").default(false).notNull(),
   customPurchaseUrl: text("custom_purchase_url"),
 });
 
@@ -33,6 +34,7 @@ export const insertPhotoSchema = createInsertSchema(photos).omit({
   votes: true,
   wins: true,
   comparisons: true,
+  hidden: true,
 });
 
 export const insertVoteSchema = createInsertSchema(votes).omit({

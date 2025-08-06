@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Photo, InsertPhoto } from "@shared/schema";
-import { Plus, Trash2, ExternalLink, Upload, Link2 } from "lucide-react";
+import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff } from "lucide-react";
 
 export default function PhotoManager() {
   const { toast } = useToast();
@@ -69,6 +69,30 @@ export default function PhotoManager() {
       toast({
         title: "Failed to delete photo",
         description: "There was an error deleting the photo.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const togglePhotoVisibilityMutation = useMutation({
+    mutationFn: async ({ photoId, hidden }: { photoId: string; hidden: boolean }) => {
+      const response = await apiRequest("PUT", `/api/photos/${photoId}`, { hidden });
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/photos/random-pair"] });
+      toast({
+        title: variables.hidden ? "Photo hidden" : "Photo shown",
+        description: variables.hidden 
+          ? "The photo is now hidden from voting but stats are preserved." 
+          : "The photo is now visible in voting again.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to update photo",
+        description: "There was an error updating the photo visibility.",
         variant: "destructive",
       });
     },
@@ -329,12 +353,20 @@ export default function PhotoManager() {
                     className="w-20 h-14 object-cover rounded"
                   />
                   <div className="flex-1">
-                    <h4 className="font-medium">{photo.title}</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-medium">{photo.title}</h4>
+                      {photo.hidden && (
+                        <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
+                          Hidden
+                        </span>
+                      )}
+                    </div>
                     {photo.description && (
                       <p className="text-sm text-gray-600 truncate">{photo.description}</p>
                     )}
                     <div className="text-xs text-gray-500 mt-1">
                       Votes: {photo.votes} | Win Rate: {photo.comparisons > 0 ? Math.round((photo.wins / photo.comparisons) * 100) : 0}%
+                      {photo.hidden && " (Hidden from voting)"}
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -348,6 +380,16 @@ export default function PhotoManager() {
                         <ExternalLink className="w-4 h-4" />
                       </a>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => togglePhotoVisibilityMutation.mutate({ photoId: photo.id, hidden: !photo.hidden })}
+                      disabled={togglePhotoVisibilityMutation.isPending}
+                      className={photo.hidden ? "text-green-600 hover:text-green-800" : "text-orange-600 hover:text-orange-800"}
+                      title={photo.hidden ? "Show photo in voting" : "Hide photo from voting"}
+                    >
+                      {photo.hidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"

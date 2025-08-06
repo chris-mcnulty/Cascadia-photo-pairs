@@ -163,26 +163,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update photo (admin only)
-  app.put("/api/photos/:id", requireAuth, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const photoData = req.body;
-      console.log('Photo update request:', { id, photoData });
-      
-      const updatedPhoto = await storage.updatePhoto(id, photoData);
-      if (!updatedPhoto) {
-        return res.status(404).json({ message: "Photo not found" });
-      }
-      
-      console.log('Photo updated successfully:', updatedPhoto);
-      res.json(updatedPhoto);
-    } catch (error) {
-      console.error('Photo update error:', error);
-      res.status(500).json({ message: "Failed to update photo" });
-    }
-  });
-
   // Delete a photo (admin only)
   app.delete("/api/photos/:id", requireAuth, async (req, res) => {
     try {
@@ -287,18 +267,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get public settings (for home page)
-  app.get("/api/settings", async (req, res) => {
-    try {
-      const settings = await storage.getSettings();
-      res.json(settings);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch settings" });
-    }
-  });
-
-  // Get full settings (admin only)  
-  app.get("/api/admin/settings", requireAuth, async (req, res) => {
+  // Get settings (admin only)  
+  app.get("/api/settings", requireAuth, async (req, res) => {
     try {
       const settings = await storage.getSettings();
       res.json(settings);

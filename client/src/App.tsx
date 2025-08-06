@@ -18,9 +18,6 @@ function Router() {
 }
 
 function App() {
-  // Force cache refresh - timestamp: ${Date.now()}
-  console.log('App cache refresh:', Date.now());
-  
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>

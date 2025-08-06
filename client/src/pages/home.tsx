@@ -17,7 +17,6 @@ export default function Home() {
 
   const { data: settings } = useQuery<Settings>({
     queryKey: ["/api/settings"],
-    retry: false
   });
 
   const { data: photoPair, refetch: refetchPair } = useQuery<[Photo, Photo]>({

@@ -13,7 +13,7 @@ export default function AdminSettings() {
   const { toast } = useToast();
   
   const { data: settings, isLoading } = useQuery<Settings>({
-    queryKey: ["/api/admin/settings"],
+    queryKey: ["/api/settings"],
   });
 
   const [formData, setFormData] = useState({

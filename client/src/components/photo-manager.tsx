@@ -102,19 +102,10 @@ export default function PhotoManager() {
 
   const editPhotoMutation = useMutation({
     mutationFn: async ({ photoId, data }: { photoId: string; data: Partial<Photo> }) => {
-      console.log('Editing photo mutation:', { photoId, data });
       const response = await apiRequest("PUT", `/api/photos/${photoId}`, data);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Edit photo API error:', errorData);
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
-      }
-      
       return response.json();
     },
-    onSuccess: (data) => {
-      console.log('Photo edit successful:', data);
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
       queryClient.invalidateQueries({ queryKey: ["/api/photos/random-pair"] });
       setEditingPhoto(null);
@@ -124,21 +115,10 @@ export default function PhotoManager() {
         description: "Your photo has been updated successfully.",
       });
     },
-    onError: (error: any) => {
-      console.error('Edit photo mutation error:', error);
-      
-      let errorMessage = "There was an error updating the photo.";
-      if (error?.message) {
-        errorMessage = error.message;
-      }
-      
-      if (errorMessage.includes('401') || errorMessage.includes('unauthorized') || errorMessage.includes('Session ID required')) {
-        errorMessage = "Authentication failed. Please log out and log back in.";
-      }
-      
+    onError: () => {
       toast({
         title: "Failed to update photo",
-        description: errorMessage,
+        description: "There was an error updating the photo.",
         variant: "destructive",
       });
     },
@@ -243,30 +223,13 @@ export default function PhotoManager() {
       return;
     }
 
-    // If we're editing a photo, include imageUrl in the update
+    // If we're editing a photo, we only need to update the text fields
     if (editingPhoto) {
-      if (!formData.imageUrl) {
-        toast({
-          title: "Missing image URL",
-          description: "Please provide an image URL.",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      console.log('Submitting photo edit:', {
-        photoId: editingPhoto.id,
-        originalImageUrl: editingPhoto.imageUrl,
-        newImageUrl: formData.imageUrl,
-        hasChanged: editingPhoto.imageUrl !== formData.imageUrl
-      });
-      
       editPhotoMutation.mutate({
         photoId: editingPhoto.id,
         data: {
           title: formData.title,
           description: formData.description || null,
-          imageUrl: formData.imageUrl,
           customPurchaseUrl: formData.customPurchaseUrl || null,
         },
       });
@@ -409,37 +372,20 @@ export default function PhotoManager() {
               </Tabs>
               )}
 
-              {/* Image URL field when editing - Force render with timestamp */}
+              {/* Show current image when editing */}
               {editingPhoto && (
-                <div className="space-y-4" key={`edit-${editingPhoto.id}-${Date.now()}`}>
-                  <div className="space-y-2">
-                    <Label htmlFor="editImageUrl">Image URL * (EDITABLE)</Label>
-                    <Input
-                      id="editImageUrl"
-                      type="url"
-                      placeholder="https://example.com/photo.jpg"
-                      value={formData.imageUrl}
-                      onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
-                      className="border-2 border-blue-300 focus:border-blue-500"
+                <div className="space-y-2">
+                  <Label>Current Image</Label>
+                  <div className="border rounded-lg p-2 bg-gray-50">
+                    <img 
+                      src={editingPhoto.imageUrl} 
+                      alt={editingPhoto.title} 
+                      className="max-w-full max-h-48 object-contain mx-auto rounded"
                     />
-                    <p className="text-sm text-green-600 font-medium">
-                      ✓ You can now change the image URL - type a new URL above
-                    </p>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Live Image Preview</Label>
-                    <div className="border rounded-lg p-2 bg-gray-50">
-                      <img 
-                        src={formData.imageUrl} 
-                        alt={editingPhoto.title} 
-                        className="max-w-full max-h-48 object-contain mx-auto rounded"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                        }}
-                      />
-                    </div>
-                  </div>
+                  <p className="text-sm text-gray-500">
+                    Image cannot be changed during editing. Delete and re-add to change the image.
+                  </p>
                 </div>
               )}
 

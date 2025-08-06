@@ -163,9 +163,13 @@ function AuthenticatedAdmin() {
 }
 
 export default function Admin() {
+  console.log('Admin page component loading...');
   return (
     <AuthProvider>
-      <AuthenticatedAdmin />
+      <div>
+        <h1 style={{color: 'red', fontSize: '24px'}}>DEBUG: Admin page loaded</h1>
+        <AuthenticatedAdmin />
+      </div>
     </AuthProvider>
   );
 }

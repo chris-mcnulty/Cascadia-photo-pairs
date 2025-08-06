@@ -31,8 +31,20 @@ export default function PhotoManager() {
 
   const addPhotoMutation = useMutation({
     mutationFn: async (data: InsertPhoto) => {
-      const response = await apiRequest("POST", "/api/photos", data);
-      return response.json();
+      console.log('Adding photo with data:', data);
+      try {
+        const response = await apiRequest("POST", "/api/photos", data);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return response.json();
+      } catch (error) {
+        console.error('Photo upload error:', error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
@@ -43,10 +55,11 @@ export default function PhotoManager() {
         description: "Your photo has been added successfully.",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error('Add photo mutation error:', error);
       toast({
         title: "Failed to add photo",
-        description: "There was an error adding the photo.",
+        description: error.message || "There was an error adding the photo.",
         variant: "destructive",
       });
     },

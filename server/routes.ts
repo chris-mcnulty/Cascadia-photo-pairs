@@ -128,11 +128,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add a new photo (admin only)
   app.post("/api/photos", requireAuth, async (req, res) => {
     try {
+      console.log('Photo creation request body:', req.body);
       const photoData = insertPhotoSchema.parse(req.body);
+      console.log('Parsed photo data:', photoData);
+      
       const photo = await storage.createPhoto(photoData);
+      console.log('Photo created successfully:', photo);
       res.json(photo);
     } catch (error) {
-      res.status(400).json({ message: "Invalid photo data" });
+      console.error('Photo creation error:', error);
+      
+      if (error instanceof Error) {
+        // Zod validation error
+        if (error.message.includes('validation')) {
+          return res.status(400).json({ 
+            message: "Invalid photo data", 
+            details: error.message 
+          });
+        }
+        
+        // Other errors
+        return res.status(400).json({ 
+          message: error.message || "Invalid photo data" 
+        });
+      }
+      
+      res.status(500).json({ message: "Failed to create photo" });
     }
   });
 

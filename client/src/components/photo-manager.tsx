@@ -161,6 +161,7 @@ export default function PhotoManager() {
   };
 
   const startEdit = (photo: Photo) => {
+    console.log('Starting edit for photo:', photo.title);
     setEditingPhoto(photo);
     setFormData({
       title: photo.title,
@@ -169,6 +170,7 @@ export default function PhotoManager() {
       customPurchaseUrl: photo.customPurchaseUrl || "",
     });
     setShowAddForm(false);
+    console.log('Edit form should now be visible');
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {

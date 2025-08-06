@@ -32,7 +32,7 @@ export default function AdminAnalytics() {
 
   const { data: stats, isLoading } = useQuery<StatsData>({
     queryKey: ["/api/stats", startDate, endDate],
-    enabled: false, // Disable automatic query execution - parent will handle auth
+    enabled: true, // Re-enable for testing
     queryFn: async () => {
       const params = new URLSearchParams();
       if (startDate) params.append("startDate", startDate);

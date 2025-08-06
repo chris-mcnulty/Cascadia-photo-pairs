@@ -220,6 +220,9 @@ export default function Admin() {
         <div className="mb-8">
           <AdminStats />
         </div>
+        <div className="mb-8">
+          <AdminAnalytics />
+        </div>
         <AdminSettings />
       </div>
     </div>

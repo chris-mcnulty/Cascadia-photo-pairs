@@ -116,6 +116,7 @@ export class MemStorage implements IStorage {
         title: photoData.title,
         description: photoData.description,
         imageUrl: photoData.imageUrl,
+        createdAt: new Date().toISOString(),
         votes: 0,
         wins: 0,
         comparisons: 0,
@@ -139,6 +140,7 @@ export class MemStorage implements IStorage {
     const photo: Photo = {
       ...insertPhoto,
       id,
+      createdAt: new Date().toISOString(),
       votes: 0,
       wins: 0,
       comparisons: 0,

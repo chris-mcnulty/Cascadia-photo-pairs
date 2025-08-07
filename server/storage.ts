@@ -28,9 +28,13 @@ export interface IStorage {
   updateSettings(settings: InsertSettings): Promise<Settings>;
   
   // Stats
-  getPhotoStats(startDate?: string, endDate?: string): Promise<Photo[]>;
+  getPhotoStats(startDate?: string, endDate?: string, category?: string, voterType?: string): Promise<Photo[]>;
   getRandomPhotoPair(collectionId?: string): Promise<[Photo, Photo] | null>;
   getVotesByDateRange(startDate?: string, endDate?: string): Promise<Vote[]>;
+  getTotalVotes(startDate?: string, endDate?: string, voterType?: string): Promise<number>;
+  getUniqueVoters(startDate?: string, endDate?: string, voterType?: string): Promise<number>;
+  getPhotoCategories(): Promise<string[]>;
+  getAllPhotosWithStats(category?: string): Promise<Photo[]>;
   
   // Photo management
   deletePhoto(id: string): Promise<boolean>;
@@ -72,6 +76,23 @@ export class MemStorage implements IStorage {
     return undefined; 
   }
   async deleteCollection(id: string): Promise<boolean> { return false; }
+
+  // New methods for enhanced analytics
+  async getPhotoCategories(): Promise<string[]> { 
+    const uniqueCategories = new Set<string>();
+    this.photos.forEach(photo => {
+      if (photo.category) uniqueCategories.add(photo.category);
+    });
+    return Array.from(uniqueCategories);
+  }
+  
+  async getAllPhotosWithStats(category?: string): Promise<Photo[]> {
+    let filteredPhotos = Array.from(this.photos.values());
+    if (category) {
+      filteredPhotos = filteredPhotos.filter(photo => photo.category === category);
+    }
+    return filteredPhotos;
+  }
 
   private initializePhotos() {
     const samplePhotos = [
@@ -134,6 +155,8 @@ export class MemStorage implements IStorage {
         title: photoData.title,
         description: photoData.description,
         imageUrl: photoData.imageUrl,
+        collectionId: null,
+        category: "General",
         createdAt: new Date().toISOString(),
         votes: 0,
         wins: 0,
@@ -158,6 +181,8 @@ export class MemStorage implements IStorage {
     const photo: Photo = {
       ...insertPhoto,
       id,
+      collectionId: insertPhoto.collectionId || null,
+      category: insertPhoto.category || "General",
       createdAt: new Date().toISOString(),
       votes: 0,
       wins: 0,
@@ -189,6 +214,7 @@ export class MemStorage implements IStorage {
       photoId: insertVote.photoId,
       winnerPhotoId: insertVote.winnerPhotoId || insertVote.photoId,
       loserPhotoId: insertVote.loserPhotoId || insertVote.photoId,
+      voterType: "user",
       timestamp: new Date().toISOString(),
     };
     this.votes.set(id, vote);
@@ -430,6 +456,7 @@ export class DatabaseStorage implements IStorage {
       photoId: insertVote.photoId,
       winnerPhotoId: insertVote.winnerPhotoId || insertVote.photoId,
       loserPhotoId: insertVote.loserPhotoId || insertVote.photoId,
+      voterType: "user",
       timestamp: new Date().toISOString(),
     };
 
@@ -444,29 +471,7 @@ export class DatabaseStorage implements IStorage {
     return savedVote;
   }
 
-  async getTotalVotes(startDate?: string, endDate?: string): Promise<number> {
-    let baseQuery = db.select({ count: sql<number>`count(*)` }).from(votes);
-    
-    if (startDate && endDate) {
-      const [result] = await baseQuery.where(sql`${votes.timestamp} >= ${startDate} AND ${votes.timestamp} <= ${endDate}`);
-      return result.count;
-    } else if (startDate) {
-      const [result] = await baseQuery.where(sql`${votes.timestamp} >= ${startDate}`);
-      return result.count;
-    } else if (endDate) {
-      const [result] = await baseQuery.where(sql`${votes.timestamp} <= ${endDate}`);
-      return result.count;
-    }
-    
-    const [result] = await baseQuery;
-    return result.count;
-  }
 
-  async getUniqueVoters(startDate?: string, endDate?: string): Promise<number> {
-    // For database storage, we'll estimate unique voters based on voting patterns
-    const totalVotes = await this.getTotalVotes(startDate, endDate);
-    return Math.ceil(totalVotes * 0.8); // Estimate based on typical voting patterns
-  }
 
   async getSettings(): Promise<Settings> {
     const [setting] = await db.select().from(settings).limit(1);
@@ -500,21 +505,7 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
-  async getPhotoStats(startDate?: string, endDate?: string): Promise<Photo[]> {
-    if (!startDate && !endDate) {
-      const allPhotos = await db.select().from(photos);
-      return allPhotos.sort((a, b) => b.votes - a.votes);
-    }
 
-    // For date-filtered stats, we'd need to recalculate based on votes in that period
-    // This is a simplified version - in production you'd want more sophisticated analytics
-    const allPhotos = await db.select().from(photos);
-    return allPhotos.sort((a, b) => {
-      const aWinRate = a.comparisons > 0 ? (a.wins / a.comparisons) : 0;
-      const bWinRate = b.comparisons > 0 ? (b.wins / b.comparisons) : 0;
-      return bWinRate - aWinRate || b.votes - a.votes;
-    });
-  }
 
   async getRandomPhotoPair(collectionId?: string): Promise<[Photo, Photo] | null> {
     const availablePhotos = await db
@@ -597,6 +588,59 @@ export class DatabaseStorage implements IStorage {
     });
     
     return { votesDeleted: voteCount.count, photosReset: true };
+  }
+
+  // New methods for enhanced analytics
+  async getPhotoCategories(): Promise<string[]> {
+    const result = await db.select({ category: photos.category }).from(photos).groupBy(photos.category);
+    return result.map(row => row.category).filter(Boolean);
+  }
+
+  async getAllPhotosWithStats(category?: string): Promise<Photo[]> {
+    const query = db.select().from(photos);
+    if (category) {
+      return await query.where(eq(photos.category, category));
+    }
+    return await query;
+  }
+
+  async getTotalVotes(startDate?: string, endDate?: string, voterType?: string): Promise<number> {
+    let query = db.select({ count: sql<number>`count(*)` }).from(votes);
+    
+    if (startDate && endDate && voterType) {
+      const [result] = await query.where(sql`${votes.timestamp} >= ${startDate} AND ${votes.timestamp} <= ${endDate} AND ${votes.voterType} = ${voterType}`);
+      return result.count;
+    } else if (startDate && endDate) {
+      const [result] = await query.where(sql`${votes.timestamp} >= ${startDate} AND ${votes.timestamp} <= ${endDate}`);
+      return result.count;
+    } else if (voterType) {
+      const [result] = await query.where(eq(votes.voterType, voterType));
+      return result.count;
+    }
+    
+    const [result] = await query;
+    return result.count;
+  }
+
+  async getUniqueVoters(startDate?: string, endDate?: string, voterType?: string): Promise<number> {
+    // For database storage, we'll estimate unique voters based on voting patterns
+    const totalVotes = await this.getTotalVotes(startDate, endDate, voterType);
+    return Math.ceil(totalVotes * 0.8); // Estimate based on typical voting patterns
+  }
+
+  async getPhotoStats(startDate?: string, endDate?: string, category?: string, voterType?: string): Promise<Photo[]> {
+    let query = db.select().from(photos);
+    
+    if (category) {
+      query = query.where(eq(photos.category, category));
+    }
+    
+    const allPhotos = await query;
+    return allPhotos.sort((a, b) => {
+      const aWinRate = a.comparisons > 0 ? (a.wins / a.comparisons) : 0;
+      const bWinRate = b.comparisons > 0 ? (b.wins / b.comparisons) : 0;
+      return bWinRate - aWinRate || b.votes - a.votes;
+    });
   }
 }
 

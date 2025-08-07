@@ -263,12 +263,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/stats", async (req, res) => {
     try {
       console.log('Fetching statistics...');
-      const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
+      const { startDate, endDate, category, voterType } = req.query as { 
+        startDate?: string; 
+        endDate?: string;
+        category?: string;
+        voterType?: string;
+      };
       
-      const totalVotes = await storage.getTotalVotes(startDate, endDate);
-      const uniqueVoters = await storage.getUniqueVoters(startDate, endDate);
+      const totalVotes = await storage.getTotalVotes(startDate, endDate, voterType);
+      const uniqueVoters = await storage.getUniqueVoters(startDate, endDate, voterType);
       const avgVotesPerUser = uniqueVoters > 0 ? totalVotes / uniqueVoters : 0;
-      const topPhotos = await storage.getPhotoStats(startDate, endDate);
+      const topPhotos = await storage.getPhotoStats(startDate, endDate, category, voterType);
       
       console.log(`Statistics: ${totalVotes} votes, ${uniqueVoters} voters, ${topPhotos.length} photos`);
       
@@ -277,7 +282,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         uniqueVoters,
         avgVotesPerUser: Math.round(avgVotesPerUser * 10) / 10,
         topPhotos: topPhotos.slice(0, 20),
-        dateRange: startDate && endDate ? { startDate, endDate } : null
+        dateRange: startDate && endDate ? { startDate, endDate } : null,
+        category: category || null,
+        voterType: voterType || null
       });
     } catch (error) {
       console.error('Error fetching statistics:', error);
@@ -285,6 +292,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Failed to fetch statistics",
         error: error instanceof Error ? error.message : 'Unknown error'
       });
+    }
+  });
+
+  // Get photo categories
+  app.get("/api/categories", async (req, res) => {
+    try {
+      const categories = await storage.getPhotoCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      res.status(500).json({ message: "Failed to fetch categories" });
     }
   });
 
@@ -498,6 +516,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: error instanceof Error ? error.message : 'Unknown error',
         stack: error instanceof Error ? error.stack : undefined
       });
+    }
+  });
+
+  // CSV Export endpoint for analytics
+  app.get("/api/export/csv", async (req, res) => {
+    try {
+      const { category, voterType } = req.query as { category?: string; voterType?: string };
+      
+      // Get all photos with stats (not just top 20)
+      const allPhotos = await storage.getAllPhotosWithStats(category);
+      
+      // Create CSV headers
+      const headers = ['Rank', 'Title', 'Description', 'Category', 'Total Votes', 'Wins', 'Comparisons', 'Win Rate %', 'Hidden', 'Image URL'];
+      
+      // Sort photos by win rate then votes
+      const sortedPhotos = allPhotos.sort((a, b) => {
+        const aWinRate = a.comparisons > 0 ? (a.wins / a.comparisons) : 0;
+        const bWinRate = b.comparisons > 0 ? (b.wins / b.comparisons) : 0;
+        return bWinRate - aWinRate || b.votes - a.votes;
+      });
+      
+      // Create CSV rows
+      const csvRows = [headers.join(',')];
+      
+      sortedPhotos.forEach((photo, index) => {
+        const winRate = photo.comparisons > 0 ? Math.round((photo.wins / photo.comparisons) * 100) : 0;
+        const row = [
+          index + 1,
+          `"${photo.title.replace(/"/g, '""')}"`, // Escape quotes in title
+          `"${(photo.description || '').replace(/"/g, '""')}"`, // Escape quotes in description
+          `"${photo.category || 'General'}"`,
+          photo.votes,
+          photo.wins,
+          photo.comparisons,
+          winRate,
+          photo.hidden ? 'Yes' : 'No',
+          `"${photo.imageUrl}"`
+        ];
+        csvRows.push(row.join(','));
+      });
+      
+      const csvContent = csvRows.join('\n');
+      const filename = `cascadia-oceanic-analytics-${new Date().toISOString().split('T')[0]}.csv`;
+      
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(csvContent);
+      
+    } catch (error) {
+      console.error('Error generating CSV export:', error);
+      res.status(500).json({ message: "Failed to generate CSV export" });
     }
   });
 

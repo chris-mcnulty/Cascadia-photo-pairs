@@ -17,6 +17,7 @@ export const photos = pgTable("photos", {
   description: text("description"),
   imageUrl: text("image_url").notNull(),
   collectionId: varchar("collection_id").references(() => collections.id),
+  category: text("category").default("General").notNull(),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   votes: integer("votes").default(0).notNull(),
   wins: integer("wins").default(0).notNull(),
@@ -30,6 +31,7 @@ export const votes = pgTable("votes", {
   photoId: varchar("photo_id").notNull().references(() => photos.id),
   winnerPhotoId: varchar("winner_photo_id").notNull().references(() => photos.id),
   loserPhotoId: varchar("loser_photo_id").notNull().references(() => photos.id),
+  voterType: text("voter_type").default("user").notNull(), // "admin" or "user"
   timestamp: text("timestamp").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 

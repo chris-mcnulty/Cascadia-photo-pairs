@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Calendar, Trash2, TrendingUp, BarChart3, AlertTriangle, Download, ArrowUpDown } from "lucide-react";
+import { Calendar, Trash2, TrendingUp, BarChart3, AlertTriangle, Download, ArrowUpDown, FilterIcon } from "lucide-react";
 
 interface StatsData {
   totalVotes: number;
@@ -31,20 +31,34 @@ export default function AdminAnalytics() {
   const [purgeDate, setPurgeDate] = useState("");
   const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
   const [sortBy, setSortBy] = useState<"votes" | "winRate">("votes");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedVoterType, setSelectedVoterType] = useState<string>("all");
 
   const { data: stats, isLoading } = useQuery<StatsData>({
-    queryKey: ["/api/stats", startDate, endDate],
-    enabled: true, // Re-enable for testing
+    queryKey: ["/api/stats", startDate, endDate, selectedCategory, selectedVoterType],
+    enabled: true,
     queryFn: async () => {
       const params = new URLSearchParams();
       if (startDate) params.append("startDate", startDate);
       if (endDate) params.append("endDate", endDate);
+      if (selectedCategory !== "all") params.append("category", selectedCategory);
+      if (selectedVoterType !== "all") params.append("voterType", selectedVoterType);
       
       const response = await fetch(`/api/stats?${params.toString()}`, {
         credentials: "include",
       });
       
       if (!response.ok) throw new Error("Failed to fetch stats");
+      return response.json();
+    },
+  });
+
+  // Query for photo categories
+  const { data: categories = [] } = useQuery<string[]>({
+    queryKey: ["/api/categories"],
+    queryFn: async () => {
+      const response = await fetch("/api/categories");
+      if (!response.ok) throw new Error("Failed to fetch categories");
       return response.json();
     },
   });
@@ -135,6 +149,41 @@ export default function AdminAnalytics() {
     }
   };
 
+  const handleExportCSV = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (selectedCategory !== "all") params.append("category", selectedCategory);
+      if (selectedVoterType !== "all") params.append("voterType", selectedVoterType);
+      
+      const response = await fetch(`/api/export/csv?${params.toString()}`, {
+        credentials: "include",
+      });
+      
+      if (!response.ok) throw new Error("Failed to export CSV");
+      
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cascadia-oceanic-analytics-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "CSV exported",
+        description: "All photo analytics data has been downloaded as CSV.",
+      });
+    } catch (error) {
+      toast({
+        title: "CSV export failed",
+        description: "There was an error exporting the CSV data.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const confirmPurge = () => {
     purgeTestDataMutation.mutate(purgeDate);
   };
@@ -156,15 +205,16 @@ export default function AdminAnalytics() {
 
   return (
     <div className="space-y-6">
-      {/* Date Range Filter */}
+      {/* Advanced Filters */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Calendar className="w-5 h-5" />
-            Date Range Filter
+            <FilterIcon className="w-5 h-5" />
+            Advanced Analytics Filters
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Date Range Filter */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="startDate">Start Date</Label>
@@ -193,6 +243,39 @@ export default function AdminAnalytics() {
                   Clear
                 </Button>
               )}
+            </div>
+          </div>
+
+          {/* Category and Voter Type Filters */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="category">Photo Category</Label>
+              <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Categories</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="voterType">Voter Type</Label>
+              <Select value={selectedVoterType} onValueChange={setSelectedVoterType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select voter type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Voters</SelectItem>
+                  <SelectItem value="user">User Votes Only</SelectItem>
+                  <SelectItem value="admin">Admin Votes Only</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           
@@ -245,6 +328,31 @@ export default function AdminAnalytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Export Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="w-5 h-5" />
+            Export Analytics Data
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Button onClick={handleExportCSV} className="flex-1">
+              <Download className="w-4 h-4 mr-2" />
+              Export All Photos (CSV)
+            </Button>
+            <Button onClick={handleExportData} variant="outline" className="flex-1">
+              <Download className="w-4 h-4 mr-2" />
+              Export Full Backup (JSON)
+            </Button>
+          </div>
+          <p className="text-sm text-gray-600 mt-2">
+            CSV export includes all photos with win rates and rankings. JSON backup includes complete database dump.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Top Photos Rankings */}
       <Card>

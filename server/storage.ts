@@ -38,6 +38,7 @@ export interface IStorage {
   
   // Photo management
   deletePhoto(id: string): Promise<boolean>;
+  updatePhotosCategory(photoIds: string[], category: string): Promise<boolean>;
   purgeTestData(beforeDate: string): Promise<{ votesDeleted: number; photosReset: boolean }>;
   
   // Special method for comparison tracking
@@ -351,6 +352,19 @@ export class MemStorage implements IStorage {
     return this.photos.delete(id);
   }
 
+  async updatePhotosCategory(photoIds: string[], category: string): Promise<boolean> {
+    let updated = 0;
+    photoIds.forEach(id => {
+      const photo = this.photos.get(id);
+      if (photo) {
+        photo.category = category;
+        this.photos.set(id, photo);
+        updated++;
+      }
+    });
+    return updated > 0;
+  }
+
   async purgeTestData(beforeDate: string): Promise<{ votesDeleted: number; photosReset: boolean }> {
     const cutoffDate = new Date(beforeDate);
     const votes = Array.from(this.votes.entries());
@@ -568,6 +582,19 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async updatePhotosCategory(photoIds: string[], category: string): Promise<boolean> {
+    try {
+      const result = await db
+        .update(photos)
+        .set({ category })
+        .where(sql`${photos.id} = ANY(${photoIds})`);
+      return result.rowCount ? result.rowCount > 0 : false;
+    } catch (error) {
+      console.error('Error updating photo categories:', error);
+      return false;
+    }
+  }
+
   async purgeTestData(beforeDate: string): Promise<{ votesDeleted: number; photosReset: boolean }> {
     const cutoffDate = new Date(beforeDate);
     
@@ -597,11 +624,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllPhotosWithStats(category?: string): Promise<Photo[]> {
-    const query = db.select().from(photos);
     if (category) {
-      return await query.where(eq(photos.category, category));
+      return await db.select().from(photos).where(eq(photos.category, category));
     }
-    return await query;
+    return await db.select().from(photos);
   }
 
   async getTotalVotes(startDate?: string, endDate?: string, voterType?: string): Promise<number> {

@@ -9,8 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Photo, InsertPhoto } from "@shared/schema";
-import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit, Globe, ArrowUpDown } from "lucide-react";
+import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit, Globe, ArrowUpDown, Tag, CheckSquare, Square } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function PhotoManager() {
   const { toast } = useToast();
@@ -21,6 +22,9 @@ export default function PhotoManager() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [sortBy, setSortBy] = useState<"name" | "votes" | "created">("name");
+  const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [bulkCategory, setBulkCategory] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<InsertPhoto>({
     title: "",
@@ -171,6 +175,33 @@ export default function PhotoManager() {
     },
   });
 
+  const bulkUpdateCategoryMutation = useMutation({
+    mutationFn: async ({ photoIds, category }: { photoIds: string[]; category: string }) => {
+      const response = await apiRequest("PUT", "/api/photos/bulk-category", { photoIds, category });
+      if (!response.ok) {
+        throw new Error("Failed to update photo categories");
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+      setSelectedPhotos(new Set());
+      setShowBulkActions(false);
+      setBulkCategory("");
+      toast({
+        title: "Categories updated",
+        description: "Selected photos have been assigned to the new category.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to update categories",
+        description: "Could not update photo categories. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const resetForm = () => {
     setFormData({
       title: "",
@@ -186,6 +217,47 @@ export default function PhotoManager() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const togglePhotoSelection = (photoId: string) => {
+    const newSelection = new Set(selectedPhotos);
+    if (newSelection.has(photoId)) {
+      newSelection.delete(photoId);
+    } else {
+      newSelection.add(photoId);
+    }
+    setSelectedPhotos(newSelection);
+    setShowBulkActions(newSelection.size > 0);
+  };
+
+  const selectAllPhotos = () => {
+    if (photos) {
+      const allPhotoIds = new Set(photos.map(p => p.id));
+      setSelectedPhotos(allPhotoIds);
+      setShowBulkActions(true);
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedPhotos(new Set());
+    setShowBulkActions(false);
+    setBulkCategory("");
+  };
+
+  const handleBulkCategoryUpdate = () => {
+    if (selectedPhotos.size === 0 || !bulkCategory.trim()) {
+      toast({
+        title: "Invalid selection",
+        description: "Please select photos and enter a category name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    bulkUpdateCategoryMutation.mutate({
+      photoIds: Array.from(selectedPhotos),
+      category: bulkCategory.trim(),
+    });
   };
 
   const startEdit = (photo: Photo) => {
@@ -468,25 +540,85 @@ export default function PhotoManager() {
           <CardTitle>Current Photos ({photos?.length || 0})</CardTitle>
         </CardHeader>
         <CardContent>
-          {/* Sorting Controls */}
+          {/* Sorting and Bulk Action Controls */}
           {photos && photos.length > 0 && (
-            <div className="flex items-center justify-between mb-4 pb-4 border-b">
-              <div className="flex items-center gap-2">
-                <ArrowUpDown className="w-4 h-4" />
-                <span className="text-sm font-medium">Sort by:</span>
-                <Select value={sortBy} onValueChange={(value: "name" | "votes" | "created") => setSortBy(value)}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="name">Name (A-Z)</SelectItem>
-                    <SelectItem value="votes">Total Votes</SelectItem>
-                    <SelectItem value="created">Date Added</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="space-y-4 mb-4 pb-4 border-b">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ArrowUpDown className="w-4 h-4" />
+                  <span className="text-sm font-medium">Sort by:</span>
+                  <Select value={sortBy} onValueChange={(value: "name" | "votes" | "created") => setSortBy(value)}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">Name (A-Z)</SelectItem>
+                      <SelectItem value="votes">Total Votes</SelectItem>
+                      <SelectItem value="created">Date Added</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="text-sm text-gray-600">
+                    {photos.length} photos total
+                  </div>
+                  {selectedPhotos.size > 0 && (
+                    <div className="text-sm text-blue-600 font-medium">
+                      {selectedPhotos.size} selected
+                    </div>
+                  )}
+                </div>
               </div>
-              <div className="text-sm text-gray-600">
-                {photos.length} photos total
+
+              {/* Bulk Actions */}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={selectedPhotos.size === photos.length ? clearSelection : selectAllPhotos}
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  {selectedPhotos.size === photos.length ? (
+                    <>
+                      <Square className="w-4 h-4 mr-1" />
+                      Clear All
+                    </>
+                  ) : (
+                    <>
+                      <CheckSquare className="w-4 h-4 mr-1" />
+                      Select All
+                    </>
+                  )}
+                </Button>
+                
+                {showBulkActions && (
+                  <div className="flex items-center gap-2 ml-4 p-2 bg-blue-50 rounded-lg border">
+                    <Tag className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-800">Bulk Category:</span>
+                    <Input
+                      type="text"
+                      placeholder="Enter category name"
+                      value={bulkCategory}
+                      onChange={(e) => setBulkCategory(e.target.value)}
+                      className="w-40 h-8"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleBulkCategoryUpdate}
+                      disabled={bulkUpdateCategoryMutation.isPending || !bulkCategory.trim()}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {bulkUpdateCategoryMutation.isPending ? "Updating..." : "Apply"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearSelection}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -511,6 +643,11 @@ export default function PhotoManager() {
                 <div key={photo.id} className="space-y-4">
                   {/* Photo display row */}
                   <div className="flex items-center gap-4 p-4 border rounded-lg">
+                    <Checkbox
+                      checked={selectedPhotos.has(photo.id)}
+                      onCheckedChange={() => togglePhotoSelection(photo.id)}
+                      className="flex-shrink-0"
+                    />
                     <img 
                       src={photo.imageUrl.includes('[base64-truncated]') ? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNTYiIHZpZXdCb3g9IjAgMCA4MCA1NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yOCAyOEwzNiAyMEw0NCAyOEw0MCAzMkgzMlYzNkwyOCAzMloiIGZpbGw9IiM5Q0EzQUYiLz4KPHN2Zz4K' : photo.imageUrl} 
                       alt={photo.title}

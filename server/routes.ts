@@ -115,24 +115,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Get all photos
+  // Get all photos (optimized for admin interface)
   app.get("/api/photos", async (req, res) => {
     try {
       console.log('Fetching all photos...');
       const photos = await storage.getAllPhotos();
       
-      // For large payloads with base64 images, optionally truncate image data
-      const isLargePayload = photos.some(p => p.imageUrl.startsWith('data:image') && p.imageUrl.length > 50000);
+      // Check if this is an admin request that needs optimization
+      const isAdmin = req.headers['x-admin-request'] === 'true';
+      const hasLargeImages = photos.some(p => p.imageUrl.startsWith('data:image') && p.imageUrl.length > 100000);
       
-      if (isLargePayload && req.query.truncate === 'true') {
-        const truncatedPhotos = photos.map(photo => ({
+      if (isAdmin && hasLargeImages) {
+        // For admin interface, provide lighter version with image previews
+        const adminPhotos = photos.map(photo => ({
           ...photo,
           imageUrl: photo.imageUrl.startsWith('data:image') 
-            ? photo.imageUrl.substring(0, 100) + '...[truncated]'
-            : photo.imageUrl
+            ? photo.imageUrl.substring(0, 200) + '...[base64-truncated]'
+            : photo.imageUrl,
+          originalImageUrl: photo.imageUrl.startsWith('data:image') ? '[stored-in-db]' : photo.imageUrl
         }));
-        console.log(`Retrieved ${photos.length} photos (truncated for performance)`);
-        res.json(truncatedPhotos);
+        console.log(`Retrieved ${photos.length} photos (admin optimized)`);
+        res.json(adminPhotos);
       } else {
         console.log(`Retrieved ${photos.length} photos successfully`);
         res.json(photos);

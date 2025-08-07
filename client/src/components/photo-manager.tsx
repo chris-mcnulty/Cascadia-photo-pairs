@@ -29,6 +29,17 @@ export default function PhotoManager() {
   const { data: photos, isLoading, error } = useQuery<Photo[]>({
     queryKey: ["/api/photos"],
     enabled: true,
+    queryFn: async () => {
+      const response = await fetch("/api/photos", {
+        headers: {
+          'x-admin-request': 'true'
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    },
   });
 
   // Log any errors for debugging
@@ -436,9 +447,12 @@ export default function PhotoManager() {
                   {/* Photo display row */}
                   <div className="flex items-center gap-4 p-4 border rounded-lg">
                     <img 
-                      src={photo.imageUrl} 
+                      src={photo.imageUrl.includes('[base64-truncated]') ? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNTYiIHZpZXdCb3g9IjAgMCA4MCA1NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yOCAyOEwzNiAyMEw0NCAyOEw0MCAzMkgzMlYzNkwyOCAzMloiIGZpbGw9IiM5Q0EzQUYiLz4KPHN2Zz4K' : photo.imageUrl} 
                       alt={photo.title}
-                      className="w-20 h-14 object-cover rounded"
+                      className="w-20 h-14 object-cover rounded bg-gray-100"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNTYiIHZpZXdCb3g9IjAgMCA4MCA1NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yOCAyOEwzNiAyMEw0NCAyOEw0MCAzMkgzMlYzNkwyOCAzMloiIGZpbGw9IiM5Q0EzQUYiLz4KPHN2Zz4K';
+                      }}
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">

@@ -334,7 +334,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalVotes,
         uniqueVoters,
         avgVotesPerUser: Math.round(avgVotesPerUser * 10) / 10,
-        topPhotos: topPhotos.slice(0, 20),
+        topPhotos: topPhotos, // Remove server-side limit - let frontend control display
         dateRange: startDate && endDate ? { startDate, endDate } : null,
         category: category || null,
         voterType: voterType || null

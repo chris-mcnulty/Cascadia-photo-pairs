@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Photo, InsertPhoto } from "@shared/schema";
-import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit, Globe } from "lucide-react";
+import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit, Globe, ArrowUpDown } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function PhotoManager() {
   const { toast } = useToast();
@@ -19,6 +20,7 @@ export default function PhotoManager() {
   const [uploadMethod, setUploadMethod] = useState<"url" | "file">("url");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [sortBy, setSortBy] = useState<"name" | "votes" | "created">("name");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<InsertPhoto>({
     title: "",
@@ -466,6 +468,29 @@ export default function PhotoManager() {
           <CardTitle>Current Photos ({photos?.length || 0})</CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Sorting Controls */}
+          {photos && photos.length > 0 && (
+            <div className="flex items-center justify-between mb-4 pb-4 border-b">
+              <div className="flex items-center gap-2">
+                <ArrowUpDown className="w-4 h-4" />
+                <span className="text-sm font-medium">Sort by:</span>
+                <Select value={sortBy} onValueChange={(value: "name" | "votes" | "created") => setSortBy(value)}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">Name (A-Z)</SelectItem>
+                    <SelectItem value="votes">Total Votes</SelectItem>
+                    <SelectItem value="created">Date Added</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="text-sm text-gray-600">
+                {photos.length} photos total
+              </div>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="text-center py-8">Loading photos...</div>
           ) : error ? (
@@ -474,7 +499,15 @@ export default function PhotoManager() {
             </div>
           ) : photos && photos.length > 0 ? (
             <div className="grid gap-4">
-              {photos.map((photo) => (
+              {[...photos].sort((a, b) => {
+                if (sortBy === "name") {
+                  return a.title.localeCompare(b.title);
+                } else if (sortBy === "votes") {
+                  return b.votes - a.votes; // Higher votes first
+                } else { // created
+                  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // Newest first
+                }
+              }).map((photo) => (
                 <div key={photo.id} className="space-y-4">
                   {/* Photo display row */}
                   <div className="flex items-center gap-4 p-4 border rounded-lg">

@@ -16,6 +16,7 @@ interface StatsData {
   topPhotos: Array<{
     id: string;
     title: string;
+    imageUrl: string;
     votes: number;
     wins: number;
     comparisons: number;
@@ -388,11 +389,21 @@ export default function AdminAnalytics() {
                     <div className="text-lg font-bold text-gray-500 min-w-[2rem]">
                       #{index + 1}
                     </div>
-                    <div className="flex-1">
+                    <img 
+                      src={photo.imageUrl?.includes?.('[base64-truncated]') ? 
+                        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNTYiIHZpZXdCb3g9IjAgMCA4MCA1NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yOCAyOEwzNiAyMEw0NCAyOEw0MCAzMkgzMlYzNkwyOCAzMloiIGZpbGw9IiM5Q0EzQUYiLz4KPHN2Zz4K' 
+                        : photo.imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNTYiIHZpZXdCb3g9IjAgMCA4MCA1NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yOCAyOEwzNiAyMEw0NCAyOEw0MCAzMkgzMlYzNkwyOCAzMloiIGZpbGw9IiM5Q0EzQUYiLz4KPHN2Zz4K'} 
+                      alt={photo.title}
+                      className="w-16 h-12 object-cover rounded bg-gray-100 flex-shrink-0"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNTYiIHZpZXdCb3g9IjAgMCA4MCA1NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yOCAyOEwzNiAyMEw0NCAyOEw0MCAzMkgzMlYzNkwyOCAzMloiIGZpbGw9IiM5Q0EzQUYiLz4KPHN2Zz4K';
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <h4 className="font-medium">{photo.title}</h4>
+                        <h4 className="font-medium truncate">{photo.title}</h4>
                         {photo.hidden && (
-                          <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
+                          <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded flex-shrink-0">
                             Hidden
                           </span>
                         )}
@@ -406,7 +417,7 @@ export default function AdminAnalytics() {
                         )}
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right flex-shrink-0">
                       {sortBy === "winRate" ? (
                         <div className="text-lg font-bold text-blue-600">{winRate}%</div>
                       ) : (

@@ -24,6 +24,7 @@ export const photos = pgTable("photos", {
   comparisons: integer("comparisons").default(0).notNull(),
   hidden: boolean("hidden").default(false).notNull(),
   customPurchaseUrl: text("custom_purchase_url"),
+  neverForSale: boolean("never_for_sale").default(false).notNull(),
 });
 
 export const votes = pgTable("votes", {
@@ -64,6 +65,7 @@ export const insertPhotoSchema = createInsertSchema(photos).omit({
   wins: true,
   comparisons: true,
   hidden: true,
+  neverForSale: true,
 });
 
 export const insertVoteSchema = createInsertSchema(votes).omit({

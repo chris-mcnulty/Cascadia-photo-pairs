@@ -163,6 +163,7 @@ export class MemStorage implements IStorage {
         wins: 0,
         comparisons: 0,
         hidden: false,
+        neverForSale: false,
         customPurchaseUrl: null,
       };
       this.photos.set(id, photo);
@@ -189,6 +190,7 @@ export class MemStorage implements IStorage {
       wins: 0,
       comparisons: 0,
       hidden: false,
+      neverForSale: false,
       description: insertPhoto.description || null,
       customPurchaseUrl: insertPhoto.customPurchaseUrl || null,
     };

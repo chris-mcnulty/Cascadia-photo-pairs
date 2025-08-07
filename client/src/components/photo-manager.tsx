@@ -26,12 +26,13 @@ export default function PhotoManager() {
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [bulkCategory, setBulkCategory] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [formData, setFormData] = useState<InsertPhoto>({
+  const [formData, setFormData] = useState<InsertPhoto & { neverForSale?: boolean }>({
     title: "",
     description: "",
     imageUrl: "",
     customPurchaseUrl: "",
     category: "",
+    neverForSale: false,
   });
 
   const { data: photos, isLoading, error } = useQuery<Photo[]>({
@@ -210,6 +211,7 @@ export default function PhotoManager() {
       imageUrl: "",
       customPurchaseUrl: "",
       category: "",
+      neverForSale: false,
     });
     setShowAddForm(false);
     setEditingPhoto(null);
@@ -270,6 +272,7 @@ export default function PhotoManager() {
       imageUrl: photo.imageUrl.startsWith('data:') ? "" : photo.imageUrl, // Don't show base64 in URL field
       customPurchaseUrl: photo.customPurchaseUrl || "",
       category: photo.category || "",
+      neverForSale: photo.neverForSale || false,
     });
     setShowAddForm(false);
   };
@@ -282,6 +285,7 @@ export default function PhotoManager() {
       imageUrl: "", // Start with empty URL for user to fill
       customPurchaseUrl: photo.customPurchaseUrl || "",
       category: photo.category || "",
+      neverForSale: photo.neverForSale || false,
     });
     setEditingPhoto(null);
     setShowAddForm(false);
@@ -530,6 +534,22 @@ export default function PhotoManager() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox 
+                    id="neverForSale"
+                    checked={formData.neverForSale || false}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, neverForSale: checked as boolean }))}
+                  />
+                  <Label htmlFor="neverForSale" className="text-sm font-medium">
+                    Never for sale
+                  </Label>
+                </div>
+                <p className="text-sm text-gray-500">
+                  If checked, this photo will never show purchase links regardless of global settings
+                </p>
+              </div>
+
               <div className="flex gap-2">
                 <Button 
                   type="submit" 
@@ -679,6 +699,11 @@ export default function PhotoManager() {
                         {photo.hidden && (
                           <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
                             Hidden
+                          </span>
+                        )}
+                        {photo.neverForSale && (
+                          <span className="px-2 py-1 text-xs bg-red-100 text-red-800 rounded">
+                            Never for Sale
                           </span>
                         )}
                       </div>
@@ -858,6 +883,22 @@ export default function PhotoManager() {
                             <div className="text-sm text-gray-500">
                               Categorize your photo for better organization
                             </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <Checkbox 
+                                id="editNeverForSale"
+                                checked={formData.neverForSale || false}
+                                onCheckedChange={(checked) => setFormData(prev => ({ ...prev, neverForSale: checked as boolean }))}
+                              />
+                              <Label htmlFor="editNeverForSale" className="text-sm font-medium">
+                                Never for sale
+                              </Label>
+                            </div>
+                            <p className="text-sm text-gray-500">
+                              If checked, this photo will never show purchase links regardless of global settings
+                            </p>
                           </div>
 
                           <div className="flex gap-2">

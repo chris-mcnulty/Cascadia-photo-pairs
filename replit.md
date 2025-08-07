@@ -50,6 +50,8 @@ The app uses a modern React frontend with shadcn/ui components, Express.js backe
 - Backend API endpoints supporting bulk database operations using Drizzle ORM's inArray operator
 - Proper route ordering to prevent conflicts between bulk operations and individual photo endpoints
 - Category assignments persist across sessions and are immediately visible after bulk updates
+- Category input fields integrated into both add photo and edit photo forms for seamless workflow
+- Complete category management workflow: create during upload, edit individually, or assign in bulk
 
 ## User Preferences
 

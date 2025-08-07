@@ -42,6 +42,15 @@ The app uses a modern React frontend with shadcn/ui components, Express.js backe
 - File-based photos hide URL field and display informative message about database storage
 - Enhanced user experience by eliminating need to scroll to top of page for editing
 
+**Bulk Category Management System (August 2025)**
+- Complete bulk category assignment functionality with checkbox-based photo selection
+- "Select All" and "Clear All" buttons for efficient multi-photo operations
+- Bulk actions panel with category input field and real-time feedback
+- Visual category badges displayed in photo management interface alongside storage type indicators
+- Backend API endpoints supporting bulk database operations using Drizzle ORM's inArray operator
+- Proper route ordering to prevent conflicts between bulk operations and individual photo endpoints
+- Category assignments persist across sessions and are immediately visible after bulk updates
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

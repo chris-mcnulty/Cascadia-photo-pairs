@@ -9,12 +9,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Photo, InsertPhoto } from "@shared/schema";
-import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit } from "lucide-react";
+import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit, Globe } from "lucide-react";
 
 export default function PhotoManager() {
   const { toast } = useToast();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingPhoto, setEditingPhoto] = useState<Photo | null>(null);
+  const [convertingPhoto, setConvertingPhoto] = useState<Photo | null>(null);
   const [uploadMethod, setUploadMethod] = useState<"url" | "file">("url");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
@@ -177,6 +178,7 @@ export default function PhotoManager() {
     });
     setShowAddForm(false);
     setEditingPhoto(null);
+    setConvertingPhoto(null);
     setSelectedFile(null);
     setPreviewUrl("");
     if (fileInputRef.current) {
@@ -192,6 +194,18 @@ export default function PhotoManager() {
       imageUrl: photo.imageUrl.startsWith('data:') ? "" : photo.imageUrl, // Don't show base64 in URL field
       customPurchaseUrl: photo.customPurchaseUrl || "",
     });
+    setShowAddForm(false);
+  };
+
+  const startConvertToUrl = (photo: Photo) => {
+    setConvertingPhoto(photo);
+    setFormData({
+      title: photo.title,
+      description: photo.description || "",
+      imageUrl: "", // Start with empty URL for user to fill
+      customPurchaseUrl: photo.customPurchaseUrl || "",
+    });
+    setEditingPhoto(null);
     setShowAddForm(false);
   };
 
@@ -250,6 +264,24 @@ export default function PhotoManager() {
       editPhotoMutation.mutate({
         photoId: editingPhoto.id,
         data: updateData,
+      });
+      return;
+    }
+
+    if (convertingPhoto) {
+      // Convert mode - replace base64 with URL
+      if (!formData.imageUrl.trim()) {
+        toast({
+          title: "Missing URL",
+          description: "Please provide a URL to replace the uploaded image.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      editPhotoMutation.mutate({
+        photoId: convertingPhoto.id,
+        data: formData,
       });
       return;
     }
@@ -470,6 +502,17 @@ export default function PhotoManager() {
                         Votes: {photo.votes} | Win Rate: {photo.comparisons > 0 ? Math.round((photo.wins / photo.comparisons) * 100) : 0}%
                         {photo.hidden && " (Hidden from voting)"}
                       </div>
+                      <div className="text-xs mt-1">
+                        {photo.imageUrl.startsWith('data:') ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-orange-600 bg-orange-100">
+                            Database Stored
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-green-600 bg-green-100">
+                            URL Based
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       {photo.customPurchaseUrl && (
@@ -482,11 +525,23 @@ export default function PhotoManager() {
                           <ExternalLink className="w-4 h-4" />
                         </a>
                       )}
+                      {photo.imageUrl.startsWith('data:') && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => startConvertToUrl(photo)}
+                          disabled={showAddForm || editingPhoto !== null || convertingPhoto !== null}
+                          className="text-purple-600 hover:text-purple-800"
+                          title="Convert to URL for better performance"
+                        >
+                          <Globe className="w-4 h-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => startEdit(photo)}
-                        disabled={showAddForm || editingPhoto !== null}
+                        disabled={showAddForm || editingPhoto !== null || convertingPhoto !== null}
                         className="text-blue-600 hover:text-blue-800"
                         title="Edit photo details"
                       >
@@ -611,6 +666,103 @@ export default function PhotoManager() {
                             <Button 
                               type="button" 
                               variant="outline"
+                              onClick={resetForm}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </form>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Inline convert to URL form - appears below the selected photo */}
+                  {convertingPhoto?.id === photo.id && (
+                    <Card className="ml-6 border-l-4 border-l-purple-500">
+                      <CardHeader>
+                        <CardTitle className="text-lg">Convert to URL: {convertingPhoto.title}</CardTitle>
+                        <p className="text-sm text-gray-600">
+                          Replace this uploaded image with a URL for better database performance
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                          <div className="space-y-2">
+                            <Label>Current Image (Database)</Label>
+                            <div className="border rounded-lg p-2 bg-gray-50">
+                              <img 
+                                src={convertingPhoto.imageUrl} 
+                                alt={convertingPhoto.title} 
+                                className="max-w-full max-h-32 object-contain mx-auto rounded"
+                              />
+                            </div>
+                            <div className="text-xs text-orange-600 bg-orange-50 p-2 rounded">
+                              This image is currently stored as base64 data in the database, which can slow performance.
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="convertImageUrl">New Image URL *</Label>
+                            <Input
+                              id="convertImageUrl"
+                              type="url"
+                              placeholder="https://static.wixstatic.com/media/cf00bd_...png"
+                              value={formData.imageUrl}
+                              onChange={(e) => setFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                              required
+                            />
+                            <p className="text-sm text-green-700">
+                              Enter the URL where this image is hosted online. This will replace the database-stored image.
+                            </p>
+                          </div>
+
+                          {formData.imageUrl && (
+                            <div className="space-y-2">
+                              <Label>Preview New URL</Label>
+                              <div className="border rounded-lg p-2 bg-gray-50">
+                                <img 
+                                  src={formData.imageUrl} 
+                                  alt="URL Preview" 
+                                  className="max-w-full max-h-32 object-contain mx-auto rounded"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiBmaWxsPSIjRkZFNkU2Ii8+CjxwYXRoIGQ9Ik01MCA3MEw0MCA1MEw2MCA1MEw1MCA3MFoiIGZpbGw9IiNGRjAwMDAiLz4KPHR5cG0+PHRzcGFuIGZpbGw9IiNGRjAwMDAiPkVycm9yIGxvYWRpbmcgaW1hZ2U8L3RzcGFuPjwvdGV4dD4KPC9zdmc+';
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="space-y-2">
+                            <Label htmlFor="convertTitle">Title *</Label>
+                            <Input
+                              id="convertTitle"
+                              placeholder="Enter photo title"
+                              value={formData.title}
+                              onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                            />
+                          </div>
+                          
+                          <div className="space-y-2">
+                            <Label htmlFor="convertDescription">Description</Label>
+                            <Textarea
+                              id="convertDescription"
+                              placeholder="Optional description of the photo"
+                              value={formData.description || ""}
+                              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                            />
+                          </div>
+
+                          <div className="flex gap-2">
+                            <Button 
+                              type="submit" 
+                              className="bg-purple-700 hover:bg-purple-800"
+                              disabled={editPhotoMutation.isPending || !formData.imageUrl.trim()}
+                            >
+                              {editPhotoMutation.isPending ? "Converting..." : "Convert to URL"}
+                            </Button>
+                            <Button 
+                              type="button" 
+                              variant="outline" 
                               onClick={resetForm}
                             >
                               Cancel

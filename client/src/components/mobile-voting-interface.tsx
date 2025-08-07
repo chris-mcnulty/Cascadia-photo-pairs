@@ -65,235 +65,138 @@ export default function MobileVotingInterface({
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 text-white">
-      {/* Header */}
-      <div className="p-4 text-center border-b border-gray-700">
-        <h1 className="text-xl font-bold">Choose Your Favorite</h1>
-        <p className="text-sm text-gray-400 mt-1">Tap or swipe to vote</p>
+    <div className="w-full">
+      {/* Mobile Interface */}
+      <div className="md:hidden">
+        {/* Header */}
+        <div className="p-4 text-center bg-gray-50 border-b">
+          <h2 className="text-xl font-bold text-gray-900">Choose Your Favorite</h2>
+          <p className="text-sm text-gray-600 mt-1">Tap the photo you prefer</p>
+        </div>
+
+        {/* Photo Pair for Mobile */}
+        <div className="space-y-6 p-4">
+          {/* Photo A */}
+          <div 
+            className="relative bg-white rounded-lg shadow-lg overflow-hidden cursor-pointer transform transition-all duration-200 active:scale-95"
+            onClick={() => handlePhotoSelect(photoA)}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div className="aspect-[4/3] relative">
+              <img 
+                src={photoA.imageUrl} 
+                alt={photoA.title}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+              {selectedPhoto?.id === photoA.id && (
+                <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
+                  <div className="bg-green-500 rounded-full p-3">
+                    <Heart className="w-6 h-6 text-white fill-white" />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="p-4">
+              <h3 className="font-semibold text-lg text-gray-900">{photoA.title}</h3>
+              {photoA.description && (
+                <p className="text-sm text-gray-600 mt-1">{photoA.description}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Versus indicator */}
+          <div className="text-center">
+            <div className="inline-block bg-gray-200 px-4 py-2 rounded-full">
+              <span className="text-sm font-medium text-gray-600">VS</span>
+            </div>
+          </div>
+
+          {/* Photo B */}
+          <div 
+            className="relative bg-white rounded-lg shadow-lg overflow-hidden cursor-pointer transform transition-all duration-200 active:scale-95"
+            onClick={() => handlePhotoSelect(photoB)}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <div className="aspect-[4/3] relative">
+              <img 
+                src={photoB.imageUrl} 
+                alt={photoB.title}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+              {selectedPhoto?.id === photoB.id && (
+                <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
+                  <div className="bg-green-500 rounded-full p-3">
+                    <Heart className="w-6 h-6 text-white fill-white" />
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="p-4">
+              <h3 className="font-semibold text-lg text-gray-900">{photoB.title}</h3>
+              {photoB.description && (
+                <p className="text-sm text-gray-600 mt-1">{photoB.description}</p>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Main voting area */}
-      <div className="flex-1 flex flex-col">
-        {/* Single photo view for mobile */}
-        <div className="md:hidden">
-          <div className="relative h-[60vh] bg-black">
-            <div 
-              className="flex h-full transition-transform duration-300 ease-out"
-              style={{ 
-                transform: showComparison ? 'translateX(-50%)' : 'translateX(0%)' 
-              }}
-            >
-              {/* Photo A */}
-              <div 
-                className="min-w-full relative cursor-pointer"
-                onClick={() => handlePhotoSelect(photoA)}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-              >
-                <img 
-                  src={photoA.imageUrl} 
-                  alt={photoA.title}
-                  className={`w-full h-full object-contain transition-all duration-200 ${
-                    selectedPhoto?.id === photoA.id ? 'scale-105 brightness-110' : ''
-                  } ${isVoting ? 'opacity-50' : ''}`}
-                />
-                <div className="absolute bottom-4 left-4 right-4 bg-black/70 rounded-lg p-3">
-                  <h3 className="font-semibold text-lg">{photoA.title}</h3>
-                  {photoA.description && (
-                    <p className="text-sm text-gray-300 mt-1">{photoA.description}</p>
-                  )}
-                </div>
-                {selectedPhoto?.id === photoA.id && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="bg-green-500 rounded-full p-4">
-                      <Heart className="w-8 h-8 text-white fill-white" />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Photo B */}
-              <div 
-                className="min-w-full relative cursor-pointer"
-                onClick={() => handlePhotoSelect(photoB)}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-              >
-                <img 
-                  src={photoB.imageUrl} 
-                  alt={photoB.title}
-                  className={`w-full h-full object-contain transition-all duration-200 ${
-                    selectedPhoto?.id === photoB.id ? 'scale-105 brightness-110' : ''
-                  } ${isVoting ? 'opacity-50' : ''}`}
-                />
-                <div className="absolute bottom-4 left-4 right-4 bg-black/70 rounded-lg p-3">
-                  <h3 className="font-semibold text-lg">{photoB.title}</h3>
-                  {photoB.description && (
-                    <p className="text-sm text-gray-300 mt-1">{photoB.description}</p>
-                  )}
-                </div>
-                {selectedPhoto?.id === photoB.id && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="bg-green-500 rounded-full p-4">
-                      <Heart className="w-8 h-8 text-white fill-white" />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Navigation dots */}
-          <div className="flex justify-center py-4">
-            <div className="flex gap-2">
-              <button
-                className={`w-3 h-3 rounded-full transition-colors ${
-                  !showComparison ? 'bg-blue-500' : 'bg-gray-600'
-                }`}
-                onClick={() => setShowComparison(false)}
-              />
-              <button
-                className={`w-3 h-3 rounded-full transition-colors ${
-                  showComparison ? 'bg-blue-500' : 'bg-gray-600'
-                }`}
-                onClick={() => setShowComparison(true)}
-              />
-            </div>
-          </div>
-
-          {/* Navigation arrows */}
-          <div className="flex justify-between px-4 py-2">
-            <Button
-              variant="ghost"
-              size="lg"
-              onClick={() => setShowComparison(false)}
-              disabled={!showComparison}
-              className="text-white hover:bg-white/10"
-            >
-              <ChevronLeft className="w-6 h-6" />
-              <span className="ml-2">{photoA.title}</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="lg"
-              onClick={() => setShowComparison(true)}
-              disabled={showComparison}
-              className="text-white hover:bg-white/10"
-            >
-              <span className="mr-2">{photoB.title}</span>
-              <ChevronRight className="w-6 h-6" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Desktop side-by-side view */}
-        <div className="hidden md:grid md:grid-cols-2 gap-4 p-4 h-[70vh]">
-          <div 
-            className="relative cursor-pointer group"
-            onClick={() => handlePhotoSelect(photoA)}
-          >
-            <img 
-              src={photoA.imageUrl} 
-              alt={photoA.title}
-              className={`w-full h-full object-contain rounded-lg transition-all duration-200 ${
-                selectedPhoto?.id === photoA.id ? 'scale-105 brightness-110' : ''
-              } ${isVoting ? 'opacity-50' : 'group-hover:scale-105'}`}
-            />
-            <div className="absolute bottom-4 left-4 right-4 bg-black/70 rounded-lg p-3">
-              <h3 className="font-semibold text-lg">{photoA.title}</h3>
-              {photoA.description && (
-                <p className="text-sm text-gray-300 mt-1">{photoA.description}</p>
-              )}
-            </div>
-            {selectedPhoto?.id === photoA.id && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="bg-green-500 rounded-full p-4">
-                  <Heart className="w-8 h-8 text-white fill-white" />
-                </div>
-              </div>
+      {/* Desktop side-by-side view */}
+      <div className="hidden md:grid md:grid-cols-2 gap-4 p-4 h-[70vh]">
+        <div 
+          className="relative cursor-pointer group"
+          onClick={() => handlePhotoSelect(photoA)}
+        >
+          <img 
+            src={photoA.imageUrl} 
+            alt={photoA.title}
+            className={`w-full h-full object-contain rounded-lg transition-all duration-200 ${
+              selectedPhoto?.id === photoA.id ? 'scale-105 brightness-110' : ''
+            } ${isVoting ? 'opacity-50' : 'group-hover:scale-105'}`}
+          />
+          <div className="absolute bottom-4 left-4 right-4 bg-black/70 rounded-lg p-3">
+            <h3 className="font-semibold text-lg text-white">{photoA.title}</h3>
+            {photoA.description && (
+              <p className="text-sm text-gray-300 mt-1">{photoA.description}</p>
             )}
           </div>
-
-          <div 
-            className="relative cursor-pointer group"
-            onClick={() => handlePhotoSelect(photoB)}
-          >
-            <img 
-              src={photoB.imageUrl} 
-              alt={photoB.title}
-              className={`w-full h-full object-contain rounded-lg transition-all duration-200 ${
-                selectedPhoto?.id === photoB.id ? 'scale-105 brightness-110' : ''
-              } ${isVoting ? 'opacity-50' : 'group-hover:scale-105'}`}
-            />
-            <div className="absolute bottom-4 left-4 right-4 bg-black/70 rounded-lg p-3">
-              <h3 className="font-semibold text-lg">{photoB.title}</h3>
-              {photoB.description && (
-                <p className="text-sm text-gray-300 mt-1">{photoB.description}</p>
-              )}
-            </div>
-            {selectedPhoto?.id === photoB.id && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="bg-green-500 rounded-full p-4">
-                  <Heart className="w-8 h-8 text-white fill-white" />
-                </div>
+          {selectedPhoto?.id === photoA.id && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="bg-green-500 rounded-full p-4">
+                <Heart className="w-8 h-8 text-white fill-white" />
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* Action buttons */}
-        <div className="p-4 space-y-4">
-          <div className="text-center">
-            <p className="text-gray-400 text-sm mb-4">
-              {isVoting ? 'Recording your vote...' : 'Swipe left/right or tap to vote'}
-            </p>
+        <div 
+          className="relative cursor-pointer group"
+          onClick={() => handlePhotoSelect(photoB)}
+        >
+          <img 
+            src={photoB.imageUrl} 
+            alt={photoB.title}
+            className={`w-full h-full object-contain rounded-lg transition-all duration-200 ${
+              selectedPhoto?.id === photoB.id ? 'scale-105 brightness-110' : ''
+            } ${isVoting ? 'opacity-50' : 'group-hover:scale-105'}`}
+          />
+          <div className="absolute bottom-4 left-4 right-4 bg-black/70 rounded-lg p-3">
+            <h3 className="font-semibold text-lg text-white">{photoB.title}</h3>
+            {photoB.description && (
+              <p className="text-sm text-gray-300 mt-1">{photoB.description}</p>
+            )}
           </div>
-
-          {/* Quick vote buttons for accessibility */}
-          <div className="grid grid-cols-2 gap-3 md:hidden">
-            <Button
-              onClick={() => handlePhotoSelect(photoA)}
-              disabled={isVoting}
-              className="bg-blue-600 hover:bg-blue-700 text-white py-3"
-            >
-              <Zap className="w-4 h-4 mr-2" />
-              Vote {photoA.title}
-            </Button>
-            <Button
-              onClick={() => handlePhotoSelect(photoB)}
-              disabled={isVoting}
-              className="bg-purple-600 hover:bg-purple-700 text-white py-3"
-            >
-              <Zap className="w-4 h-4 mr-2" />
-              Vote {photoB.title}
-            </Button>
-          </div>
-
-          {/* Purchase links if enabled */}
-          {settings?.purchaseEnabled && (
-            <div className="flex gap-2 justify-center text-sm">
-              {(photoA.customPurchaseUrl || settings.defaultPurchaseUrl) && (
-                <a 
-                  href={photoA.customPurchaseUrl || settings.defaultPurchaseUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-300 underline"
-                >
-                  Buy {photoA.title}
-                </a>
-              )}
-              {(photoB.customPurchaseUrl || settings.defaultPurchaseUrl) && (
-                <a 
-                  href={photoB.customPurchaseUrl || settings.defaultPurchaseUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-purple-400 hover:text-purple-300 underline"
-                >
-                  Buy {photoB.title}
-                </a>
-              )}
+          {selectedPhoto?.id === photoB.id && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="bg-green-500 rounded-full p-4">
+                <Heart className="w-8 h-8 text-white fill-white" />
+              </div>
             </div>
           )}
         </div>

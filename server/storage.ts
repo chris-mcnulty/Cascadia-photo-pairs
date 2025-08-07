@@ -328,8 +328,64 @@ export class MemStorage implements IStorage {
     const visiblePhotos = Array.from(this.photos.values()).filter(photo => !photo.hidden);
     if (visiblePhotos.length < 2) return null;
     
+    // Get all existing vote pairs to avoid repeating comparisons
+    const existingVotes = Array.from(this.votes.values());
+    const usedPairs = new Set<string>();
+    
+    existingVotes.forEach(vote => {
+      if (vote.winnerPhotoId && vote.loserPhotoId) {
+        // Store both directions to prevent any repeated comparisons
+        const pair1 = `${vote.winnerPhotoId}-${vote.loserPhotoId}`;
+        const pair2 = `${vote.loserPhotoId}-${vote.winnerPhotoId}`;
+        usedPairs.add(pair1);
+        usedPairs.add(pair2);
+      }
+    });
+
+    // Try to find an unused pair (with maximum attempts to prevent infinite loops)
+    const maxAttempts = 100;
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      // Shuffle and pick two different photos
+      const shuffled = [...visiblePhotos].sort(() => Math.random() - 0.5);
+      const photo1 = shuffled[0];
+      const photo2 = shuffled[1];
+      
+      // Rule 1: Ensure photos are different
+      if (photo1.id === photo2.id) {
+        attempts++;
+        continue;
+      }
+      
+      // Rule 2: Check if this pair has been used before
+      const pairKey = `${photo1.id}-${photo2.id}`;
+      if (!usedPairs.has(pairKey)) {
+        console.log(`Selected new photo pair: ${photo1.id} vs ${photo2.id} (attempt ${attempts + 1})`);
+        return [photo1, photo2];
+      }
+      
+      attempts++;
+    }
+
+    // If we can't find an unused pair after maxAttempts, fall back to any valid pair
+    // This ensures the app doesn't break if all combinations have been used
+    console.log(`Warning: Could not find unused photo pair after ${maxAttempts} attempts. Using fallback selection.`);
     const shuffled = [...visiblePhotos].sort(() => Math.random() - 0.5);
-    return [shuffled[0], shuffled[1]];
+    
+    // Ensure the fallback pair has different photos
+    if (shuffled[0].id !== shuffled[1].id) {
+      return [shuffled[0], shuffled[1]];
+    }
+    
+    // Last resort: pick any two different photos
+    for (let i = 0; i < visiblePhotos.length; i++) {
+      for (let j = i + 1; j < visiblePhotos.length; j++) {
+        return [visiblePhotos[i], visiblePhotos[j]];
+      }
+    }
+    
+    return null;
   }
 
   async recordComparison(winnerPhotoId: string, loserPhotoId: string): Promise<void> {
@@ -531,8 +587,71 @@ export class DatabaseStorage implements IStorage {
       return null;
     }
 
-    const shuffled = availablePhotos.sort(() => Math.random() - 0.5);
-    return [shuffled[0], shuffled[1]];
+    // Get all existing vote pairs to avoid repeating comparisons
+    const existingVotes = await db
+      .select({
+        winnerPhotoId: votes.winnerPhotoId,
+        loserPhotoId: votes.loserPhotoId
+      })
+      .from(votes)
+      .where(sql`${votes.winnerPhotoId} IS NOT NULL AND ${votes.loserPhotoId} IS NOT NULL`);
+
+    // Create a set of comparison pairs that have already been voted on
+    const usedPairs = new Set<string>();
+    existingVotes.forEach(vote => {
+      if (vote.winnerPhotoId && vote.loserPhotoId) {
+        // Store both directions to prevent any repeated comparisons
+        const pair1 = `${vote.winnerPhotoId}-${vote.loserPhotoId}`;
+        const pair2 = `${vote.loserPhotoId}-${vote.winnerPhotoId}`;
+        usedPairs.add(pair1);
+        usedPairs.add(pair2);
+      }
+    });
+
+    // Try to find an unused pair (with maximum attempts to prevent infinite loops)
+    const maxAttempts = 100;
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+      // Shuffle and pick two different photos
+      const shuffled = [...availablePhotos].sort(() => Math.random() - 0.5);
+      const photo1 = shuffled[0];
+      const photo2 = shuffled[1];
+      
+      // Rule 1: Ensure photos are different
+      if (photo1.id === photo2.id) {
+        attempts++;
+        continue;
+      }
+      
+      // Rule 2: Check if this pair has been used before
+      const pairKey = `${photo1.id}-${photo2.id}`;
+      if (!usedPairs.has(pairKey)) {
+        console.log(`Selected new photo pair: ${photo1.id} vs ${photo2.id} (attempt ${attempts + 1})`);
+        return [photo1, photo2];
+      }
+      
+      attempts++;
+    }
+
+    // If we can't find an unused pair after maxAttempts, fall back to any valid pair
+    // This ensures the app doesn't break if all combinations have been used
+    console.log(`Warning: Could not find unused photo pair after ${maxAttempts} attempts. Using fallback selection.`);
+    const shuffled = [...availablePhotos].sort(() => Math.random() - 0.5);
+    
+    // Ensure the fallback pair has different photos
+    if (shuffled[0].id !== shuffled[1].id) {
+      return [shuffled[0], shuffled[1]];
+    }
+    
+    // Last resort: pick any two different photos
+    for (let i = 0; i < availablePhotos.length; i++) {
+      for (let j = i + 1; j < availablePhotos.length; j++) {
+        return [availablePhotos[i], availablePhotos[j]];
+      }
+    }
+    
+    return null;
   }
 
   async getVotesByDateRange(startDate?: string, endDate?: string): Promise<Vote[]> {

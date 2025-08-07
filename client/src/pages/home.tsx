@@ -10,12 +10,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Menu, X, Globe, Mail, Heart, MousePointer, RefreshCw, Infinity, Smartphone } from "lucide-react";
 import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
+import { useTitle } from "@/hooks/use-title";
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [useMobileInterface, setUseMobileInterface] = useState(false);
   const [votesCount, setVotesCount] = useState(0);
   const { toast } = useToast();
+
+  useTitle(); // Uses default title
 
   // Detect if user is on mobile and auto-enable mobile interface
   useEffect(() => {

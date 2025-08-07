@@ -672,7 +672,7 @@ export default function PhotoManager() {
                         Votes: {photo.votes} | Win Rate: {photo.comparisons > 0 ? Math.round((photo.wins / photo.comparisons) * 100) : 0}%
                         {photo.hidden && " (Hidden from voting)"}
                       </div>
-                      <div className="text-xs mt-1">
+                      <div className="text-xs mt-1 flex flex-wrap gap-2">
                         {photo.imageUrl.startsWith('data:') ? (
                           <span className="inline-flex items-center px-2 py-1 rounded text-orange-600 bg-orange-100">
                             Database Stored
@@ -680,6 +680,11 @@ export default function PhotoManager() {
                         ) : (
                           <span className="inline-flex items-center px-2 py-1 rounded text-green-600 bg-green-100">
                             URL Based
+                          </span>
+                        )}
+                        {photo.category && (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-blue-700 bg-blue-100 dark:text-blue-200 dark:bg-blue-900">
+                            {photo.category}
                           </span>
                         )}
                       </div>

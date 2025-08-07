@@ -27,7 +27,6 @@ export interface IStorage {
   
   // Photo management
   deletePhoto(id: string): Promise<boolean>;
-  togglePhotoVisibility(id: string, hidden: boolean): Promise<Photo | undefined>;
   purgeTestData(beforeDate: string): Promise<{ votesDeleted: number; photosReset: boolean }>;
   
   // Special method for comparison tracking
@@ -308,17 +307,6 @@ export class MemStorage implements IStorage {
     return this.photos.delete(id);
   }
 
-  async togglePhotoVisibility(id: string, hidden: boolean): Promise<Photo | undefined> {
-    const photo = this.photos.get(id);
-    if (!photo) {
-      return undefined;
-    }
-    
-    const updatedPhoto = { ...photo, hidden };
-    this.photos.set(id, updatedPhoto);
-    return updatedPhoto;
-  }
-
   async purgeTestData(beforeDate: string): Promise<{ votesDeleted: number; photosReset: boolean }> {
     const cutoffDate = new Date(beforeDate);
     const votes = Array.from(this.votes.entries());
@@ -541,15 +529,6 @@ export class DatabaseStorage implements IStorage {
       console.error('Delete photo error:', error);
       return false;
     }
-  }
-
-  async togglePhotoVisibility(id: string, hidden: boolean): Promise<Photo | undefined> {
-    const [photo] = await db
-      .update(photos)
-      .set({ hidden })
-      .where(eq(photos.id, id))
-      .returning();
-    return photo || undefined;
   }
 
   async purgeTestData(beforeDate: string): Promise<{ votesDeleted: number; photosReset: boolean }> {

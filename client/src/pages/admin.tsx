@@ -15,12 +15,6 @@ function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"analytics" | "stats" | "settings" | "photos">("analytics");
   const { logout, isAuthenticated, sessionId } = useAuth();
 
-  // Redirect to login if not authenticated
-  if (!isAuthenticated) {
-    window.location.href = '/login';
-    return null;
-  }
-
   const { data: stats } = useQuery<{
     totalVotes: number;
     uniqueVoters: number;
@@ -33,6 +27,7 @@ function AdminDashboard() {
 
   const handleExportData = async () => {
     try {
+      const sessionId = localStorage.getItem('admin-session-id');
       const response = await fetch("/api/export", {
         headers: sessionId ? { 'x-session-id': sessionId } : {},
       });
@@ -168,14 +163,6 @@ function AuthenticatedAdmin() {
 }
 
 export default function Admin() {
-  return (
-    <AuthProvider>
-      <AdminDashboard />
-    </AuthProvider>
-  );
-}
-
-function OldAdmin() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return localStorage.getItem('simple-admin-auth') === 'true';
   });

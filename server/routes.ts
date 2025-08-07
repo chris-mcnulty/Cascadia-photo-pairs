@@ -115,8 +115,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  // Get all photos
-  app.get("/api/photos", async (req, res) => {
+  // Get all photos (admin only)
+  app.get("/api/photos", requireAuth, async (req, res) => {
     try {
       console.log('Fetching all photos...');
       const photos = await storage.getAllPhotos();
@@ -132,7 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add a new photo (admin only)
-  app.post("/api/photos", async (req, res) => {
+  app.post("/api/photos", requireAuth, async (req, res) => {
     try {
       console.log('Photo creation request body:', req.body);
       const photoData = insertPhotoSchema.parse(req.body);
@@ -164,7 +164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a photo (admin only)
-  app.put("/api/photos/:id", async (req, res) => {
+  app.put("/api/photos/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       console.log(`Attempting to update photo with ID: ${id}`, req.body);
@@ -186,7 +186,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a photo (admin only)
-  app.delete("/api/photos/:id", async (req, res) => {
+  app.delete("/api/photos/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       console.log(`Attempting to delete photo with ID: ${id}`);
@@ -201,6 +201,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Delete photo route error:', error);
       res.status(500).json({ message: "Failed to delete photo", error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  // Toggle photo visibility (admin only)
+  app.put("/api/photos/:id/visibility", requireAuth, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { hidden } = req.body;
+      
+      const updatedPhoto = await storage.togglePhotoVisibility(id, hidden);
+      if (!updatedPhoto) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+      
+      res.json(updatedPhoto);
+    } catch (error) {
+      console.error('Toggle visibility route error:', error);
+      res.status(500).json({ message: "Failed to update photo visibility" });
     }
   });
 
@@ -241,7 +259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get voting statistics (admin only)
-  app.get("/api/stats", async (req, res) => {
+  app.get("/api/stats", requireAuth, async (req, res) => {
     try {
       console.log('Fetching statistics...');
       const { startDate, endDate } = req.query as { startDate?: string; endDate?: string };
@@ -270,7 +288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Purge test data (admin only)
-  app.post("/api/admin/purge-test-data", async (req, res) => {
+  app.post("/api/admin/purge-test-data", requireAuth, async (req, res) => {
     try {
       const { beforeDate } = req.body;
       
@@ -290,7 +308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get settings (admin only)  
-  app.get("/api/settings", async (req, res) => {
+  app.get("/api/settings", requireAuth, async (req, res) => {
     try {
       const settings = await storage.getSettings();
       res.json(settings);
@@ -300,7 +318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update settings (admin only)
-  app.put("/api/settings", async (req, res) => {
+  app.put("/api/settings", requireAuth, async (req, res) => {
     try {
       const settingsData = insertSettingsSchema.parse(req.body);
       const settings = await storage.updateSettings(settingsData);
@@ -311,7 +329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Export voting data (admin only)
-  app.get("/api/export", async (req, res) => {
+  app.get("/api/export", requireAuth, async (req, res) => {
     try {
       const photos = await storage.getAllPhotos();
       const totalVotes = await storage.getTotalVotes();

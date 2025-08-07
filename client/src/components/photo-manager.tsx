@@ -31,6 +31,7 @@ export default function PhotoManager() {
     description: "",
     imageUrl: "",
     customPurchaseUrl: "",
+    category: "",
   });
 
   const { data: photos, isLoading, error } = useQuery<Photo[]>({
@@ -208,6 +209,7 @@ export default function PhotoManager() {
       description: "",
       imageUrl: "",
       customPurchaseUrl: "",
+      category: "",
     });
     setShowAddForm(false);
     setEditingPhoto(null);
@@ -267,6 +269,7 @@ export default function PhotoManager() {
       description: photo.description || "",
       imageUrl: photo.imageUrl.startsWith('data:') ? "" : photo.imageUrl, // Don't show base64 in URL field
       customPurchaseUrl: photo.customPurchaseUrl || "",
+      category: photo.category || "",
     });
     setShowAddForm(false);
   };
@@ -278,6 +281,7 @@ export default function PhotoManager() {
       description: photo.description || "",
       imageUrl: "", // Start with empty URL for user to fill
       customPurchaseUrl: photo.customPurchaseUrl || "",
+      category: photo.category || "",
     });
     setEditingPhoto(null);
     setShowAddForm(false);
@@ -510,6 +514,19 @@ export default function PhotoManager() {
                 />
                 <div className="text-sm text-gray-500">
                   Leave blank to use the default store URL
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category">Category</Label>
+                <Input
+                  id="category"
+                  placeholder="e.g., Mountain, Ocean, Sunset (optional)"
+                  value={formData.category || ""}
+                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                />
+                <div className="text-sm text-gray-500">
+                  Categorize your photo for better organization
                 </div>
               </div>
 
@@ -827,6 +844,19 @@ export default function PhotoManager() {
                             />
                             <div className="text-sm text-gray-500">
                               Leave blank to use the default store URL
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="editCategory">Category</Label>
+                            <Input
+                              id="editCategory"
+                              placeholder="e.g., Mountain, Ocean, Sunset (optional)"
+                              value={formData.category || ""}
+                              onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                            />
+                            <div className="text-sm text-gray-500">
+                              Categorize your photo for better organization
                             </div>
                           </div>
 

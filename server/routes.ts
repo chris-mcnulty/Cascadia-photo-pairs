@@ -235,7 +235,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid category" });
       }
       
-      console.log(`Updating ${photoIds.length} photos to category: ${category}`);
+      console.log(`Updating ${photoIds.length} photos to category: ${category}`, photoIds);
       const updated = await storage.updatePhotosCategory(photoIds, category);
       
       if (!updated) {

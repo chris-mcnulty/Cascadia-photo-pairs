@@ -2,7 +2,7 @@ import { type Photo, type InsertPhoto, type Vote, type InsertVote, type Settings
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { photos, votes, settings, collections } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Collections
@@ -584,13 +584,15 @@ export class DatabaseStorage implements IStorage {
 
   async updatePhotosCategory(photoIds: string[], category: string): Promise<boolean> {
     try {
+      console.log(`DatabaseStorage: Updating categories for ${photoIds.length} photos to "${category}"`);
       const result = await db
         .update(photos)
         .set({ category })
-        .where(sql`${photos.id} = ANY(${photoIds})`);
+        .where(inArray(photos.id, photoIds));
+      console.log(`DatabaseStorage: Update result:`, result);
       return result.rowCount ? result.rowCount > 0 : false;
     } catch (error) {
-      console.error('Error updating photo categories:', error);
+      console.error('DatabaseStorage: Error updating photo categories:', error);
       return false;
     }
   }

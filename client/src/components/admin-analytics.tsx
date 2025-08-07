@@ -4,9 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Calendar, Trash2, TrendingUp, BarChart3, AlertTriangle, Download } from "lucide-react";
+import { Calendar, Trash2, TrendingUp, BarChart3, AlertTriangle, Download, ArrowUpDown } from "lucide-react";
 
 interface StatsData {
   totalVotes: number;
@@ -29,6 +30,7 @@ export default function AdminAnalytics() {
   const [endDate, setEndDate] = useState("");
   const [purgeDate, setPurgeDate] = useState("");
   const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
+  const [sortBy, setSortBy] = useState<"votes" | "winRate">("votes");
 
   const { data: stats, isLoading } = useQuery<StatsData>({
     queryKey: ["/api/stats", startDate, endDate],
@@ -137,6 +139,17 @@ export default function AdminAnalytics() {
     purgeTestDataMutation.mutate(purgeDate);
   };
 
+  // Sort photos based on selected criteria
+  const sortedPhotos = stats?.topPhotos ? [...stats.topPhotos].sort((a, b) => {
+    if (sortBy === "winRate") {
+      const aWinRate = a.comparisons > 0 ? (a.wins / a.comparisons) : 0;
+      const bWinRate = b.comparisons > 0 ? (b.wins / b.comparisons) : 0;
+      return bWinRate - aWinRate; // Higher win rate first
+    } else {
+      return b.votes - a.votes; // Higher votes first (default)
+    }
+  }) : [];
+
   if (isLoading) {
     return <div className="flex justify-center py-12">Loading analytics...</div>;
   }
@@ -236,34 +249,68 @@ export default function AdminAnalytics() {
       {/* Top Photos Rankings */}
       <Card>
         <CardHeader>
-          <CardTitle>Top 20 Photo Rankings</CardTitle>
-          <p className="text-sm text-gray-600">
-            {stats?.dateRange ? "Rankings for selected date range" : "All-time rankings"}
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Top 20 Photo Rankings</CardTitle>
+              <p className="text-sm text-gray-600">
+                {stats?.dateRange ? "Rankings for selected date range" : "All-time rankings"}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="w-4 h-4" />
+              <Select value={sortBy} onValueChange={(value: "votes" | "winRate") => setSortBy(value)}>
+                <SelectTrigger className="w-40">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="votes">Sort by Votes</SelectItem>
+                  <SelectItem value="winRate">Sort by Win Rate</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {stats?.topPhotos && stats.topPhotos.length > 0 ? (
+          {sortedPhotos && sortedPhotos.length > 0 ? (
             <div className="space-y-2">
-              {stats.topPhotos.map((photo, index) => (
-                <div key={photo.id} className="flex items-center gap-4 p-3 border rounded-lg">
-                  <div className="text-lg font-bold text-gray-500 min-w-[2rem]">
-                    #{index + 1}
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-medium">{photo.title}</h4>
-                      {photo.hidden && (
-                        <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
-                          Hidden
-                        </span>
+              {sortedPhotos.map((photo, index) => {
+                const winRate = photo.comparisons > 0 ? Math.round((photo.wins / photo.comparisons) * 100) : 0;
+                return (
+                  <div key={photo.id} className="flex items-center gap-4 p-3 border rounded-lg">
+                    <div className="text-lg font-bold text-gray-500 min-w-[2rem]">
+                      #{index + 1}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-medium">{photo.title}</h4>
+                        {photo.hidden && (
+                          <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
+                            Hidden
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        {photo.votes} votes • {winRate}% win rate
+                        {sortBy === "winRate" && (
+                          <span className="ml-2 text-xs text-blue-600">
+                            ({photo.wins}/{photo.comparisons} wins)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      {sortBy === "winRate" ? (
+                        <div className="text-lg font-bold text-blue-600">{winRate}%</div>
+                      ) : (
+                        <div className="text-lg font-bold text-green-600">{photo.votes}</div>
                       )}
-                    </div>
-                    <div className="text-sm text-gray-600">
-                      {photo.votes} votes • {photo.comparisons > 0 ? Math.round((photo.wins / photo.comparisons) * 100) : 0}% win rate
+                      <div className="text-xs text-gray-500">
+                        {sortBy === "winRate" ? "win rate" : "votes"}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">

@@ -58,8 +58,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/auth/verify-mfa", async (req, res) => {
     try {
-      const { sessionId, code } = req.body;
-      console.log(`MFA verification attempt - SessionId: ${sessionId}, Code: ${code}`);
+      const { sessionId, mfaCode } = req.body;
+      console.log(`MFA verification attempt - SessionId: ${sessionId}`);
       
       const session = await getSession(sessionId);
       console.log(`Session state:`, session);
@@ -75,9 +75,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Verification code expired" });
       }
       
-      console.log(`Comparing codes - Received: "${code}", Expected: "${session.mfaCode}"`);
-      if (code !== session.mfaCode) {
-        console.log("Code mismatch");
+      if (mfaCode !== session.mfaCode) {
         return res.status(401).json({ message: "Invalid verification code" });
       }
       

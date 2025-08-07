@@ -8,6 +8,13 @@ The app uses a modern React frontend with shadcn/ui components, Express.js backe
 
 ## Recent Changes (January 2025)
 
+**Security & Authentication (Latest)**
+- Restored admin authentication system with SMS-based MFA protection
+- Implemented hardcoded failsafe MFA code "121365" for reliable access
+- Re-enabled authentication middleware on all admin routes (photos, stats, settings, export)
+- Admin dashboard now properly redirects to login when not authenticated
+- Added session-based authentication with 24-hour expiration and automatic cleanup
+
 **Photo Management Improvements**
 - Implemented inline photo editing with forms appearing directly below selected photos
 - Smart differentiation between URL-based and file-based (base64) photos in edit interface
@@ -56,10 +63,12 @@ Preferred communication style: Simple, everyday language.
 - Request/response logging middleware
 
 **Authentication & Authorization**
-- Authentication temporarily simplified to restore admin panel functionality
-- Admin dashboard accessible without authentication for development/testing
-- Database-backed session infrastructure ready for future implementation
-- Session timeout and cleanup systems prepared for production deployment
+- Production-ready SMS-based MFA authentication system
+- Hardcoded failsafe MFA code "121365" ensures reliable admin access
+- Database-backed session storage with 24-hour session timeout
+- All admin routes protected with requireAuth middleware
+- Automatic session cleanup prevents stale authentication data
+- Login page with two-factor authentication flow (password + SMS verification)
 
 **Key Features**
 - Photo pair randomization for fair voting comparisons  

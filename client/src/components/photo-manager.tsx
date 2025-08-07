@@ -26,10 +26,15 @@ export default function PhotoManager() {
     customPurchaseUrl: "",
   });
 
-  const { data: photos, isLoading } = useQuery<Photo[]>({
+  const { data: photos, isLoading, error } = useQuery<Photo[]>({
     queryKey: ["/api/photos"],
     enabled: true,
   });
+
+  // Log any errors for debugging
+  if (error) {
+    console.error('Photo query error:', error);
+  }
 
   const addPhotoMutation = useMutation({
     mutationFn: async (data: InsertPhoto) => {
@@ -418,7 +423,13 @@ export default function PhotoManager() {
           <CardTitle>Current Photos ({photos?.length || 0})</CardTitle>
         </CardHeader>
         <CardContent>
-          {photos && photos.length > 0 ? (
+          {isLoading ? (
+            <div className="text-center py-8">Loading photos...</div>
+          ) : error ? (
+            <div className="text-center py-8 text-red-600">
+              Error loading photos: {error instanceof Error ? error.message : 'Unknown error'}
+            </div>
+          ) : photos && photos.length > 0 ? (
             <div className="grid gap-4">
               {photos.map((photo) => (
                 <div key={photo.id} className="space-y-4">
@@ -601,6 +612,9 @@ export default function PhotoManager() {
           ) : (
             <div className="text-center py-12 text-gray-500">
               No photos added yet. Click "Add Photo" to get started.
+              <div className="text-sm mt-2">
+                Debug: isLoading={String(isLoading)}, photos length={photos?.length || 0}, hasError={String(!!error)}
+              </div>
             </div>
           )}
         </CardContent>

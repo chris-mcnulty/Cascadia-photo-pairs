@@ -120,8 +120,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('Fetching all photos...');
       const photos = await storage.getAllPhotos();
-      console.log(`Retrieved ${photos.length} photos successfully`);
-      res.json(photos);
+      
+      // For large payloads with base64 images, optionally truncate image data
+      const isLargePayload = photos.some(p => p.imageUrl.startsWith('data:image') && p.imageUrl.length > 50000);
+      
+      if (isLargePayload && req.query.truncate === 'true') {
+        const truncatedPhotos = photos.map(photo => ({
+          ...photo,
+          imageUrl: photo.imageUrl.startsWith('data:image') 
+            ? photo.imageUrl.substring(0, 100) + '...[truncated]'
+            : photo.imageUrl
+        }));
+        console.log(`Retrieved ${photos.length} photos (truncated for performance)`);
+        res.json(truncatedPhotos);
+      } else {
+        console.log(`Retrieved ${photos.length} photos successfully`);
+        res.json(photos);
+      }
     } catch (error) {
       console.error('Error fetching photos:', error);
       res.status(500).json({ 

@@ -34,6 +34,7 @@ export default function AdminAnalytics() {
   const [sortBy, setSortBy] = useState<"votes" | "winRate">("votes");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedVoterType, setSelectedVoterType] = useState<string>("all");
+  const [rankingLimit, setRankingLimit] = useState<number>(20);
 
   const { data: stats, isLoading } = useQuery<StatsData>({
     queryKey: ["/api/stats", startDate, endDate, selectedCategory, selectedVoterType],
@@ -360,29 +361,45 @@ export default function AdminAnalytics() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Top 20 Photo Rankings</CardTitle>
+              <CardTitle>Top {rankingLimit} Photo Rankings</CardTitle>
               <p className="text-sm text-gray-600">
                 {stats?.dateRange ? "Rankings for selected date range" : "All-time rankings"}
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <ArrowUpDown className="w-4 h-4" />
-              <Select value={sortBy} onValueChange={(value: "votes" | "winRate") => setSortBy(value)}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="votes">Sort by Votes</SelectItem>
-                  <SelectItem value="winRate">Sort by Win Rate</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-1">
+                <span className="text-sm text-gray-600">Show:</span>
+                <Select value={rankingLimit.toString()} onValueChange={(value) => setRankingLimit(Number(value))}>
+                  <SelectTrigger className="w-16">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="25">25</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-1">
+                <ArrowUpDown className="w-4 h-4" />
+                <Select value={sortBy} onValueChange={(value: "votes" | "winRate") => setSortBy(value)}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="votes">Sort by Votes</SelectItem>
+                    <SelectItem value="winRate">Sort by Win Rate</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent>
           {sortedPhotos && sortedPhotos.length > 0 ? (
             <div className="space-y-2">
-              {sortedPhotos.map((photo, index) => {
+              {sortedPhotos.slice(0, rankingLimit).map((photo, index) => {
                 const winRate = photo.comparisons > 0 ? Math.round((photo.wins / photo.comparisons) * 100) : 0;
                 return (
                   <div key={photo.id} className="flex items-center gap-4 p-3 border rounded-lg">

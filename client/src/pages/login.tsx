@@ -40,8 +40,8 @@ export default function Login() {
           description: data.message,
         });
       } else {
-        // Direct login success
-        localStorage.setItem('admin-session-id', data.sessionId);
+        // Direct login success - call onAuthenticated callback
+        onAuthenticated(data.sessionId);
         toast({
           title: "Login successful",
           description: "Welcome to the admin dashboard",
@@ -75,7 +75,9 @@ export default function Login() {
       }
 
       const data = await response.json();
-      localStorage.setItem('admin-session-id', sessionId);
+      
+      // Call the onAuthenticated callback to update the auth context
+      onAuthenticated(sessionId);
       
       toast({
         title: "Login successful",

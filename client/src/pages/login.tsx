@@ -41,7 +41,7 @@ export default function Login() {
         });
       } else {
         // Direct login success
-        localStorage.setItem('sessionId', data.sessionId);
+        localStorage.setItem('admin-session-id', data.sessionId);
         toast({
           title: "Login successful",
           description: "Welcome to the admin dashboard",
@@ -75,7 +75,7 @@ export default function Login() {
       }
 
       const data = await response.json();
-      localStorage.setItem('sessionId', data.sessionId);
+      localStorage.setItem('admin-session-id', sessionId);
       
       toast({
         title: "Login successful",

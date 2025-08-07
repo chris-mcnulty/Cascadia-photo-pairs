@@ -168,6 +168,14 @@ function AuthenticatedAdmin() {
 }
 
 export default function Admin() {
+  return (
+    <AuthProvider>
+      <AdminDashboard />
+    </AuthProvider>
+  );
+}
+
+function OldAdmin() {
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
     return localStorage.getItem('simple-admin-auth') === 'true';
   });

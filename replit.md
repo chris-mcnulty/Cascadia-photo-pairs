@@ -53,6 +53,16 @@ The app uses a modern React frontend with shadcn/ui components, Express.js backe
 - Category input fields integrated into both add photo and edit photo forms for seamless workflow
 - Complete category management workflow: create during upload, edit individually, or assign in bulk
 
+**Intelligent Photo Pair Selection Algorithm (August 2025)**
+- Implemented smart photo selection rules to ensure fair and varied voting experiences
+- Rule 1: No duplicate photos within the same comparison pair (A vs A prevented)
+- Rule 2: Consecutive pair prevention - if current pair is A & B, next pair must exclude both A and B
+- Uses database tracking of most recent vote to identify last shown photos
+- Allows photo pairs to repeat after non-consecutive selections (A & B can appear again later)
+- Graceful fallback system when insufficient photos available for non-consecutive selection
+- Enhanced logging for debugging pair selection and exclusion logic
+- Consistent implementation across both DatabaseStorage and MemStorage systems
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

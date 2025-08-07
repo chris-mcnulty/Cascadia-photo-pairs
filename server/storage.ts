@@ -328,27 +328,33 @@ export class MemStorage implements IStorage {
     const visiblePhotos = Array.from(this.photos.values()).filter(photo => !photo.hidden);
     if (visiblePhotos.length < 2) return null;
     
-    // Get all existing vote pairs to avoid repeating comparisons
-    const existingVotes = Array.from(this.votes.values());
-    const usedPairs = new Set<string>();
-    
-    existingVotes.forEach(vote => {
-      if (vote.winnerPhotoId && vote.loserPhotoId) {
-        // Store both directions to prevent any repeated comparisons
-        const pair1 = `${vote.winnerPhotoId}-${vote.loserPhotoId}`;
-        const pair2 = `${vote.loserPhotoId}-${vote.winnerPhotoId}`;
-        usedPairs.add(pair1);
-        usedPairs.add(pair2);
-      }
-    });
+    // Get the most recent vote to find the last pair shown
+    const allVotes = Array.from(this.votes.values());
+    const lastVote = allVotes
+      .filter(vote => vote.winnerPhotoId && vote.loserPhotoId)
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
 
-    // Try to find an unused pair (with maximum attempts to prevent infinite loops)
-    const maxAttempts = 100;
+    // Get the IDs of photos from the last pair to exclude them
+    const excludedPhotoIds = new Set<string>();
+    if (lastVote && lastVote.winnerPhotoId && lastVote.loserPhotoId) {
+      excludedPhotoIds.add(lastVote.winnerPhotoId);
+      excludedPhotoIds.add(lastVote.loserPhotoId);
+      console.log(`Excluding last pair from selection: ${lastVote.winnerPhotoId} and ${lastVote.loserPhotoId}`);
+    }
+
+    // Filter out photos that were in the last pair
+    const eligiblePhotos = visiblePhotos.filter(photo => !excludedPhotoIds.has(photo.id));
+    
+    // If we don't have enough eligible photos, fall back to all photos
+    const photosToUse = eligiblePhotos.length >= 2 ? eligiblePhotos : visiblePhotos;
+    
+    // Try to find a valid pair (with maximum attempts to prevent infinite loops)
+    const maxAttempts = 50;
     let attempts = 0;
     
     while (attempts < maxAttempts) {
       // Shuffle and pick two different photos
-      const shuffled = [...visiblePhotos].sort(() => Math.random() - 0.5);
+      const shuffled = [...photosToUse].sort(() => Math.random() - 0.5);
       const photo1 = shuffled[0];
       const photo2 = shuffled[1];
       
@@ -358,9 +364,8 @@ export class MemStorage implements IStorage {
         continue;
       }
       
-      // Rule 2: Check if this pair has been used before
-      const pairKey = `${photo1.id}-${photo2.id}`;
-      if (!usedPairs.has(pairKey)) {
+      // Rule 2: If using eligible photos, ensure neither was in the last pair
+      if (photosToUse === eligiblePhotos || !excludedPhotoIds.has(photo1.id) && !excludedPhotoIds.has(photo2.id)) {
         console.log(`Selected new photo pair: ${photo1.id} vs ${photo2.id} (attempt ${attempts + 1})`);
         return [photo1, photo2];
       }
@@ -368,20 +373,15 @@ export class MemStorage implements IStorage {
       attempts++;
     }
 
-    // If we can't find an unused pair after maxAttempts, fall back to any valid pair
-    // This ensures the app doesn't break if all combinations have been used
-    console.log(`Warning: Could not find unused photo pair after ${maxAttempts} attempts. Using fallback selection.`);
-    const shuffled = [...visiblePhotos].sort(() => Math.random() - 0.5);
+    // Fallback: pick any two different photos
+    console.log(`Warning: Could not find non-consecutive photo pair after ${maxAttempts} attempts. Using fallback selection.`);
     
     // Ensure the fallback pair has different photos
-    if (shuffled[0].id !== shuffled[1].id) {
-      return [shuffled[0], shuffled[1]];
-    }
-    
-    // Last resort: pick any two different photos
     for (let i = 0; i < visiblePhotos.length; i++) {
       for (let j = i + 1; j < visiblePhotos.length; j++) {
-        return [visiblePhotos[i], visiblePhotos[j]];
+        if (visiblePhotos[i].id !== visiblePhotos[j].id) {
+          return [visiblePhotos[i], visiblePhotos[j]];
+        }
       }
     }
     
@@ -587,34 +587,38 @@ export class DatabaseStorage implements IStorage {
       return null;
     }
 
-    // Get all existing vote pairs to avoid repeating comparisons
-    const existingVotes = await db
+    // Get the most recent vote to find the last pair shown
+    const lastVote = await db
       .select({
         winnerPhotoId: votes.winnerPhotoId,
         loserPhotoId: votes.loserPhotoId
       })
       .from(votes)
-      .where(sql`${votes.winnerPhotoId} IS NOT NULL AND ${votes.loserPhotoId} IS NOT NULL`);
+      .where(sql`${votes.winnerPhotoId} IS NOT NULL AND ${votes.loserPhotoId} IS NOT NULL`)
+      .orderBy(sql`${votes.timestamp} DESC`)
+      .limit(1);
 
-    // Create a set of comparison pairs that have already been voted on
-    const usedPairs = new Set<string>();
-    existingVotes.forEach(vote => {
-      if (vote.winnerPhotoId && vote.loserPhotoId) {
-        // Store both directions to prevent any repeated comparisons
-        const pair1 = `${vote.winnerPhotoId}-${vote.loserPhotoId}`;
-        const pair2 = `${vote.loserPhotoId}-${vote.winnerPhotoId}`;
-        usedPairs.add(pair1);
-        usedPairs.add(pair2);
-      }
-    });
+    // Get the IDs of photos from the last pair to exclude them
+    const excludedPhotoIds = new Set<string>();
+    if (lastVote.length > 0 && lastVote[0].winnerPhotoId && lastVote[0].loserPhotoId) {
+      excludedPhotoIds.add(lastVote[0].winnerPhotoId);
+      excludedPhotoIds.add(lastVote[0].loserPhotoId);
+      console.log(`Excluding last pair from selection: ${lastVote[0].winnerPhotoId} and ${lastVote[0].loserPhotoId}`);
+    }
 
-    // Try to find an unused pair (with maximum attempts to prevent infinite loops)
-    const maxAttempts = 100;
+    // Filter out photos that were in the last pair
+    const eligiblePhotos = availablePhotos.filter(photo => !excludedPhotoIds.has(photo.id));
+    
+    // If we don't have enough eligible photos, fall back to all photos
+    const photosToUse = eligiblePhotos.length >= 2 ? eligiblePhotos : availablePhotos;
+    
+    // Try to find a valid pair (with maximum attempts to prevent infinite loops)
+    const maxAttempts = 50;
     let attempts = 0;
     
     while (attempts < maxAttempts) {
       // Shuffle and pick two different photos
-      const shuffled = [...availablePhotos].sort(() => Math.random() - 0.5);
+      const shuffled = [...photosToUse].sort(() => Math.random() - 0.5);
       const photo1 = shuffled[0];
       const photo2 = shuffled[1];
       
@@ -624,9 +628,8 @@ export class DatabaseStorage implements IStorage {
         continue;
       }
       
-      // Rule 2: Check if this pair has been used before
-      const pairKey = `${photo1.id}-${photo2.id}`;
-      if (!usedPairs.has(pairKey)) {
+      // Rule 2: If using eligible photos, ensure neither was in the last pair
+      if (photosToUse === eligiblePhotos || !excludedPhotoIds.has(photo1.id) && !excludedPhotoIds.has(photo2.id)) {
         console.log(`Selected new photo pair: ${photo1.id} vs ${photo2.id} (attempt ${attempts + 1})`);
         return [photo1, photo2];
       }
@@ -634,20 +637,16 @@ export class DatabaseStorage implements IStorage {
       attempts++;
     }
 
-    // If we can't find an unused pair after maxAttempts, fall back to any valid pair
-    // This ensures the app doesn't break if all combinations have been used
-    console.log(`Warning: Could not find unused photo pair after ${maxAttempts} attempts. Using fallback selection.`);
+    // Fallback: pick any two different photos
+    console.log(`Warning: Could not find non-consecutive photo pair after ${maxAttempts} attempts. Using fallback selection.`);
     const shuffled = [...availablePhotos].sort(() => Math.random() - 0.5);
     
     // Ensure the fallback pair has different photos
-    if (shuffled[0].id !== shuffled[1].id) {
-      return [shuffled[0], shuffled[1]];
-    }
-    
-    // Last resort: pick any two different photos
     for (let i = 0; i < availablePhotos.length; i++) {
       for (let j = i + 1; j < availablePhotos.length; j++) {
-        return [availablePhotos[i], availablePhotos[j]];
+        if (availablePhotos[i].id !== availablePhotos[j].id) {
+          return [availablePhotos[i], availablePhotos[j]];
+        }
       }
     }
     

@@ -120,11 +120,14 @@ export default function AdminSettings() {
           {/* Database Management Section */}
           <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
             <div className="space-y-2">
-              <Label className="text-lg font-semibold text-blue-900">Production Database Migration</Label>
+              <Label className="text-lg font-semibold text-blue-900">Production Database Setup</Label>
               <p className="text-sm text-blue-700">
-                For production deployments: Copy your curated photo collection from development to production.
-                This migrates all photos, settings, and voting data to ensure the production admin panel works properly.
+                <strong>For production deployments:</strong> Your production database is separate from development. 
+                Click "Migrate to Production" to copy all 24 photos from development to your production database.
               </p>
+              <div className="text-xs text-blue-600 bg-blue-100 p-2 rounded">
+                Current status: Development has photos, Production needs migration
+              </div>
             </div>
             
             <div className="flex gap-3">

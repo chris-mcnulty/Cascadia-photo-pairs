@@ -181,6 +181,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk update photo categories (admin only) - MUST come before the :id routes
+  app.put("/api/photos/bulk-category", async (req, res) => {
+    try {
+      const { photoIds, category } = req.body;
+      
+      if (!Array.isArray(photoIds) || photoIds.length === 0) {
+        return res.status(400).json({ message: "Invalid photoIds array" });
+      }
+      
+      if (!category || typeof category !== 'string') {
+        return res.status(400).json({ message: "Invalid category" });
+      }
+      
+      console.log(`Bulk updating ${photoIds.length} photos to category: ${category}`, photoIds);
+      const updated = await storage.updatePhotosCategory(photoIds, category);
+      
+      if (!updated) {
+        return res.status(404).json({ message: "No photos were updated" });
+      }
+      
+      console.log(`Successfully updated photo categories`);
+      res.json({ message: "Photo categories updated successfully" });
+    } catch (error) {
+      console.error('Bulk category update route error:', error);
+      res.status(500).json({ message: "Failed to update photo categories", error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
   // Update a photo (admin only)
   app.put("/api/photos/:id", async (req, res) => {
     try {
@@ -219,34 +247,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Delete photo route error:', error);
       res.status(500).json({ message: "Failed to delete photo", error: error instanceof Error ? error.message : 'Unknown error' });
-    }
-  });
-
-  // Bulk update photo categories (admin only)
-  app.put("/api/photos/bulk-category", async (req, res) => {
-    try {
-      const { photoIds, category } = req.body;
-      
-      if (!Array.isArray(photoIds) || photoIds.length === 0) {
-        return res.status(400).json({ message: "Invalid photoIds array" });
-      }
-      
-      if (!category || typeof category !== 'string') {
-        return res.status(400).json({ message: "Invalid category" });
-      }
-      
-      console.log(`Updating ${photoIds.length} photos to category: ${category}`, photoIds);
-      const updated = await storage.updatePhotosCategory(photoIds, category);
-      
-      if (!updated) {
-        return res.status(404).json({ message: "No photos were updated" });
-      }
-      
-      console.log(`Successfully updated photo categories`);
-      res.json({ message: "Photo categories updated successfully" });
-    } catch (error) {
-      console.error('Bulk category update route error:', error);
-      res.status(500).json({ message: "Failed to update photo categories", error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 

@@ -120,13 +120,13 @@ export default function AdminSettings() {
           {/* Database Management Section */}
           <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
             <div className="space-y-2">
-              <Label className="text-lg font-semibold text-blue-900">Production Database Setup</Label>
-              <p className="text-sm text-blue-700">
-                <strong>For production deployments:</strong> Your production database is separate from development. 
-                Click "Migrate to Production" to copy all 24 photos from development to your production database.
+              <Label className="text-lg font-semibold text-green-900">Shared Database Configuration</Label>
+              <p className="text-sm text-green-700">
+                <strong>Database Status:</strong> Your development and production environments share the same Neon database. 
+                Changes made in either environment appear in both immediately. Your photo collection is synchronized across environments.
               </p>
-              <div className="text-xs text-blue-600 bg-blue-100 p-2 rounded">
-                Current status: Development has photos, Production needs migration
+              <div className="text-xs text-green-600 bg-green-100 p-2 rounded">
+                Current status: Database shared between environments
               </div>
             </div>
             
@@ -137,7 +137,7 @@ export default function AdminSettings() {
                 disabled={migrateToProductionMutation.isPending}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
-                {migrateToProductionMutation.isPending ? "Migrating..." : "Migrate to Production"}
+                {migrateToProductionMutation.isPending ? "Checking..." : "Verify Database Sync"}
               </Button>
               
               <Button

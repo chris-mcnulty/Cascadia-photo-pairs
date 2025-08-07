@@ -6,9 +6,16 @@ This is a full-stack photo voting application built for displaying and ranking l
 
 The app uses a modern React frontend with shadcn/ui components, Express.js backend, and is designed to work with PostgreSQL database through Drizzle ORM. It includes features like real-time voting statistics, photo pair randomization, comprehensive admin analytics, and intelligent inline photo editing.
 
-## Recent Changes (January 2025)
+## Recent Changes (August 2025)
 
-**Photo Management Improvements**
+**Production Database & Performance Optimization**
+- Discovered and configured shared Neon database between development and production environments
+- Optimized admin interface with lightweight photo loading to prevent 44MB response timeouts
+- Implemented smart base64 image truncation for admin panels while preserving full images for voting
+- Enhanced database status reporting to reflect shared environment configuration
+- Confirmed seamless data synchronization across development and production instances
+
+**Photo Management Improvements** 
 - Implemented inline photo editing with forms appearing directly below selected photos
 - Smart differentiation between URL-based and file-based (base64) photos in edit interface
 - URL-based photos show editable URL field with live preview

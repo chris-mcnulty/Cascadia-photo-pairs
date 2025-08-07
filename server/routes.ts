@@ -231,6 +231,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update photo visibility (admin only)
+  app.put("/api/photos/:id/visibility", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { hidden } = req.body;
+      
+      if (typeof hidden !== 'boolean') {
+        return res.status(400).json({ message: "Invalid hidden value - must be boolean" });
+      }
+      
+      console.log(`Updating photo visibility - ID: ${id}, hidden: ${hidden}`);
+      const updatedPhoto = await storage.updatePhoto(id, { hidden });
+      
+      if (!updatedPhoto) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+      
+      console.log(`Photo visibility updated successfully: ${id}`);
+      res.json(updatedPhoto);
+    } catch (error) {
+      console.error('Update photo visibility route error:', error);
+      res.status(500).json({ message: "Failed to update photo visibility", error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
   // Delete a photo (admin only)
   app.delete("/api/photos/:id", async (req, res) => {
     try {

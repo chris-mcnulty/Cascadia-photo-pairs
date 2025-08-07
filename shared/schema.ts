@@ -3,11 +3,20 @@ import { pgTable, text, varchar, integer, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const collections = pgTable("collections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  color: text("color").default("#3B82F6").notNull(),
+  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+});
+
 export const photos = pgTable("photos", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   description: text("description"),
   imageUrl: text("image_url").notNull(),
+  collectionId: varchar("collection_id").references(() => collections.id),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
   votes: integer("votes").default(0).notNull(),
   wins: integer("wins").default(0).notNull(),
@@ -42,6 +51,11 @@ export const sessions = pgTable("sessions", {
   lastActiveAt: text("last_active_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
+export const insertCollectionSchema = createInsertSchema(collections).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertPhotoSchema = createInsertSchema(photos).omit({
   id: true,
   votes: true,
@@ -67,6 +81,8 @@ export const insertSessionSchema = createInsertSchema(sessions).omit({
   lastActiveAt: true,
 });
 
+export type InsertCollection = z.infer<typeof insertCollectionSchema>;
+export type Collection = typeof collections.$inferSelect;
 export type InsertPhoto = z.infer<typeof insertPhotoSchema>;
 export type Photo = typeof photos.$inferSelect;
 export type InsertVote = z.infer<typeof insertVoteSchema>;

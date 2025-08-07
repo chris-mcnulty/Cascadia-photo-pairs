@@ -4,16 +4,25 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Photo, Settings } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import VotingInterface from "@/components/voting-interface";
+import MobileVotingInterface from "@/components/mobile-voting-interface";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Menu, X, Globe, Mail, Heart, MousePointer, RefreshCw, Infinity } from "lucide-react";
+import { Menu, X, Globe, Mail, Heart, MousePointer, RefreshCw, Infinity, Smartphone } from "lucide-react";
 import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [useMobileInterface, setUseMobileInterface] = useState(false);
   const [votesCount, setVotesCount] = useState(0);
   const { toast } = useToast();
+
+  // Detect if user is on mobile and auto-enable mobile interface
+  useEffect(() => {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
+      || (window.innerWidth <= 768);
+    setUseMobileInterface(isMobile);
+  }, []);
 
   const { data: settings } = useQuery<Settings>({
     queryKey: ["/api/settings"],
@@ -86,6 +95,15 @@ export default function Home() {
 
             {/* Navigation Links */}
             <nav className="hidden md:flex items-center space-x-8">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setUseMobileInterface(!useMobileInterface)}
+                className="flex items-center gap-2"
+              >
+                <Smartphone className="w-4 h-4" />
+                {useMobileInterface ? "Desktop" : "Mobile"} View
+              </Button>
               <a 
                 href="https://www.chrismcnulty.net" 
                 className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"
@@ -115,6 +133,15 @@ export default function Home() {
           {mobileMenuOpen && (
             <div className="md:hidden border-t border-gray-100 py-4">
               <div className="flex flex-col space-y-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setUseMobileInterface(!useMobileInterface)}
+                  className="flex items-center gap-2 justify-center"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  {useMobileInterface ? "Desktop" : "Mobile"} View
+                </Button>
                 <a 
                   href="https://www.chrismcnulty.net" 
                   className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"
@@ -161,12 +188,21 @@ export default function Home() {
 
         {/* Voting Interface */}
         {photoPair && (
-          <VotingInterface 
-            photoPair={photoPair}
-            onVote={handleVote}
-            isVoting={voteMutation.isPending}
-            settings={settings}
-          />
+          useMobileInterface ? (
+            <MobileVotingInterface 
+              photoPair={photoPair}
+              onVote={handleVote}
+              isVoting={voteMutation.isPending}
+              settings={settings}
+            />
+          ) : (
+            <VotingInterface 
+              photoPair={photoPair}
+              onVote={handleVote}
+              isVoting={voteMutation.isPending}
+              settings={settings}
+            />
+          )
         )}
 
         {/* Voting Instructions */}

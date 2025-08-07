@@ -1,12 +1,19 @@
-import { type Photo, type InsertPhoto, type Vote, type InsertVote, type Settings, type InsertSettings } from "@shared/schema";
+import { type Photo, type InsertPhoto, type Vote, type InsertVote, type Settings, type InsertSettings, type Collection, type InsertCollection } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { photos, votes, settings } from "@shared/schema";
+import { photos, votes, settings, collections } from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 
 export interface IStorage {
+  // Collections
+  getAllCollections(): Promise<Collection[]>;
+  getCollection(id: string): Promise<Collection | undefined>;
+  createCollection(collection: InsertCollection): Promise<Collection>;
+  updateCollection(id: string, updates: Partial<Collection>): Promise<Collection | undefined>;
+  deleteCollection(id: string): Promise<boolean>;
+  
   // Photos
-  getAllPhotos(): Promise<Photo[]>;
+  getAllPhotos(collectionId?: string): Promise<Photo[]>;
   getPhoto(id: string): Promise<Photo | undefined>;
   createPhoto(photo: InsertPhoto): Promise<Photo>;
   updatePhoto(id: string, updates: Partial<Photo>): Promise<Photo | undefined>;
@@ -22,7 +29,7 @@ export interface IStorage {
   
   // Stats
   getPhotoStats(startDate?: string, endDate?: string): Promise<Photo[]>;
-  getRandomPhotoPair(): Promise<[Photo, Photo] | null>;
+  getRandomPhotoPair(collectionId?: string): Promise<[Photo, Photo] | null>;
   getVotesByDateRange(startDate?: string, endDate?: string): Promise<Vote[]>;
   
   // Photo management
@@ -54,6 +61,17 @@ export class MemStorage implements IStorage {
     // Initialize with sample photos (using stock photo URLs)
     this.initializePhotos();
   }
+
+  // Collections implementation stubs (not used in MemStorage)
+  async getAllCollections(): Promise<Collection[]> { return []; }
+  async getCollection(id: string): Promise<Collection | undefined> { return undefined; }
+  async createCollection(collection: InsertCollection): Promise<Collection> { 
+    throw new Error('Collections not implemented in MemStorage');
+  }
+  async updateCollection(id: string, updates: Partial<Collection>): Promise<Collection | undefined> { 
+    return undefined; 
+  }
+  async deleteCollection(id: string): Promise<boolean> { return false; }
 
   private initializePhotos() {
     const samplePhotos = [
@@ -127,7 +145,7 @@ export class MemStorage implements IStorage {
     });
   }
 
-  async getAllPhotos(): Promise<Photo[]> {
+  async getAllPhotos(collectionId?: string): Promise<Photo[]> {
     return Array.from(this.photos.values());
   }
 
@@ -336,7 +354,35 @@ export class MemStorage implements IStorage {
 
 // DatabaseStorage implementation
 export class DatabaseStorage implements IStorage {
-  async getAllPhotos(): Promise<Photo[]> {
+  // Collections methods
+  async getAllCollections(): Promise<Collection[]> {
+    return await db.select().from(collections);
+  }
+
+  async getCollection(id: string): Promise<Collection | undefined> {
+    const [collection] = await db.select().from(collections).where(eq(collections.id, id));
+    return collection || undefined;
+  }
+
+  async createCollection(insertCollection: InsertCollection): Promise<Collection> {
+    const [collection] = await db.insert(collections).values(insertCollection).returning();
+    return collection;
+  }
+
+  async updateCollection(id: string, updates: Partial<Collection>): Promise<Collection | undefined> {
+    const [collection] = await db.update(collections)
+      .set(updates)
+      .where(eq(collections.id, id))
+      .returning();
+    return collection || undefined;
+  }
+
+  async deleteCollection(id: string): Promise<boolean> {
+    const result = await db.delete(collections).where(eq(collections.id, id));
+    return result.rowCount ? result.rowCount > 0 : false;
+  }
+
+  async getAllPhotos(collectionId?: string): Promise<Photo[]> {
     try {
       console.log('DatabaseStorage: Starting getAllPhotos query...');
       const result = await db.select().from(photos);
@@ -470,7 +516,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async getRandomPhotoPair(): Promise<[Photo, Photo] | null> {
+  async getRandomPhotoPair(collectionId?: string): Promise<[Photo, Photo] | null> {
     const availablePhotos = await db
       .select()
       .from(photos)

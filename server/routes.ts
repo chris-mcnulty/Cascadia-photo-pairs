@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertVoteSchema, insertSettingsSchema, insertPhotoSchema } from "@shared/schema";
+import { insertVoteSchema, insertSettingsSchema, insertPhotoSchema, insertCollectionSchema } from "@shared/schema";
 import { 
   generateSessionId, 
   generateMfaCode, 
@@ -225,7 +225,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get random photo pair for voting
   app.get("/api/photos/random-pair", async (req, res) => {
     try {
-      const pair = await storage.getRandomPhotoPair();
+      const { collectionId } = req.query as { collectionId?: string };
+      const pair = await storage.getRandomPhotoPair(collectionId || undefined);
       if (!pair) {
         return res.status(404).json({ message: "Not enough photos available" });
       }
@@ -325,6 +326,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(settings);
     } catch (error) {
       res.status(400).json({ message: "Invalid settings data" });
+    }
+  });
+
+  // Collections routes
+  app.get("/api/collections", async (req, res) => {
+    try {
+      const collections = await storage.getAllCollections();
+      res.json(collections);
+    } catch (error) {
+      console.error('Error fetching collections:', error);
+      res.status(500).json({ message: "Failed to fetch collections" });
+    }
+  });
+
+  app.get("/api/collections/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const collection = await storage.getCollection(id);
+      if (!collection) {
+        return res.status(404).json({ message: "Collection not found" });
+      }
+      res.json(collection);
+    } catch (error) {
+      console.error('Error fetching collection:', error);
+      res.status(500).json({ message: "Failed to fetch collection" });
+    }
+  });
+
+  app.post("/api/collections", async (req, res) => {
+    try {
+      const collectionData = insertCollectionSchema.parse(req.body);
+      const collection = await storage.createCollection(collectionData);
+      res.json(collection);
+    } catch (error) {
+      console.error('Error creating collection:', error);
+      res.status(400).json({ message: "Invalid collection data" });
+    }
+  });
+
+  app.put("/api/collections/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      const collection = await storage.updateCollection(id, updates);
+      if (!collection) {
+        return res.status(404).json({ message: "Collection not found" });
+      }
+      res.json(collection);
+    } catch (error) {
+      console.error('Error updating collection:', error);
+      res.status(500).json({ message: "Failed to update collection" });
+    }
+  });
+
+  app.delete("/api/collections/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteCollection(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Collection not found" });
+      }
+      res.json({ message: "Collection deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting collection:', error);
+      res.status(500).json({ message: "Failed to delete collection" });
     }
   });
 

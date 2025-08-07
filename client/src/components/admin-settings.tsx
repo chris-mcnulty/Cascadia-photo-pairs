@@ -45,6 +45,27 @@ export default function AdminSettings() {
     },
   });
 
+  const initDatabaseMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/force-init", {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+      toast({
+        title: "Database initialized",
+        description: `Successfully initialized with ${data.finalPhotoCount} photos.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Initialization failed",
+        description: "There was an error initializing the database.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Update form data when settings are loaded
   useEffect(() => {
     if (settings) {
@@ -73,6 +94,26 @@ export default function AdminSettings() {
           <CardTitle>Application Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
+          
+          {/* Database Management Section */}
+          <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
+            <div className="space-y-2">
+              <Label className="text-lg font-semibold text-blue-900">Database Management</Label>
+              <p className="text-sm text-blue-700">
+                For production deployments: If the admin panel shows no data but voting works, 
+                the production database might be empty. Use this button to populate it with initial photos.
+              </p>
+            </div>
+            
+            <Button
+              type="button"
+              onClick={() => initDatabaseMutation.mutate()}
+              disabled={initDatabaseMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {initDatabaseMutation.isPending ? "Initializing..." : "Initialize Database"}
+            </Button>
+          </div>
           
           {/* Purchase Links Toggle */}
           <div className="flex items-center justify-between">

@@ -45,6 +45,28 @@ export default function AdminSettings() {
     },
   });
 
+  const migrateToProductionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/migrate-to-production", {});
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      toast({
+        title: "Production migration completed",
+        description: data.message,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Migration failed",
+        description: "There was an error migrating data to production.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const initDatabaseMutation = useMutation({
     mutationFn: async () => {
       const response = await apiRequest("POST", "/api/force-init", {});
@@ -98,21 +120,33 @@ export default function AdminSettings() {
           {/* Database Management Section */}
           <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
             <div className="space-y-2">
-              <Label className="text-lg font-semibold text-blue-900">Database Management</Label>
+              <Label className="text-lg font-semibold text-blue-900">Production Database Migration</Label>
               <p className="text-sm text-blue-700">
-                For production deployments: If the admin panel shows no data but voting works, 
-                the production database might be empty. Use this button to populate it with initial photos.
+                For production deployments: Copy your curated photo collection from development to production.
+                This migrates all photos, settings, and voting data to ensure the production admin panel works properly.
               </p>
             </div>
             
-            <Button
-              type="button"
-              onClick={() => initDatabaseMutation.mutate()}
-              disabled={initDatabaseMutation.isPending}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {initDatabaseMutation.isPending ? "Initializing..." : "Initialize Database"}
-            </Button>
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                onClick={() => migrateToProductionMutation.mutate()}
+                disabled={migrateToProductionMutation.isPending}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {migrateToProductionMutation.isPending ? "Migrating..." : "Migrate to Production"}
+              </Button>
+              
+              <Button
+                type="button"
+                onClick={() => initDatabaseMutation.mutate()}
+                disabled={initDatabaseMutation.isPending}
+                variant="outline"
+                className="border-blue-600 text-blue-600 hover:bg-blue-50"
+              >
+                {initDatabaseMutation.isPending ? "Initializing..." : "Quick Initialize"}
+              </Button>
+            </div>
           </div>
           
           {/* Purchase Links Toggle */}

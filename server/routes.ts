@@ -343,6 +343,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Migrate development data to production
+  app.post("/api/migrate-to-production", async (req, res) => {
+    try {
+      console.log('🚀 Production migration requested...');
+      
+      const { migrateToProduction } = await import("./migrate-to-production");
+      const result = await migrateToProduction();
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Migration error:', error);
+      res.status(500).json({ 
+        message: "Failed to migrate to production",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Force database initialization (for production debugging)
   app.post("/api/force-init", async (req, res) => {
     try {

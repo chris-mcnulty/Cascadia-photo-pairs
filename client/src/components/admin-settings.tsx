@@ -185,6 +185,8 @@ export default function AdminSettings() {
             />
             <div className="text-sm text-gray-500">
               This URL will be used when individual photos don't have custom purchase URLs set.
+              <br />
+              <strong>Purchase Priority:</strong> Master control (this toggle) → Individual photo "Never for Sale" setting
             </div>
           </div>
 

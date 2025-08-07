@@ -45,7 +45,7 @@ export default function PhotoPair({ photo, onVote, isVoting, settings }: PhotoPa
           )}
           
           {/* Purchase Link (Admin Configurable) */}
-          {settings?.purchaseEnabled && (
+          {settings?.purchaseEnabled && !photo.neverForSale && (
             <div className="mt-4">
               <a 
                 href={purchaseUrl}

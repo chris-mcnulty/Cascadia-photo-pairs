@@ -2,7 +2,7 @@ import { type Photo, type InsertPhoto, type Vote, type InsertVote, type Settings
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { photos, votes, settings, collections } from "@shared/schema";
-import { eq, sql, inArray, and, or } from "drizzle-orm";
+import { eq, sql, inArray, and, or, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
   // Collections
@@ -657,11 +657,14 @@ export class DatabaseStorage implements IStorage {
 
   async getVotesByDateRange(startDate?: string, endDate?: string): Promise<Vote[]> {
     if (startDate && endDate) {
-      return await db.select().from(votes).where(sql`${votes.timestamp} >= ${startDate} AND ${votes.timestamp} <= ${endDate}`);
+      return await db.select().from(votes).where(and(
+        gte(votes.timestamp, startDate),
+        lte(votes.timestamp, endDate)
+      ));
     } else if (startDate) {
-      return await db.select().from(votes).where(sql`${votes.timestamp} >= ${startDate}`);
+      return await db.select().from(votes).where(gte(votes.timestamp, startDate));
     } else if (endDate) {
-      return await db.select().from(votes).where(sql`${votes.timestamp} <= ${endDate}`);
+      return await db.select().from(votes).where(lte(votes.timestamp, endDate));
     }
     
     return await db.select().from(votes);
@@ -719,15 +722,16 @@ export class DatabaseStorage implements IStorage {
 
   async purgeTestData(beforeDate: string): Promise<{ votesDeleted: number; photosReset: boolean }> {
     const cutoffDate = new Date(beforeDate);
+    const cutoffIso = cutoffDate.toISOString();
     
     // Count votes to be deleted
     const [voteCount] = await db
       .select({ count: sql<number>`count(*)` })
       .from(votes)
-      .where(sql`${votes.timestamp} < ${cutoffDate.toISOString()}`);
+      .where(lte(votes.timestamp, cutoffIso));
     
     // Delete votes before the cutoff date
-    await db.delete(votes).where(sql`${votes.timestamp} < ${cutoffDate.toISOString()}`);
+    await db.delete(votes).where(lte(votes.timestamp, cutoffIso));
     
     // Reset photo statistics
     await db.update(photos).set({
@@ -756,10 +760,17 @@ export class DatabaseStorage implements IStorage {
     let query = db.select({ count: sql<number>`count(*)` }).from(votes);
     
     if (startDate && endDate && voterType) {
-      const [result] = await query.where(sql`${votes.timestamp} >= ${startDate} AND ${votes.timestamp} <= ${endDate} AND ${votes.voterType} = ${voterType}`);
+      const [result] = await query.where(and(
+        gte(votes.timestamp, startDate),
+        lte(votes.timestamp, endDate),
+        eq(votes.voterType, voterType)
+      ));
       return result.count;
     } else if (startDate && endDate) {
-      const [result] = await query.where(sql`${votes.timestamp} >= ${startDate} AND ${votes.timestamp} <= ${endDate}`);
+      const [result] = await query.where(and(
+        gte(votes.timestamp, startDate),
+        lte(votes.timestamp, endDate)
+      ));
       return result.count;
     } else if (voterType) {
       const [result] = await query.where(eq(votes.voterType, voterType));
@@ -790,8 +801,8 @@ export class DatabaseStorage implements IStorage {
       // Build conditions for vote filtering
       const conditions = [];
       if (voterType) conditions.push(eq(votes.voterType, voterType));
-      if (startDate) conditions.push(sql`${votes.timestamp} >= ${startDate}`);
-      if (endDate) conditions.push(sql`${votes.timestamp} <= ${endDate}`);
+      if (startDate) conditions.push(gte(votes.timestamp, startDate));
+      if (endDate) conditions.push(lte(votes.timestamp, endDate));
       
       // Get filtered vote counts for each photo
       const photoStatsMap = new Map();

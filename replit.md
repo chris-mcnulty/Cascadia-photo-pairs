@@ -8,6 +8,13 @@ The app uses a modern React frontend with shadcn/ui components, Express.js backe
 
 ## Recent Changes (August 2025)
 
+**Vote Segregation & Analytics Filtering (January 2025)**
+- Implemented complete vote segregation system tracking admin vs user votes
+- Fixed vote filtering to properly recalculate photo statistics based on voter type selection
+- Enhanced admin analytics to show accurate filtered vote counts per photo
+- Added clear filter indicators showing active voter type and category filters
+- Admin link repositioned to bottom of navigation menus for better UX hierarchy
+
 **Mobile-Optimized Voting Interface**
 - Implemented comprehensive mobile voting interface with touch/swipe gesture support
 - Added automatic mobile device detection with fallback to desktop interface

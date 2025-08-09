@@ -92,7 +92,7 @@ export default function Home() {
               </div>
               <div>
                 <h1 className="text-2xl font-semibold cascadia-green">Cascadia Oceanic</h1>
-                <p className="text-sm text-gray-600">Public Art Exhibition Voting</p>
+                <p className="text-sm text-gray-600">Photo Voting</p>
               </div>
             </div>
 
@@ -170,8 +170,7 @@ export default function Home() {
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold text-gray-900 mb-4">Choose Your Favorite</h2>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Help select the top artworks for our upcoming exhibition. Click on your preferred piece to vote, 
-            then continue with the next pair. Vote as many times as you like!
+            Help me curate the photos for my next exhibition. I've added some of my classic and newest images to discover here. Click on your preferred photo to vote, then continue with the next pair. Vote as many times as you like!
           </p>
         </div>
 

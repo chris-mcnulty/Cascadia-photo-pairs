@@ -273,7 +273,7 @@ export default function Home() {
                 <h3 className="text-lg font-semibold cascadia-green">Cascadia Oceanic</h3>
               </div>
               <p className="text-gray-600 text-sm mb-4">
-                The Pacific & Atlantic coasts, and the land in between
+                Images of the Pacific & Atlantic coasts, and the land in between.
               </p>
             </div>
 

@@ -8,7 +8,9 @@ import MobileVotingInterface from "@/components/mobile-voting-interface";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Menu, X, Globe, Mail, Heart, MousePointer, RefreshCw, Infinity, Smartphone } from "lucide-react";
+import { Menu, X, Globe, Mail, Heart, MousePointer, RefreshCw, Infinity, Smartphone, Share2, MessageSquare, Facebook, Linkedin, Twitter } from "lucide-react";
+import { FaInstagram, FaThreads, FaBluesky } from "react-icons/fa6";
+import { FaFacebookF, FaLinkedinIn, FaXTwitter } from "react-icons/fa6";
 import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
 import { useTitle } from "@/hooks/use-title";
 
@@ -108,10 +110,21 @@ export default function Home() {
                 {useMobileInterface ? "Desktop" : "Mobile"} View
               </Button>
               <a 
-                href="https://www.chrismcnulty.net" 
+                href="https://www.chrismcnulty.net/photography" 
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"
               >
                 Visit Gallery
+              </a>
+              <a 
+                href="https://www.instagram.com/cascadia.oceanic/" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium flex items-center gap-1"
+              >
+                <FaInstagram className="w-4 h-4" />
+                Instagram
               </a>
               <a 
                 href="https://www.chrismcnulty.net/subscribe" 
@@ -146,10 +159,21 @@ export default function Home() {
                   {useMobileInterface ? "Desktop" : "Mobile"} View
                 </Button>
                 <a 
-                  href="https://www.chrismcnulty.net" 
+                  href="https://www.chrismcnulty.net/photography" 
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"
                 >
                   Visit Gallery
+                </a>
+                <a 
+                  href="https://www.instagram.com/cascadia.oceanic/" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium flex items-center gap-1"
+                >
+                  <FaInstagram className="w-4 h-4" />
+                  Instagram
                 </a>
                 <a 
                   href="https://www.chrismcnulty.net/subscribe" 
@@ -235,7 +259,9 @@ export default function Home() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a 
-                href="https://www.chrismcnulty.net/photography/landscapes" 
+                href="https://www.chrismcnulty.net/photography" 
+                target="_blank"
+                rel="noopener noreferrer"
                 className="bg-white text-green-700 px-8 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition-all duration-200 inline-flex items-center justify-center"
               >
                 <Globe className="w-4 h-4 mr-2" />
@@ -339,6 +365,83 @@ export default function Home() {
                 <p className="text-gray-600 text-sm">
                   Bothell, WA
                 </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Sharing Links */}
+          <div className="border-t border-gray-200 pt-8 mt-8">
+            <div className="text-center mb-6">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4">Share This Page</h4>
+              <div className="flex justify-center space-x-4">
+                <a
+                  href={`sms:?body=Check out this photo voting page: ${window.location.href}`}
+                  className="bg-gray-100 hover:bg-green-100 p-3 rounded-lg transition-colors duration-200"
+                  title="Share via Text Message"
+                >
+                  <MessageSquare className="w-5 h-5 text-gray-600 hover:text-green-700" />
+                </a>
+                <a
+                  href={`mailto:?subject=Check out this photo voting page&body=I thought you might enjoy voting on these photos: ${window.location.href}`}
+                  className="bg-gray-100 hover:bg-green-100 p-3 rounded-lg transition-colors duration-200"
+                  title="Share via Email"
+                >
+                  <Mail className="w-5 h-5 text-gray-600 hover:text-green-700" />
+                </a>
+                <a
+                  href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-gray-100 hover:bg-blue-100 p-3 rounded-lg transition-colors duration-200"
+                  title="Share on Facebook"
+                >
+                  <FaFacebookF className="w-5 h-5 text-gray-600 hover:text-blue-600" />
+                </a>
+                <a
+                  href={`https://www.instagram.com/`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-gray-100 hover:bg-pink-100 p-3 rounded-lg transition-colors duration-200"
+                  title="Follow on Instagram"
+                >
+                  <FaInstagram className="w-5 h-5 text-gray-600 hover:text-pink-600" />
+                </a>
+                <a
+                  href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-gray-100 hover:bg-blue-100 p-3 rounded-lg transition-colors duration-200"
+                  title="Share on LinkedIn"
+                >
+                  <FaLinkedinIn className="w-5 h-5 text-gray-600 hover:text-blue-700" />
+                </a>
+                <a
+                  href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}&text=Check out this photo voting page`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-gray-100 hover:bg-gray-200 p-3 rounded-lg transition-colors duration-200"
+                  title="Share on X/Twitter"
+                >
+                  <FaXTwitter className="w-5 h-5 text-gray-600 hover:text-gray-800" />
+                </a>
+                <a
+                  href={`https://www.threads.net/intent/post?text=Check out this photo voting page: ${encodeURIComponent(window.location.href)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-gray-100 hover:bg-gray-200 p-3 rounded-lg transition-colors duration-200"
+                  title="Share on Threads"
+                >
+                  <FaThreads className="w-5 h-5 text-gray-600 hover:text-gray-800" />
+                </a>
+                <a
+                  href={`https://bsky.app/intent/compose?text=Check out this photo voting page: ${encodeURIComponent(window.location.href)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-gray-100 hover:bg-blue-100 p-3 rounded-lg transition-colors duration-200"
+                  title="Share on BlueSky"
+                >
+                  <FaBluesky className="w-5 h-5 text-gray-600 hover:text-blue-600" />
+                </a>
               </div>
             </div>
           </div>

@@ -74,6 +74,7 @@ export const insertVoteSchema = createInsertSchema(votes).omit({
 }).extend({
   winnerPhotoId: z.string().optional(),
   loserPhotoId: z.string().optional(),
+  voterType: z.string().optional(),
 });
 
 export const insertSettingsSchema = createInsertSchema(settings).omit({

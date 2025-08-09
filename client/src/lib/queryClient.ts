@@ -29,14 +29,14 @@ export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
+  additionalHeaders?: Record<string, string>
 ): Promise<Response> {
   const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
   
-  // Temporarily disable authentication headers to test basic functionality
-  // const sessionId = localStorage.getItem('admin-session-id');
-  // if (sessionId) {
-  //   headers['x-session-id'] = sessionId;
-  // }
+  // Add any additional headers passed in (e.g., for authentication)
+  if (additionalHeaders) {
+    Object.assign(headers, additionalHeaders);
+  }
 
   console.log(`API Request: ${method} ${url}`, { 
     hasData: !!data, 

@@ -150,7 +150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Add a new photo (admin only)
-  app.post("/api/photos", async (req, res) => {
+  app.post("/api/photos", requireAuth, async (req, res) => {
     try {
       console.log('Photo creation request body:', req.body);
       const photoData = insertPhotoSchema.parse(req.body);
@@ -182,7 +182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Bulk update photo categories (admin only) - MUST come before the :id routes
-  app.put("/api/photos/bulk-category", async (req, res) => {
+  app.put("/api/photos/bulk-category", requireAuth, async (req, res) => {
     try {
       const { photoIds, category } = req.body;
       
@@ -210,7 +210,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update a photo (admin only)
-  app.put("/api/photos/:id", async (req, res) => {
+  app.put("/api/photos/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       console.log(`Attempting to update photo with ID: ${id}`, req.body);
@@ -232,7 +232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update photo visibility (admin only)
-  app.put("/api/photos/:id/visibility", async (req, res) => {
+  app.put("/api/photos/:id/visibility", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const { hidden } = req.body;
@@ -257,7 +257,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete a photo (admin only)
-  app.delete("/api/photos/:id", async (req, res) => {
+  app.delete("/api/photos/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       console.log(`Attempting to delete photo with ID: ${id}`);
@@ -295,10 +295,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const voteData = insertVoteSchema.parse(req.body);
       const { winnerPhotoId, loserPhotoId } = req.body;
       
+      // Check if user is admin
+      const sessionId = req.headers['x-session-id'] as string;
+      let voterType = 'user';
+      
+      if (sessionId) {
+        const session = await getSession(sessionId);
+        if (session.isAuthenticated) {
+          voterType = 'admin';
+        }
+      }
+      
       const vote = await storage.createVote({ 
         photoId: voteData.photoId, 
         winnerPhotoId: winnerPhotoId || voteData.photoId,
-        loserPhotoId: loserPhotoId || voteData.photoId
+        loserPhotoId: loserPhotoId || voteData.photoId,
+        voterType
       });
       
       // Record comparison stats
@@ -313,7 +325,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get voting statistics (admin only)
-  app.get("/api/stats", async (req, res) => {
+  app.get("/api/stats", requireAuth, async (req, res) => {
     try {
       console.log('Fetching statistics...');
       const { startDate, endDate, category, voterType } = req.query as { 
@@ -360,7 +372,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Purge test data (admin only)
-  app.post("/api/admin/purge-test-data", async (req, res) => {
+  app.post("/api/admin/purge-test-data", requireAuth, async (req, res) => {
     try {
       const { beforeDate } = req.body;
       
@@ -390,7 +402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update settings (admin only)
-  app.put("/api/settings", async (req, res) => {
+  app.put("/api/settings", requireAuth, async (req, res) => {
     try {
       const settingsData = insertSettingsSchema.parse(req.body);
       const settings = await storage.updateSettings(settingsData);
@@ -425,7 +437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/collections", async (req, res) => {
+  app.post("/api/collections", requireAuth, async (req, res) => {
     try {
       const collectionData = insertCollectionSchema.parse(req.body);
       const collection = await storage.createCollection(collectionData);
@@ -436,7 +448,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/collections/:id", async (req, res) => {
+  app.put("/api/collections/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -451,7 +463,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/collections/:id", async (req, res) => {
+  app.delete("/api/collections/:id", requireAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteCollection(id);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -163,117 +163,9 @@ function AuthenticatedAdmin() {
 }
 
 export default function Admin() {
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return localStorage.getItem('simple-admin-auth') === 'true';
-  });
-  
-  const handleLogin = () => {
-    localStorage.setItem('simple-admin-auth', 'true');
-    setIsLoggedIn(true);
-  };
-  
-  const handleLogout = () => {
-    localStorage.removeItem('simple-admin-auth');
-    setIsLoggedIn(false);
-  };
-  
-  if (!isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-md w-full">
-          <div className="bg-white p-8 rounded-lg shadow-md">
-            <h1 className="text-2xl font-bold mb-6 text-center">Admin Login</h1>
-            <p className="text-gray-600 mb-4">Authentication temporarily simplified for testing.</p>
-            <Button onClick={handleLogin} className="w-full">
-              Login to Admin Panel
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-  
-  // Render tabbed admin dashboard
-  const [activeTab, setActiveTab] = useState<"photos" | "stats" | "analytics" | "settings">("photos");
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <Link href="/" className="text-gray-500 hover:text-gray-700">
-                <ArrowLeft className="w-5 h-5" />
-              </Link>
-              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-            </div>
-            <Button onClick={handleLogout} variant="outline" size="sm">
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
-          </div>
-        </div>
-      </div>
-      
-      {/* Tab Navigation */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex space-x-8">
-            <button
-              onClick={() => setActiveTab("photos")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "photos"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              <ImageIcon className="w-4 h-4 mr-2 inline" />
-              Photo Manager
-            </button>
-            <button
-              onClick={() => setActiveTab("stats")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "stats"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              <BarChart3 className="w-4 h-4 mr-2 inline" />
-              Statistics
-            </button>
-            <button
-              onClick={() => setActiveTab("analytics")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "analytics"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              <Download className="w-4 h-4 mr-2 inline" />
-              Analytics
-            </button>
-            <button
-              onClick={() => setActiveTab("settings")}
-              className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                activeTab === "settings"
-                  ? "border-blue-500 text-blue-600"
-                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-              }`}
-            >
-              <Settings className="w-4 h-4 mr-2 inline" />
-              Settings
-            </button>
-          </nav>
-        </div>
-      </div>
-
-      {/* Tab Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === "photos" && <PhotoManager />}
-        {activeTab === "stats" && <AdminStats />}
-        {activeTab === "analytics" && <AdminAnalytics />}
-        {activeTab === "settings" && <AdminSettings />}
-      </div>
-    </div>
+    <AuthProvider>
+      <AuthenticatedAdmin />
+    </AuthProvider>
   );
 }

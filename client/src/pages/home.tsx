@@ -43,11 +43,15 @@ export default function Home() {
       winnerPhotoId: string; 
       loserPhotoId: string; 
     }) => {
+      // Include session ID if admin is logged in for vote segregation
+      const sessionId = localStorage.getItem('admin-session-id');
+      const headers = sessionId ? { 'x-session-id': sessionId } : undefined;
+      
       const response = await apiRequest("POST", "/api/votes", { 
         photoId, 
         winnerPhotoId, 
         loserPhotoId 
-      });
+      }, headers);
       return response.json();
     },
     onSuccess: () => {

@@ -217,7 +217,7 @@ export class MemStorage implements IStorage {
       photoId: insertVote.photoId,
       winnerPhotoId: insertVote.winnerPhotoId || insertVote.photoId,
       loserPhotoId: insertVote.loserPhotoId || insertVote.photoId,
-      voterType: "user",
+      voterType: insertVote.voterType || "user",
       timestamp: new Date().toISOString(),
     };
     this.votes.set(id, vote);
@@ -528,7 +528,7 @@ export class DatabaseStorage implements IStorage {
       photoId: insertVote.photoId,
       winnerPhotoId: insertVote.winnerPhotoId || insertVote.photoId,
       loserPhotoId: insertVote.loserPhotoId || insertVote.photoId,
-      voterType: "user",
+      voterType: insertVote.voterType || "user",
       timestamp: new Date().toISOString(),
     };
 

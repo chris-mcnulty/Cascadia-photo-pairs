@@ -273,7 +273,7 @@ export default function Home() {
                 <h3 className="text-lg font-semibold cascadia-green">Cascadia Oceanic</h3>
               </div>
               <p className="text-gray-600 text-sm mb-4">
-                Pacific Northwest photography celebrating the natural beauty of the Cascadia region.
+                The Pacific & Atlantic coasts, and the land in between
               </p>
             </div>
 
@@ -286,7 +286,7 @@ export default function Home() {
                     href="https://www.chrismcnulty.net/photography/landscapes" 
                     className="text-gray-600 hover:text-green-700 transition-colors duration-200 text-sm"
                   >
-                    Landscape Photography
+                    Landscapes
                   </a>
                 </li>
                 <li>
@@ -294,7 +294,15 @@ export default function Home() {
                     href="https://www.chrismcnulty.net/photography/seascapes" 
                     className="text-gray-600 hover:text-green-700 transition-colors duration-200 text-sm"
                   >
-                    Seascape Photography  
+                    Seascapes  
+                  </a>
+                </li>
+                <li>
+                  <a 
+                    href="https://www.chrismcnulty.net/photography/cityscapes" 
+                    className="text-gray-600 hover:text-green-700 transition-colors duration-200 text-sm"
+                  >
+                    Cityscapes
                   </a>
                 </li>
                 <li>
@@ -330,7 +338,7 @@ export default function Home() {
                   </a>
                 </p>
                 <p className="text-gray-600 text-sm">
-                  Pacific Northwest, USA
+                  Bothell, WA
                 </p>
               </div>
             </div>

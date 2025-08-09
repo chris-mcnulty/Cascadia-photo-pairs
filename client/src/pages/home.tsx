@@ -114,6 +114,12 @@ export default function Home() {
                 {useMobileInterface ? "Desktop" : "Mobile"} View
               </Button>
               <a 
+                href="/admin"
+                className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"
+              >
+                Admin
+              </a>
+              <a 
                 href="https://www.chrismcnulty.net/photography" 
                 target="_blank"
                 rel="noopener noreferrer"
@@ -162,6 +168,12 @@ export default function Home() {
                   <Smartphone className="w-4 h-4" />
                   {useMobileInterface ? "Desktop" : "Mobile"} View
                 </Button>
+                <a 
+                  href="/admin"
+                  className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"
+                >
+                  Admin
+                </a>
                 <a 
                   href="https://www.chrismcnulty.net/photography" 
                   target="_blank"

@@ -193,7 +193,7 @@ export default function AdminAnalytics() {
     purgeTestDataMutation.mutate(purgeDate);
   };
 
-  // Sort photos based on selected criteria
+  // Sort photos based on selected criteria - use the filtered data from stats
   const sortedPhotos = stats?.topPhotos ? [...stats.topPhotos].sort((a, b) => {
     if (sortBy === "winRate") {
       const aWinRate = a.comparisons > 0 ? (a.wins / a.comparisons) : 0;
@@ -367,6 +367,8 @@ export default function AdminAnalytics() {
               <CardTitle>Top {rankingLimit} Photo Rankings</CardTitle>
               <p className="text-sm text-gray-600">
                 {stats?.dateRange ? "Rankings for selected date range" : "All-time rankings"}
+                {selectedVoterType !== "all" && ` • ${selectedVoterType === "admin" ? "Admin" : "User"} votes only`}
+                {selectedCategory !== "all" && ` • ${selectedCategory} category`}
               </p>
             </div>
             <div className="flex items-center gap-2">

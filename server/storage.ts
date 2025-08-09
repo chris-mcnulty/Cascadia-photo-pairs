@@ -2,7 +2,7 @@ import { type Photo, type InsertPhoto, type Vote, type InsertVote, type Settings
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { photos, votes, settings, collections } from "@shared/schema";
-import { eq, sql, inArray } from "drizzle-orm";
+import { eq, sql, inArray, and, or } from "drizzle-orm";
 
 export interface IStorage {
   // Collections
@@ -784,6 +784,71 @@ export class DatabaseStorage implements IStorage {
     }
     
     const allPhotos = await query;
+    
+    // If filtering by voterType or date range, we need to recalculate stats based on filtered votes
+    if (voterType || startDate || endDate) {
+      // Build conditions for vote filtering
+      const conditions = [];
+      if (voterType) conditions.push(eq(votes.voterType, voterType));
+      if (startDate) conditions.push(sql`${votes.timestamp} >= ${startDate}`);
+      if (endDate) conditions.push(sql`${votes.timestamp} <= ${endDate}`);
+      
+      // Get filtered vote counts for each photo
+      const photoStatsMap = new Map();
+      
+      for (const photo of allPhotos) {
+        // Count votes for this photo with filters
+        const voteCountQuery = db
+          .select({ count: sql<number>`count(*)` })
+          .from(votes)
+          .where(and(
+            eq(votes.photoId, photo.id),
+            ...conditions
+          ));
+        
+        // Count wins for this photo with filters
+        const winCountQuery = db
+          .select({ count: sql<number>`count(*)` })
+          .from(votes)
+          .where(and(
+            eq(votes.winnerPhotoId, photo.id),
+            ...conditions
+          ));
+          
+        // Count comparisons for this photo with filters
+        const comparisonCountQuery = db
+          .select({ count: sql<number>`count(*)` })
+          .from(votes)
+          .where(and(
+            or(
+              eq(votes.winnerPhotoId, photo.id),
+              eq(votes.loserPhotoId, photo.id)
+            ),
+            ...conditions
+          ));
+        
+        const [voteCount] = await voteCountQuery;
+        const [winCount] = await winCountQuery;
+        const [comparisonCount] = await comparisonCountQuery;
+        
+        photoStatsMap.set(photo.id, {
+          ...photo,
+          votes: voteCount.count,
+          wins: winCount.count,
+          comparisons: comparisonCount.count
+        });
+      }
+      
+      // Convert map to array and sort
+      const photosWithFilteredStats = Array.from(photoStatsMap.values());
+      return photosWithFilteredStats.sort((a, b) => {
+        const aWinRate = a.comparisons > 0 ? (a.wins / a.comparisons) : 0;
+        const bWinRate = b.comparisons > 0 ? (b.wins / b.comparisons) : 0;
+        return bWinRate - aWinRate || b.votes - a.votes;
+      });
+    }
+    
+    // No filtering, return photos with existing stats
     return allPhotos.sort((a, b) => {
       const aWinRate = a.comparisons > 0 ? (a.wins / a.comparisons) : 0;
       const bWinRate = b.comparisons > 0 ? (b.wins / b.comparisons) : 0;

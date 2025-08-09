@@ -114,12 +114,6 @@ export default function Home() {
                 {useMobileInterface ? "Desktop" : "Mobile"} View
               </Button>
               <a 
-                href="/admin"
-                className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"
-              >
-                Admin
-              </a>
-              <a 
                 href="https://www.chrismcnulty.net/photography" 
                 target="_blank"
                 rel="noopener noreferrer"
@@ -141,6 +135,12 @@ export default function Home() {
                 className="bg-cascadia-green text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium"
               >
                 Subscribe
+              </a>
+              <a 
+                href="/admin"
+                className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"
+              >
+                Admin
               </a>
             </nav>
 
@@ -169,12 +169,6 @@ export default function Home() {
                   {useMobileInterface ? "Desktop" : "Mobile"} View
                 </Button>
                 <a 
-                  href="/admin"
-                  className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"
-                >
-                  Admin
-                </a>
-                <a 
                   href="https://www.chrismcnulty.net/photography" 
                   target="_blank"
                   rel="noopener noreferrer"
@@ -196,6 +190,12 @@ export default function Home() {
                   className="bg-cascadia-green text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium text-center"
                 >
                   Subscribe
+                </a>
+                <a 
+                  href="/admin"
+                  className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"
+                >
+                  Admin
                 </a>
               </div>
             </div>

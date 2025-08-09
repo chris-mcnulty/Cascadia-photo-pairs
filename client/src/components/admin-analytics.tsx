@@ -46,8 +46,10 @@ export default function AdminAnalytics() {
       if (selectedCategory !== "all") params.append("category", selectedCategory);
       if (selectedVoterType !== "all") params.append("voterType", selectedVoterType);
       
+      const sessionId = localStorage.getItem('admin-session-id');
       const response = await fetch(`/api/stats?${params.toString()}`, {
         credentials: "include",
+        headers: sessionId ? { 'x-session-id': sessionId } : {},
       });
       
       if (!response.ok) throw new Error("Failed to fetch stats");
@@ -67,7 +69,8 @@ export default function AdminAnalytics() {
 
   const purgeTestDataMutation = useMutation({
     mutationFn: async (beforeDate: string) => {
-      const response = await apiRequest("POST", "/api/admin/purge-test-data", { beforeDate });
+      const sessionId = localStorage.getItem('admin-session-id');
+      const response = await apiRequest("POST", "/api/admin/purge-test-data", { beforeDate }, sessionId ? { 'x-session-id': sessionId } : undefined);
       return response.json();
     },
     onSuccess: (data) => {

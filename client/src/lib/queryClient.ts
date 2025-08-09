@@ -73,11 +73,11 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const headers: Record<string, string> = {};
     
-    // Temporarily disable authentication headers to test basic functionality
-    // const sessionId = localStorage.getItem('admin-session-id');
-    // if (sessionId) {
-    //   headers['x-session-id'] = sessionId;
-    // }
+    // Include session ID for authenticated requests
+    const sessionId = localStorage.getItem('admin-session-id');
+    if (sessionId) {
+      headers['x-session-id'] = sessionId;
+    }
 
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",

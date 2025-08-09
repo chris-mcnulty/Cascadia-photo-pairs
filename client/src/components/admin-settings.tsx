@@ -26,7 +26,8 @@ export default function AdminSettings() {
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await apiRequest("PUT", "/api/settings", data);
+      const sessionId = localStorage.getItem('admin-session-id');
+      const response = await apiRequest("PUT", "/api/settings", data, sessionId ? { 'x-session-id': sessionId } : undefined);
       return response.json();
     },
     onSuccess: () => {
@@ -47,7 +48,8 @@ export default function AdminSettings() {
 
   const migrateToProductionMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/migrate-to-production", {});
+      const sessionId = localStorage.getItem('admin-session-id');
+      const response = await apiRequest("POST", "/api/migrate-to-production", {}, sessionId ? { 'x-session-id': sessionId } : undefined);
       return response.json();
     },
     onSuccess: (data) => {
@@ -69,7 +71,8 @@ export default function AdminSettings() {
 
   const initDatabaseMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/force-init", {});
+      const sessionId = localStorage.getItem('admin-session-id');
+      const response = await apiRequest("POST", "/api/force-init", {}, sessionId ? { 'x-session-id': sessionId } : undefined);
       return response.json();
     },
     onSuccess: (data) => {

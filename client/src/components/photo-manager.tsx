@@ -39,9 +39,11 @@ export default function PhotoManager() {
     queryKey: ["/api/photos"],
     enabled: true,
     queryFn: async () => {
+      const sessionId = localStorage.getItem('admin-session-id');
       const response = await fetch("/api/photos", {
         headers: {
-          'x-admin-request': 'true'
+          'x-admin-request': 'true',
+          ...(sessionId ? { 'x-session-id': sessionId } : {})
         }
       });
       if (!response.ok) {
@@ -60,7 +62,8 @@ export default function PhotoManager() {
     mutationFn: async (data: InsertPhoto) => {
       console.log('Adding photo with data:', data);
       try {
-        const response = await apiRequest("POST", "/api/photos", data);
+        const sessionId = localStorage.getItem('admin-session-id');
+        const response = await apiRequest("POST", "/api/photos", data, sessionId ? { 'x-session-id': sessionId } : undefined);
         
         if (!response.ok) {
           const errorData = await response.json();
@@ -96,7 +99,8 @@ export default function PhotoManager() {
     mutationFn: async ({ photoId, data }: { photoId: string; data: Partial<InsertPhoto> }) => {
       console.log('Updating photo with ID:', photoId, 'Data:', data);
       try {
-        const response = await apiRequest("PUT", `/api/photos/${photoId}`, data);
+        const sessionId = localStorage.getItem('admin-session-id');
+        const response = await apiRequest("PUT", `/api/photos/${photoId}`, data, sessionId ? { 'x-session-id': sessionId } : undefined);
         
         if (!response.ok) {
           const errorData = await response.json();
@@ -131,7 +135,8 @@ export default function PhotoManager() {
 
   const deletePhotoMutation = useMutation({
     mutationFn: async (photoId: string) => {
-      const response = await apiRequest("DELETE", `/api/photos/${photoId}`);
+      const sessionId = localStorage.getItem('admin-session-id');
+      const response = await apiRequest("DELETE", `/api/photos/${photoId}`, undefined, sessionId ? { 'x-session-id': sessionId } : undefined);
       if (!response.ok) {
         throw new Error("Failed to delete photo");
       }
@@ -155,7 +160,8 @@ export default function PhotoManager() {
 
   const togglePhotoVisibilityMutation = useMutation({
     mutationFn: async ({ photoId, hidden }: { photoId: string; hidden: boolean }) => {
-      const response = await apiRequest("PUT", `/api/photos/${photoId}/visibility`, { hidden });
+      const sessionId = localStorage.getItem('admin-session-id');
+      const response = await apiRequest("PUT", `/api/photos/${photoId}/visibility`, { hidden }, sessionId ? { 'x-session-id': sessionId } : undefined);
       if (!response.ok) {
         throw new Error("Failed to update photo visibility");
       }
@@ -179,7 +185,8 @@ export default function PhotoManager() {
 
   const bulkUpdateCategoryMutation = useMutation({
     mutationFn: async ({ photoIds, category }: { photoIds: string[]; category: string }) => {
-      const response = await apiRequest("PUT", "/api/photos/bulk-category", { photoIds, category });
+      const sessionId = localStorage.getItem('admin-session-id');
+      const response = await apiRequest("PUT", "/api/photos/bulk-category", { photoIds, category }, sessionId ? { 'x-session-id': sessionId } : undefined);
       if (!response.ok) {
         throw new Error("Failed to update photo categories");
       }

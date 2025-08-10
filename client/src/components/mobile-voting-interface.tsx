@@ -1,24 +1,31 @@
 import { useState } from "react";
 import { Photo, Settings } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Heart, ChevronLeft, ChevronRight, Zap } from "lucide-react";
+import { Heart, ChevronLeft, ChevronRight, Zap, Menu, X, Smartphone, Plus } from "lucide-react";
+import { FaInstagram } from "react-icons/fa6";
+import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
 
 interface MobileVotingInterfaceProps {
   photoPair: [Photo, Photo];
   onVote: (winner: Photo, loser: Photo) => void;
   isVoting: boolean;
   settings?: Settings;
+  onToggleView?: () => void;
+  onShowInstallGuide?: () => void;
 }
 
 export default function MobileVotingInterface({ 
   photoPair, 
   onVote, 
   isVoting, 
-  settings 
+  settings,
+  onToggleView,
+  onShowInstallGuide
 }: MobileVotingInterfaceProps) {
   const [photoA, photoB] = photoPair;
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const [showComparison, setShowComparison] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Touch gesture support
   const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
@@ -68,7 +75,98 @@ export default function MobileVotingInterface({
     <div className="w-full">
       {/* Mobile Interface */}
       <div className="md:hidden">
-        {/* Header */}
+        {/* Mobile Header with Navigation */}
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+          <div className="flex items-center justify-between p-4">
+            {/* Logo */}
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded overflow-hidden">
+                <img 
+                  src={cascadiaLogoPath} 
+                  alt="Cascadia Oceanic" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold text-cascadia-green font-epilogue">Cascadia Oceanic</h1>
+                <p className="text-xs text-gray-600">Photo Voting</p>
+              </div>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2"
+            >
+              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </Button>
+          </div>
+
+          {/* Mobile Menu Dropdown */}
+          {mobileMenuOpen && (
+            <div className="absolute top-full left-0 right-0 bg-white border-b border-gray-200 shadow-lg z-50">
+              <div className="flex flex-col space-y-4 p-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onToggleView?.();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 justify-center"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  Desktop View
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    onShowInstallGuide?.();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 justify-center"
+                >
+                  <Plus className="w-4 h-4" />
+                  Install App
+                </Button>
+                <a 
+                  href="https://www.chrismcnulty.net/photography" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center"
+                >
+                  Visit Gallery
+                </a>
+                <a 
+                  href="https://www.instagram.com/cascadia.oceanic/" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium flex items-center gap-1 justify-center"
+                >
+                  <FaInstagram className="w-4 h-4" />
+                  Instagram
+                </a>
+                <a 
+                  href="https://www.chrismcnulty.net/subscribe" 
+                  className="bg-cascadia-green text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium text-center"
+                >
+                  Subscribe
+                </a>
+                <a 
+                  href="/admin"
+                  className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center"
+                >
+                  Admin
+                </a>
+              </div>
+            </div>
+          )}
+        </header>
+
+        {/* Voting Header */}
         <div className="p-6 text-center bg-white border-b border-gray-200">
           <h2 className="text-2xl font-bold text-gray-900 font-epilogue">Choose Your Favorite</h2>
           <p className="text-sm text-gray-600 mt-2">Tap the photo you prefer</p>

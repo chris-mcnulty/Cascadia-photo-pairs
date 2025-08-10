@@ -232,6 +232,7 @@ export default function Home() {
           settings={settings}
           onToggleView={() => setUseMobileInterface(false)}
           onShowInstallGuide={() => setShowInstallGuide(true)}
+          votesCount={votesCount}
         />
       ) : (
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

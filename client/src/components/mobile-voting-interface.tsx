@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Photo, Settings } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Heart, ChevronLeft, ChevronRight, Zap, Menu, X, Smartphone, Plus } from "lucide-react";
-import { FaInstagram } from "react-icons/fa6";
+import { Heart, ChevronLeft, ChevronRight, Zap, Menu, X, Smartphone, Plus, MousePointer, RefreshCw, Infinity, Globe, Mail, Share2, MessageSquare } from "lucide-react";
+import { FaInstagram, FaFacebookF, FaLinkedinIn } from "react-icons/fa6";
+import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
 
 interface MobileVotingInterfaceProps {
@@ -12,6 +14,7 @@ interface MobileVotingInterfaceProps {
   settings?: Settings;
   onToggleView?: () => void;
   onShowInstallGuide?: () => void;
+  votesCount?: number;
 }
 
 export default function MobileVotingInterface({ 
@@ -20,7 +23,8 @@ export default function MobileVotingInterface({
   isVoting, 
   settings,
   onToggleView,
-  onShowInstallGuide
+  onShowInstallGuide,
+  votesCount = 0
 }: MobileVotingInterfaceProps) {
   const [photoA, photoB] = photoPair;
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
@@ -88,7 +92,7 @@ export default function MobileVotingInterface({
                 />
               </div>
               <div>
-                <h1 className="text-lg font-semibold text-cascadia-green font-epilogue">Cascadia Oceanic</h1>
+                <h1 className="text-lg font-semibold font-epilogue" style={{ color: 'hsl(145, 37%, 28%)' }}>Cascadia Oceanic</h1>
                 <p className="text-xs text-gray-600">Photo Voting</p>
               </div>
             </div>
@@ -242,6 +246,178 @@ export default function MobileVotingInterface({
               )}
             </div>
           </div>
+
+          {/* Voting Progress */}
+          <Card className="bg-white mx-6 mt-8 mb-6">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900 font-epilogue">Your Voting Progress</h3>
+                <div className="text-sm text-gray-600">
+                  {votesCount} votes cast
+                </div>
+              </div>
+              <Progress value={Math.min((votesCount / 30) * 100, 100)} className="h-2" />
+              <p className="text-xs text-gray-500 mt-2">Keep voting to help us curate the exhibition!</p>
+            </CardContent>
+          </Card>
+
+          {/* Voting Instructions */}
+          <div className="text-center px-6 mb-8">
+            <p className="text-gray-600 mb-4">Tap on your preferred artwork to vote</p>
+            <div className="flex flex-wrap items-center justify-center gap-4 text-sm text-gray-500">
+              <div className="flex items-center">
+                <MousePointer className="w-4 h-4 mr-2" />
+                Tap to vote
+              </div>
+              <div className="flex items-center">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Auto-load next pair
+              </div>
+              <div className="flex items-center">
+                <Infinity className="w-4 h-4 mr-2" />
+                Vote unlimited times
+              </div>
+            </div>
+          </div>
+
+          {/* Call to Action Section */}
+          <div className="bg-gradient-to-r from-green-700 to-green-600 rounded-2xl mx-6 p-8 text-white text-center mb-8">
+            <div className="max-w-3xl mx-auto">
+              <h3 className="text-2xl font-bold mb-4 font-epilogue">Explore More Photography</h3>
+              <p className="text-lg mb-6 opacity-90">
+                Discover the complete collection of landscape and nature photography at Chris McNulty's gallery.
+              </p>
+              <div className="flex flex-col gap-4">
+                <a 
+                  href="https://www.chrismcnulty.net/photography" 
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-white text-green-700 px-8 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition-all duration-200 inline-flex items-center justify-center"
+                >
+                  <Globe className="w-4 h-4 mr-2" />
+                  View Full Gallery
+                </a>
+                <a 
+                  href="https://www.chrismcnulty.net/subscribe" 
+                  className="border-2 border-white text-white px-8 py-3 rounded-lg font-semibold hover:bg-white hover:text-green-700 transition-all duration-200 inline-flex items-center justify-center"
+                >
+                  <Mail className="w-4 h-4 mr-2" />
+                  Subscribe for Updates
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Footer */}
+          <footer className="bg-gray-50 border-t border-gray-200">
+            <div className="px-6 py-8">
+              <div className="space-y-8">
+                
+                {/* About Section */}
+                <div className="text-center">
+                  <div className="flex items-center justify-center space-x-3 mb-4">
+                    <div className="w-8 h-8 rounded overflow-hidden">
+                      <img 
+                        src={cascadiaLogoPath} 
+                        alt="Cascadia Oceanic" 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <h3 className="text-lg font-semibold font-epilogue" style={{ color: 'hsl(145, 37%, 28%)' }}>Cascadia Oceanic</h3>
+                  </div>
+                  <p className="text-gray-600 text-sm mb-4">
+                    Images of the Pacific & Atlantic coasts, and the land in between.
+                  </p>
+                </div>
+
+                {/* Quick Links */}
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 font-epilogue">Explore</h3>
+                  <div className="flex flex-wrap justify-center gap-4 text-sm">
+                    <a 
+                      href="https://www.chrismcnulty.net/photography/landscapes" 
+                      className="text-gray-600 hover:text-green-700 transition-colors duration-200"
+                    >
+                      Landscapes
+                    </a>
+                    <a 
+                      href="https://www.chrismcnulty.net/photography/seascapes" 
+                      className="text-gray-600 hover:text-green-700 transition-colors duration-200"
+                    >
+                      Seascapes
+                    </a>
+                    <a 
+                      href="https://www.chrismcnulty.net/photography/cityscapes" 
+                      className="text-gray-600 hover:text-green-700 transition-colors duration-200"
+                    >
+                      Cityscapes
+                    </a>
+                    <a 
+                      href="https://www.chrismcnulty.net/about" 
+                      className="text-gray-600 hover:text-green-700 transition-colors duration-200"
+                    >
+                      About the Artist
+                    </a>
+                  </div>
+                </div>
+
+                {/* Sharing Links */}
+                <div className="text-center">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4 font-epilogue">Share This Page</h4>
+                  <div className="flex justify-center gap-4">
+                    <a
+                      href={`sms:?body=Check out this photo voting page: ${window.location.href}`}
+                      className="bg-gray-100 hover:bg-green-100 p-3 rounded-lg transition-colors duration-200"
+                      title="Share via Text Message"
+                    >
+                      <MessageSquare className="w-5 h-5 text-gray-600 hover:text-green-600" />
+                    </a>
+                    <a
+                      href={`mailto:?subject=Photo Voting Page&body=Check out this photo voting page: ${window.location.href}`}
+                      className="bg-gray-100 hover:bg-blue-100 p-3 rounded-lg transition-colors duration-200"
+                      title="Share via Email"
+                    >
+                      <Mail className="w-5 h-5 text-gray-600 hover:text-blue-600" />
+                    </a>
+                    <a
+                      href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-gray-100 hover:bg-blue-100 p-3 rounded-lg transition-colors duration-200"
+                      title="Share on Facebook"
+                    >
+                      <FaFacebookF className="w-5 h-5 text-gray-600 hover:text-blue-600" />
+                    </a>
+                    <a
+                      href={`https://www.instagram.com/`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-gray-100 hover:bg-pink-100 p-3 rounded-lg transition-colors duration-200"
+                      title="Follow on Instagram"
+                    >
+                      <FaInstagram className="w-5 h-5 text-gray-600 hover:text-pink-600" />
+                    </a>
+                    <a
+                      href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-gray-100 hover:bg-blue-100 p-3 rounded-lg transition-colors duration-200"
+                      title="Share on LinkedIn"
+                    >
+                      <FaLinkedinIn className="w-5 h-5 text-gray-600 hover:text-blue-700" />
+                    </a>
+                  </div>
+                </div>
+
+                {/* Copyright */}
+                <div className="text-center border-t border-gray-200 pt-6">
+                  <p className="text-gray-500 text-sm">
+                    © Christopher F. McNulty 2025. All rights reserved.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </footer>
         </div>
       </div>
 

@@ -10,7 +10,7 @@ import { IOSInstallGuide } from "@/components/ios-install-guide";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Menu, X, Globe, Mail, Heart, MousePointer, RefreshCw, Infinity, Smartphone, Share2, MessageSquare, Facebook, Linkedin, Twitter } from "lucide-react";
+import { Menu, X, Globe, Mail, Heart, MousePointer, RefreshCw, Infinity, Smartphone, Share2, MessageSquare, Facebook, Linkedin, Twitter, Plus } from "lucide-react";
 import { FaInstagram, FaThreads, FaBluesky } from "react-icons/fa6";
 import { FaFacebookF, FaLinkedinIn, FaXTwitter } from "react-icons/fa6";
 import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
@@ -20,6 +20,8 @@ export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [useMobileInterface, setUseMobileInterface] = useState(false);
   const [votesCount, setVotesCount] = useState(0);
+  const [hasVoted, setHasVoted] = useState(false);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
   const { toast } = useToast();
 
   useTitle(); // Uses default title
@@ -58,6 +60,9 @@ export default function Home() {
     },
     onSuccess: () => {
       setVotesCount(prev => prev + 1);
+      if (!hasVoted) {
+        setHasVoted(true);
+      }
       refetchPair();
       toast({
         title: "Vote recorded!",
@@ -169,6 +174,18 @@ export default function Home() {
                 >
                   <Smartphone className="w-4 h-4" />
                   {useMobileInterface ? "Desktop" : "Mobile"} View
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowInstallGuide(true);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="flex items-center gap-2 justify-center"
+                >
+                  <Plus className="w-4 h-4" />
+                  Install App
                 </Button>
                 <a 
                   href="https://www.chrismcnulty.net/photography" 
@@ -477,7 +494,11 @@ export default function Home() {
       <PWAInstallPrompt />
       
       {/* iOS Install Guide */}
-      <IOSInstallGuide />
+      <IOSInstallGuide 
+        showInitial={hasVoted} 
+        forceShow={showInstallGuide}
+        onClose={() => setShowInstallGuide(false)}
+      />
     </div>
   );
 }

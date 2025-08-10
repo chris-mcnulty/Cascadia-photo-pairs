@@ -1,0 +1,27 @@
+{
+  "name": "Cascadia Oceanic Photo Pairs",
+  "short_name": "Photo Pairs",
+  "description": "Vote on stunning oceanic photography pairs",
+  "theme_color": "#2a5434",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "orientation": "portrait",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["photo", "entertainment"],
+  "prefer_related_applications": false
+}

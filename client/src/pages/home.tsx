@@ -407,7 +407,7 @@ export default function Home() {
           <div className="border-t border-gray-200 pt-8 mt-8">
             <div className="text-center mb-6">
               <h4 className="text-lg font-semibold text-gray-900 mb-4">Share This Page</h4>
-              <div className="flex justify-center space-x-4">
+              <div className="flex flex-wrap justify-center gap-4">
                 <a
                   href={`sms:?body=Check out this photo voting page: ${window.location.href}`}
                   className="bg-gray-100 hover:bg-green-100 p-3 rounded-lg transition-colors duration-200"
@@ -449,33 +449,7 @@ export default function Home() {
                 >
                   <FaLinkedinIn className="w-5 h-5 text-gray-600 hover:text-blue-700" />
                 </a>
-                <a
-                  href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}&text=Check out this photo voting page`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-gray-100 hover:bg-gray-200 p-3 rounded-lg transition-colors duration-200"
-                  title="Share on X/Twitter"
-                >
-                  <FaXTwitter className="w-5 h-5 text-gray-600 hover:text-gray-800" />
-                </a>
-                <a
-                  href={`https://www.threads.net/intent/post?text=Check out this photo voting page: ${encodeURIComponent(window.location.href)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-gray-100 hover:bg-gray-200 p-3 rounded-lg transition-colors duration-200"
-                  title="Share on Threads"
-                >
-                  <FaThreads className="w-5 h-5 text-gray-600 hover:text-gray-800" />
-                </a>
-                <a
-                  href={`https://bsky.app/intent/compose?text=Check out this photo voting page: ${encodeURIComponent(window.location.href)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-gray-100 hover:bg-blue-100 p-3 rounded-lg transition-colors duration-200"
-                  title="Share on BlueSky"
-                >
-                  <FaBluesky className="w-5 h-5 text-gray-600 hover:text-blue-600" />
-                </a>
+
               </div>
             </div>
           </div>

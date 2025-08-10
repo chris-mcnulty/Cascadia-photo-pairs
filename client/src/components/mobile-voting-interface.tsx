@@ -69,22 +69,22 @@ export default function MobileVotingInterface({
       {/* Mobile Interface */}
       <div className="md:hidden">
         {/* Header */}
-        <div className="p-4 text-center bg-gray-50 border-b">
-          <h2 className="text-xl font-bold text-gray-900">Choose Your Favorite</h2>
-          <p className="text-sm text-gray-600 mt-1">Tap the photo you prefer</p>
+        <div className="p-6 text-center bg-white border-b border-gray-200">
+          <h2 className="text-2xl font-bold text-gray-900 font-epilogue">Choose Your Favorite</h2>
+          <p className="text-sm text-gray-600 mt-2">Tap the photo you prefer</p>
         </div>
 
         {/* Photo Pair for Mobile */}
-        <div className="space-y-6 p-4">
+        <div className="space-y-8 p-6 bg-gray-50 min-h-screen pb-20">
           {/* Photo A */}
           <div 
-            className="relative bg-white rounded-lg shadow-lg overflow-hidden cursor-pointer transform transition-all duration-200 active:scale-95"
+            className="relative bg-white rounded-xl shadow-xl overflow-hidden cursor-pointer transform transition-all duration-200 active:scale-98 border border-gray-200"
             onClick={() => handlePhotoSelect(photoA)}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            <div className="aspect-[4/3] relative bg-gray-100">
+            <div className="aspect-[4/3] relative bg-gray-100 mx-4 mt-4 rounded-lg overflow-hidden">
               <img 
                 src={photoA.imageUrl} 
                 alt={photoA.title}
@@ -92,37 +92,37 @@ export default function MobileVotingInterface({
                 loading="lazy"
               />
               {selectedPhoto?.id === photoA.id && (
-                <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
-                  <div className="bg-green-500 rounded-full p-3">
+                <div className="absolute inset-0 bg-cascadia-green/20 flex items-center justify-center">
+                  <div className="bg-cascadia-green rounded-full p-3">
                     <Heart className="w-6 h-6 text-white fill-white" />
                   </div>
                 </div>
               )}
             </div>
-            <div className="p-4">
-              <h3 className="font-semibold text-lg text-gray-900">{photoA.title}</h3>
+            <div className="p-6">
+              <h3 className="font-semibold text-lg text-gray-900 font-epilogue">{photoA.title}</h3>
               {photoA.description && (
-                <p className="text-sm text-gray-600 mt-1">{photoA.description}</p>
+                <p className="text-sm text-gray-600 mt-2">{photoA.description}</p>
               )}
             </div>
           </div>
 
           {/* Versus indicator */}
           <div className="text-center">
-            <div className="inline-block bg-gray-200 px-4 py-2 rounded-full">
-              <span className="text-sm font-medium text-gray-600">VS</span>
+            <div className="inline-block bg-cascadia-green px-6 py-3 rounded-full shadow-lg">
+              <span className="text-base font-semibold text-white">VS</span>
             </div>
           </div>
 
           {/* Photo B */}
           <div 
-            className="relative bg-white rounded-lg shadow-lg overflow-hidden cursor-pointer transform transition-all duration-200 active:scale-95"
+            className="relative bg-white rounded-xl shadow-xl overflow-hidden cursor-pointer transform transition-all duration-200 active:scale-98 border border-gray-200"
             onClick={() => handlePhotoSelect(photoB)}
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            <div className="aspect-[4/3] relative bg-gray-100">
+            <div className="aspect-[4/3] relative bg-gray-100 mx-4 mt-4 rounded-lg overflow-hidden">
               <img 
                 src={photoB.imageUrl} 
                 alt={photoB.title}
@@ -130,17 +130,17 @@ export default function MobileVotingInterface({
                 loading="lazy"
               />
               {selectedPhoto?.id === photoB.id && (
-                <div className="absolute inset-0 bg-green-500/20 flex items-center justify-center">
-                  <div className="bg-green-500 rounded-full p-3">
+                <div className="absolute inset-0 bg-cascadia-green/20 flex items-center justify-center">
+                  <div className="bg-cascadia-green rounded-full p-3">
                     <Heart className="w-6 h-6 text-white fill-white" />
                   </div>
                 </div>
               )}
             </div>
-            <div className="p-4">
-              <h3 className="font-semibold text-lg text-gray-900">{photoB.title}</h3>
+            <div className="p-6">
+              <h3 className="font-semibold text-lg text-gray-900 font-epilogue">{photoB.title}</h3>
               {photoB.description && (
-                <p className="text-sm text-gray-600 mt-1">{photoB.description}</p>
+                <p className="text-sm text-gray-600 mt-2">{photoB.description}</p>
               )}
             </div>
           </div>

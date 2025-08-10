@@ -10,6 +10,7 @@ import AdminAnalytics from "@/components/admin-analytics";
 import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut } from "lucide-react";
 import { Link } from "wouter";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
 
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"analytics" | "stats" | "settings" | "photos">("analytics");
@@ -52,6 +53,18 @@ function AdminDashboard() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
+              <a 
+                href="https://www.chrismcnulty.net" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center hover:opacity-80 transition-opacity"
+              >
+                <img 
+                  src={cascadiaLogoPath} 
+                  alt="Cascadia Oceanic" 
+                  className="h-10 w-10 object-contain"
+                />
+              </a>
               <Link href="/" className="text-gray-500 hover:text-gray-700">
                 <ArrowLeft className="w-5 h-5" />
               </Link>

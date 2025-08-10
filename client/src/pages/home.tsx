@@ -65,7 +65,7 @@ export default function Home() {
       }
       refetchPair();
       toast({
-        title: "Thanks!",
+        title: "Thanks. Here's your next pair.",
       });
     },
     onError: () => {

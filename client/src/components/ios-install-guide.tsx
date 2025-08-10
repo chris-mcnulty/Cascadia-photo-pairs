@@ -82,8 +82,12 @@ export function IOSInstallGuide({ showInitial = false, forceShow = false, onClos
                       <span className="text-cascadia-green font-semibold">1</span>
                     </div>
                     <div>
-                      <p className="text-sm">Tap the Share button in Safari</p>
-                      <Share2 className="w-6 h-6 text-gray-400 mt-2" />
+                      <p className="text-sm">
+                        <strong>Safari:</strong> Tap the Share button <Share2 className="w-4 h-4 inline mx-1" />
+                      </p>
+                      <p className="text-sm mt-1">
+                        <strong>Chrome/Edge:</strong> Tap the menu (⋮) and select "Add to Home Screen"
+                      </p>
                     </div>
                   </div>
                   
@@ -92,7 +96,7 @@ export function IOSInstallGuide({ showInitial = false, forceShow = false, onClos
                       <span className="text-cascadia-green font-semibold">2</span>
                     </div>
                     <div>
-                      <p className="text-sm">Scroll down and tap "Add to Home Screen"</p>
+                      <p className="text-sm">Look for "Add to Home Screen" option</p>
                       <div className="flex items-center space-x-1 mt-2">
                         <Plus className="w-5 h-5 text-gray-400" />
                         <span className="text-xs text-gray-400">Add to Home Screen</span>

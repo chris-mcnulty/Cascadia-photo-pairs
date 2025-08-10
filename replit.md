@@ -8,6 +8,16 @@ The app uses a modern React frontend with shadcn/ui components, Express.js backe
 
 ## Recent Changes (August 2025)
 
+**Mobile Website & PWA Consistency (August 2025)**
+- Fixed mobile website layout to match PWA experience exactly
+- Removed problematic social sharing links (Twitter/X, BlueSky) to prevent overflow
+- Enhanced mobile interface with complete navigation header and hamburger menu
+- Added full mobile footer with branding, quick links, and social sharing options
+- Implemented voting progress tracker and instructions for mobile interface
+- Added call-to-action section promoting gallery and subscription services
+- Applied proper cascadia-green branding throughout mobile interface
+- Mobile website now provides identical functionality to PWA installation
+
 **Progressive Web App (PWA) Implementation (August 2025)**
 - Converted application to a fully functional Progressive Web App
 - Added service worker with offline caching capabilities for essential files

@@ -89,7 +89,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      {/* Header */}
+      {/* Header - only show for desktop */}
+      {!useMobileInterface && (
       <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
@@ -220,52 +221,52 @@ export default function Home() {
           )}
         </div>
       </header>
+      )}
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        
-        {/* Introduction Section */}
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-gray-900 mb-4">Choose Your Favorite</h2>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            Help me curate the photos for my next exhibition. I've added some of my classic and newest images to discover here. Click on your preferred photo to vote, then continue with the next pair. Vote as many times as you like!
-          </p>
-        </div>
+      {/* Mobile Interface - Full Screen */}
+      {useMobileInterface && photoPair ? (
+        <MobileVotingInterface 
+          photoPair={photoPair}
+          onVote={handleVote}
+          isVoting={voteMutation.isPending}
+          settings={settings}
+        />
+      ) : (
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          
+          {/* Introduction Section */}
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-bold text-gray-900 mb-4">Choose Your Favorite</h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Help me curate the photos for my next exhibition. I've added some of my classic and newest images to discover here. Click on your preferred photo to vote, then continue with the next pair. Vote as many times as you like!
+            </p>
+          </div>
 
-        {/* Voting Progress */}
-        <Card className="bg-cascadia-light mb-8">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Your Voting Progress</h3>
-              <div className="text-sm text-gray-600">
-                {votesCount} votes cast
+          {/* Voting Progress */}
+          <Card className="bg-cascadia-light mb-8">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Your Voting Progress</h3>
+                <div className="text-sm text-gray-600">
+                  {votesCount} votes cast
+                </div>
               </div>
-            </div>
-            <Progress value={progressPercentage} className="h-2" />
-            <p className="text-xs text-gray-500 mt-2">Keep voting to help us curate the exhibition!</p>
-          </CardContent>
-        </Card>
+              <Progress value={progressPercentage} className="h-2" />
+              <p className="text-xs text-gray-500 mt-2">Keep voting to help us curate the exhibition!</p>
+            </CardContent>
+          </Card>
 
-        {/* Voting Interface */}
-        {photoPair && (
-          useMobileInterface ? (
-            <MobileVotingInterface 
-              photoPair={photoPair}
-              onVote={handleVote}
-              isVoting={voteMutation.isPending}
-              settings={settings}
-            />
-          ) : (
+          {/* Desktop Voting Interface */}
+          {photoPair && (
             <VotingInterface 
               photoPair={photoPair}
               onVote={handleVote}
               isVoting={voteMutation.isPending}
               settings={settings}
             />
-          )
-        )}
+          )}
 
-        {/* Voting Instructions */}
+          {/* Voting Instructions */}
         <div className="text-center mt-8 mb-12">
           <p className="text-gray-600 mb-4">Click on your preferred artwork to vote</p>
           <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
@@ -312,9 +313,11 @@ export default function Home() {
           </div>
         </div>
 
-      </main>
+        </main>
+      )}
 
-      {/* Footer */}
+      {/* Footer - only show for desktop */}
+      {!useMobileInterface && (
       <footer className="bg-gray-50 border-t border-gray-200 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid md:grid-cols-3 gap-8">
@@ -462,6 +465,7 @@ export default function Home() {
           </div>
         </div>
       </footer>
+      )}
       
       {/* PWA Install Prompt - Disabled, only available via menu */}
       

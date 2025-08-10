@@ -65,8 +65,7 @@ export default function Home() {
       }
       refetchPair();
       toast({
-        title: "Vote recorded!",
-        description: "Thanks! Here's your next pair.",
+        title: "Thanks. Here's your next pair!",
       });
     },
     onError: () => {
@@ -495,7 +494,7 @@ export default function Home() {
       
       {/* iOS Install Guide */}
       <IOSInstallGuide 
-        showInitial={hasVoted} 
+        showInitial={false} 
         forceShow={showInstallGuide}
         onClose={() => setShowInstallGuide(false)}
       />

@@ -84,11 +84,11 @@ export default function MobileVotingInterface({
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            <div className="aspect-[4/3] relative">
+            <div className="aspect-[4/3] relative bg-gray-100">
               <img 
                 src={photoA.imageUrl} 
                 alt={photoA.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 loading="lazy"
               />
               {selectedPhoto?.id === photoA.id && (
@@ -122,11 +122,11 @@ export default function MobileVotingInterface({
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            <div className="aspect-[4/3] relative">
+            <div className="aspect-[4/3] relative bg-gray-100">
               <img 
                 src={photoB.imageUrl} 
                 alt={photoB.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
                 loading="lazy"
               />
               {selectedPhoto?.id === photoB.id && (

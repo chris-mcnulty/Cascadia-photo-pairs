@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import VotingInterface from "@/components/voting-interface";
 import MobileVotingInterface from "@/components/mobile-voting-interface";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+import { IOSInstallGuide } from "@/components/ios-install-guide";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -474,6 +475,9 @@ export default function Home() {
       
       {/* PWA Install Prompt */}
       <PWAInstallPrompt />
+      
+      {/* iOS Install Guide */}
+      <IOSInstallGuide />
     </div>
   );
 }

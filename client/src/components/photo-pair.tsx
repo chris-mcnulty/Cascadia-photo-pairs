@@ -27,11 +27,13 @@ export default function PhotoPair({ photo, onVote, isVoting, settings }: PhotoPa
         </div>
 
         {/* Photo */}
-        <img 
-          src={photo.imageUrl} 
-          alt={photo.title} 
-          className="w-full h-96 object-cover" 
-        />
+        <div className="w-full h-96 bg-gray-100 flex items-center justify-center">
+          <img 
+            src={photo.imageUrl} 
+            alt={photo.title} 
+            className="w-full h-full object-contain" 
+          />
+        </div>
         
         {/* Photo Info */}
         <CardContent className="p-6">

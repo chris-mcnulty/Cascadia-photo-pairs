@@ -5,7 +5,7 @@ import { Photo, Settings } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import VotingInterface from "@/components/voting-interface";
 import MobileVotingInterface from "@/components/mobile-voting-interface";
-import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
+
 import { IOSInstallGuide } from "@/components/ios-install-guide";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -65,7 +65,7 @@ export default function Home() {
       }
       refetchPair();
       toast({
-        title: "Thanks. Here's your next pair!",
+        title: "Thanks!",
       });
     },
     onError: () => {
@@ -489,8 +489,7 @@ export default function Home() {
         </div>
       </footer>
       
-      {/* PWA Install Prompt */}
-      <PWAInstallPrompt />
+      {/* PWA Install Prompt - Disabled, only available via menu */}
       
       {/* iOS Install Guide */}
       <IOSInstallGuide 

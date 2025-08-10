@@ -16,14 +16,7 @@ export function PWAInstallPrompt() {
       setDismissed(true);
     }
 
-    // Show prompt after 30 seconds if installable and not dismissed
-    const timer = setTimeout(() => {
-      if (isInstallable && !wasDismissed && !isPWAInstalled) {
-        setShowPrompt(true);
-      }
-    }, 30000);
-
-    return () => clearTimeout(timer);
+    // Disabled automatic prompt - only show via menu
   }, [isInstallable, isPWAInstalled]);
 
   const handleDismiss = () => {

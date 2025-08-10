@@ -5,6 +5,7 @@ import { Photo, Settings } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import VotingInterface from "@/components/voting-interface";
 import MobileVotingInterface from "@/components/mobile-voting-interface";
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -470,6 +471,9 @@ export default function Home() {
           </div>
         </div>
       </footer>
+      
+      {/* PWA Install Prompt */}
+      <PWAInstallPrompt />
     </div>
   );
 }

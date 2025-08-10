@@ -1,0 +1,37 @@
+{
+  "name": "Cascadia Oceanic Photo Pairs",
+  "short_name": "Photo Pairs",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#2a5434",
+  "background_color": "#ffffff",
+  "description": "Vote on stunning oceanic photography pairs",
+  "categories": ["photo", "entertainment"],
+  "iarc_rating_id": "",
+  "screenshots": [
+    {
+      "src": "screenshot1.png",
+      "sizes": "1170x2532",
+      "type": "image/png",
+      "label": "Home screen showing photo voting"
+    },
+    {
+      "src": "screenshot2.png", 
+      "sizes": "1170x2532",
+      "type": "image/png",
+      "label": "Admin dashboard analytics"
+    }
+  ],
+  "features": [
+    "Cross Platform",
+    "Offline Capable",
+    "Installable"
+  ],
+  "app_store_id": "",
+  "play_store_id": "",
+  "bundleId": "com.cascadiaoceanic.photopairs",
+  "appStoreUrl": "",
+  "playStoreUrl": "",
+  "version": "1.0.0"
+}

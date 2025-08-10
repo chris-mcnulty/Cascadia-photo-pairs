@@ -8,6 +8,19 @@ The app uses a modern React frontend with shadcn/ui components, Express.js backe
 
 ## Recent Changes (August 2025)
 
+**Progressive Web App (PWA) Implementation (August 2025)**
+- Converted application to a fully functional Progressive Web App
+- Added service worker with offline caching capabilities for essential files
+- Created web app manifest with proper app metadata, icons, and shortcuts
+- Implemented PWA install prompt component with user-dismissible interface
+- Added iOS-specific meta tags for better Apple device compatibility
+- Configured app for App Store submission via PWABuilder or Capacitor wrapper
+- Created comprehensive App Store submission guide with requirements checklist
+- Set up proper bundle ID (com.cascadiaoceanic.photopairs) for app store deployment
+- Enhanced manifest with share target and app shortcuts for quick access to voting and admin
+
+## Recent Changes (January 2025)
+
 **Vote Segregation & Analytics Filtering (January 2025)**
 - Implemented complete vote segregation system tracking admin vs user votes
 - Fixed vote filtering to properly recalculate photo statistics based on voter type selection

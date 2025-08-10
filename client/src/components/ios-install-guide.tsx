@@ -29,7 +29,11 @@ export function IOSInstallGuide({ showInitial = false, forceShow = false, onClos
     if (showInitial && canInstall && !dismissed) {
       const hasSeenInstallPrompt = localStorage.getItem('install-prompt-seen');
       if (!hasSeenInstallPrompt) {
-        setShowGuide(true);
+        // Show after a delay to let the toast appear first
+        const timer = setTimeout(() => {
+          setShowGuide(true);
+        }, 3000);
+        return () => clearTimeout(timer);
       }
     }
   }, [showInitial, canInstall, dismissed, forceShow]);

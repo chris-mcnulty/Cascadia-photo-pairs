@@ -154,6 +154,12 @@ export default function MobileVotingInterface({
                   Instagram
                 </a>
                 <a 
+                  href="/leaderboard"
+                  className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center"
+                >
+                  Leaderboard
+                </a>
+                <a 
                   href="https://www.chrismcnulty.net/subscribe" 
                   className="bg-cascadia-green text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium text-center"
                 >
@@ -334,6 +340,12 @@ export default function MobileVotingInterface({
                 <div className="text-center">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 font-epilogue">Explore</h3>
                   <div className="flex flex-wrap justify-center gap-4 text-sm">
+                    <a 
+                      href="/leaderboard"
+                      className="text-gray-600 hover:text-green-700 transition-colors duration-200"
+                    >
+                      Leaderboard
+                    </a>
                     <a 
                       href="https://www.chrismcnulty.net/photography/landscapes" 
                       className="text-gray-600 hover:text-green-700 transition-colors duration-200"

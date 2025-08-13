@@ -43,6 +43,10 @@ export interface IStorage {
   
   // Special method for comparison tracking
   recordComparison(winnerPhotoId: string, loserPhotoId: string): Promise<void>;
+  
+  // Leaderboard methods
+  getTopPhotosByVotes(limit?: number): Promise<Photo[]>;
+  getTopPhotosByWins(limit?: number): Promise<Photo[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -448,6 +452,22 @@ export class MemStorage implements IStorage {
     
     return { votesDeleted, photosReset: true };
   }
+
+  async getTopPhotosByVotes(limit: number = 10): Promise<Photo[]> {
+    const allPhotos = Array.from(this.photos.values());
+    return allPhotos
+      .filter(photo => !photo.hidden)
+      .sort((a, b) => b.votes - a.votes)
+      .slice(0, limit);
+  }
+
+  async getTopPhotosByWins(limit: number = 10): Promise<Photo[]> {
+    const allPhotos = Array.from(this.photos.values());
+    return allPhotos
+      .filter(photo => !photo.hidden)
+      .sort((a, b) => b.wins - a.wins)
+      .slice(0, limit);
+  }
 }
 
 // DatabaseStorage implementation
@@ -750,10 +770,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllPhotosWithStats(category?: string): Promise<Photo[]> {
+    let query = db.select().from(photos);
     if (category) {
-      return await db.select().from(photos).where(eq(photos.category, category));
+      const result = await query.where(eq(photos.category, category));
+      return result;
     }
-    return await db.select().from(photos);
+    return await query;
   }
 
   async getTotalVotes(startDate?: string, endDate?: string, voterType?: string): Promise<number> {
@@ -865,6 +887,24 @@ export class DatabaseStorage implements IStorage {
       const bWinRate = b.comparisons > 0 ? (b.wins / b.comparisons) : 0;
       return bWinRate - aWinRate || b.votes - a.votes;
     });
+  }
+
+  async getTopPhotosByVotes(limit: number = 10): Promise<Photo[]> {
+    return await db
+      .select()
+      .from(photos)
+      .where(eq(photos.hidden, false))
+      .orderBy(sql`${photos.votes} DESC`)
+      .limit(limit);
+  }
+
+  async getTopPhotosByWins(limit: number = 10): Promise<Photo[]> {
+    return await db
+      .select()
+      .from(photos)
+      .where(eq(photos.hidden, false))
+      .orderBy(sql`${photos.wins} DESC`)
+      .limit(limit);
   }
 }
 

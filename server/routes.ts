@@ -477,6 +477,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Leaderboard endpoints (public)
+  app.get("/api/leaderboard/votes", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const topPhotos = await storage.getTopPhotosByVotes(limit);
+      res.json(topPhotos);
+    } catch (error) {
+      console.error('Error fetching top photos by votes:', error);
+      res.status(500).json({ message: "Failed to fetch leaderboard" });
+    }
+  });
+
+  app.get("/api/leaderboard/wins", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const topPhotos = await storage.getTopPhotosByWins(limit);
+      res.json(topPhotos);
+    } catch (error) {
+      console.error('Error fetching top photos by wins:', error);
+      res.status(500).json({ message: "Failed to fetch leaderboard" });
+    }
+  });
+
   // Export voting data (admin only)
   app.get("/api/export", async (req, res) => {
     try {

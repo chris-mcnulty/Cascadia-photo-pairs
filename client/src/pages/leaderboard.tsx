@@ -1,16 +1,20 @@
 import { useQuery } from "@tanstack/react-query";
-import { Photo } from "@shared/schema";
+import { Photo, Settings } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trophy, Vote, Crown, Medal, Award, ArrowLeft, Home } from "lucide-react";
+import { Trophy, Vote, Crown, Medal, Award, ArrowLeft, Home, TrendingUp, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 
-type LeaderboardType = 'votes' | 'wins';
+type LeaderboardType = 'votes' | 'winrate';
 
 export default function Leaderboard() {
   const [activeTab, setActiveTab] = useState<LeaderboardType>('votes');
+
+  const { data: settings } = useQuery<Settings>({
+    queryKey: ["/api/settings"],
+  });
 
   const { data: topByVotes, isLoading: loadingVotes } = useQuery<Photo[]>({
     queryKey: ['/api/leaderboard/votes'],
@@ -22,7 +26,21 @@ export default function Leaderboard() {
     enabled: true,
   });
 
-  const currentData = activeTab === 'votes' ? topByVotes : topByWins;
+  // Sort by win rate when in winrate mode
+  const getSortedData = () => {
+    if (activeTab === 'votes') {
+      return topByVotes;
+    } else {
+      // Sort by win rate
+      return topByWins?.slice().sort((a, b) => {
+        const aWinRate = a.comparisons > 0 ? (a.wins / a.comparisons) : 0;
+        const bWinRate = b.comparisons > 0 ? (b.wins / b.comparisons) : 0;
+        return bWinRate - aWinRate;
+      });
+    }
+  };
+
+  const currentData = getSortedData();
   const isLoading = activeTab === 'votes' ? loadingVotes : loadingWins;
 
   const getRankIcon = (rank: number) => {
@@ -90,7 +108,7 @@ export default function Leaderboard() {
           </div>
 
           {/* Tab Navigation */}
-          <div className="flex justify-center mt-6">
+          <div className="flex flex-col items-center mt-6">
             <div className="bg-gray-100 p-1 rounded-lg">
               <Button
                 variant={activeTab === 'votes' ? 'default' : 'ghost'}
@@ -103,22 +121,27 @@ export default function Leaderboard() {
                 }`}
               >
                 <Vote className="w-4 h-4 mr-2" />
-                Top by Total Votes
+                Most Votes
               </Button>
               <Button
-                variant={activeTab === 'wins' ? 'default' : 'ghost'}
+                variant={activeTab === 'winrate' ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => setActiveTab('wins')}
+                onClick={() => setActiveTab('winrate')}
                 className={`${
-                  activeTab === 'wins' 
+                  activeTab === 'winrate' 
                     ? 'bg-white shadow-sm' 
                     : 'hover:bg-gray-200'
                 }`}
               >
-                <Crown className="w-4 h-4 mr-2" />
-                Top by Wins
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Best Win Rate
               </Button>
             </div>
+            <p className="text-sm text-gray-600 mt-3">
+              {activeTab === 'votes' 
+                ? 'Showing photos ranked by total number of votes received'
+                : 'Showing photos ranked by win percentage (wins ÷ comparisons)'}
+            </p>
           </div>
         </div>
       </div>
@@ -149,8 +172,10 @@ export default function Leaderboard() {
           <div className="space-y-4">
             {currentData.map((photo, index) => {
               const rank = index + 1;
-              const statValue = activeTab === 'votes' ? photo.votes : photo.wins;
               const winRate = photo.comparisons > 0 ? ((photo.wins / photo.comparisons) * 100).toFixed(1) : '0.0';
+              const statValue = activeTab === 'votes' ? photo.votes : parseFloat(winRate);
+              const hasCustomPurchaseUrl = photo.customPurchaseUrl && photo.customPurchaseUrl.length > 0;
+              const showPurchaseButton = settings?.purchaseEnabled && hasCustomPurchaseUrl && !photo.neverForSale;
               
               return (
                 <Card key={photo.id} className={`transition-all duration-200 hover:shadow-lg ${getRankStyle(rank)}`}>
@@ -194,12 +219,6 @@ export default function Leaderboard() {
                             <Badge variant="outline" className="text-xs">
                               {photo.category}
                             </Badge>
-                            <div className="text-xs text-gray-500 sm:hidden">
-                              Win: {winRate}%
-                            </div>
-                            <div className="hidden sm:block text-xs text-gray-500">
-                              Win Rate: {winRate}%
-                            </div>
                           </div>
                         </div>
                       </div>
@@ -209,10 +228,10 @@ export default function Leaderboard() {
                         <div className="flex sm:block justify-between items-center sm:space-y-2">
                           <div className="text-left sm:text-right">
                             <div className="text-xl sm:text-2xl font-bold text-cascadia-green">
-                              {statValue.toLocaleString()}
+                              {activeTab === 'votes' ? photo.votes.toLocaleString() : `${winRate}%`}
                             </div>
-                            <div className="text-xs text-gray-500 capitalize">
-                              {activeTab === 'votes' ? 'Total Votes' : 'Total Wins'}
+                            <div className="text-xs text-gray-500">
+                              {activeTab === 'votes' ? 'Total Votes' : 'Win Rate'}
                             </div>
                           </div>
                           <div className="border-l sm:border-l-0 sm:border-t pl-4 sm:pl-0 sm:pt-2">
@@ -227,6 +246,17 @@ export default function Leaderboard() {
                             <div className="text-xs text-gray-400 mt-1">
                               {photo.comparisons.toLocaleString()} matches
                             </div>
+                            {showPurchaseButton && (
+                              <a
+                                href={photo.customPurchaseUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 mt-2 px-3 py-1 bg-cascadia-green text-white text-xs rounded-md hover:bg-green-700 transition-colors"
+                              >
+                                <ShoppingCart className="w-3 h-3" />
+                                Purchase
+                              </a>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -251,18 +281,24 @@ export default function Leaderboard() {
           <h3 className="font-semibold text-gray-900 mb-4 font-epilogue">How Rankings Work</h3>
           <div className="grid md:grid-cols-2 gap-4 text-sm text-gray-600">
             <div>
-              <h4 className="font-medium text-gray-800 mb-2">Total Votes</h4>
-              <p>Shows photos with the highest number of total votes received across all comparisons. This includes both winning and losing votes.</p>
+              <h4 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
+                <Vote className="w-4 h-4 text-cascadia-green" />
+                Most Votes
+              </h4>
+              <p>Shows photos ranked by the total number of times they've been chosen as winners in head-to-head comparisons. Popular photos that are selected frequently appear at the top.</p>
             </div>
             <div>
-              <h4 className="font-medium text-gray-800 mb-2">Total Wins</h4>
-              <p>Shows photos that have won the most head-to-head comparisons. A photo wins when users select it over another photo.</p>
+              <h4 className="font-medium text-gray-800 mb-2 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-cascadia-green" />
+                Best Win Rate
+              </h4>
+              <p>Shows photos ranked by their winning percentage (wins ÷ comparisons). This identifies photos that consistently win when shown, regardless of how often they appear.</p>
             </div>
           </div>
           <div className="mt-4 p-3 bg-gray-50 rounded-lg">
             <p className="text-xs text-gray-600">
-              <strong>Win Rate:</strong> Calculated as (Total Wins / Total Comparisons) × 100. 
-              A higher win rate indicates consistent performance across different matchups.
+              <strong>Note:</strong> Win rate provides a better measure of photo quality as it accounts for performance rather than just popularity. 
+              A photo with 90% win rate (9 wins in 10 shows) ranks higher than one with 60% win rate (60 wins in 100 shows) in win rate mode.
             </p>
           </div>
         </div>

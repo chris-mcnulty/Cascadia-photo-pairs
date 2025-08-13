@@ -109,38 +109,41 @@ export default function Leaderboard() {
 
           {/* Tab Navigation */}
           <div className="flex flex-col items-center mt-6">
-            <div className="bg-gray-100 p-1 rounded-lg">
-              <Button
-                variant={activeTab === 'votes' ? 'default' : 'ghost'}
-                size="sm"
+            <div className="bg-gray-100 p-1 rounded-lg inline-flex">
+              <button
                 onClick={() => setActiveTab('votes')}
-                className={`mr-1 ${
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
                   activeTab === 'votes' 
-                    ? 'bg-white shadow-sm' 
-                    : 'hover:bg-gray-200'
+                    ? 'bg-cascadia-green text-white shadow-sm' 
+                    : 'bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                <Vote className="w-4 h-4 mr-2" />
+                <Vote className="w-4 h-4" />
                 Most Votes
-              </Button>
-              <Button
-                variant={activeTab === 'winrate' ? 'default' : 'ghost'}
-                size="sm"
+              </button>
+              <button
                 onClick={() => setActiveTab('winrate')}
-                className={`${
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-2 ${
                   activeTab === 'winrate' 
-                    ? 'bg-white shadow-sm' 
-                    : 'hover:bg-gray-200'
+                    ? 'bg-cascadia-green text-white shadow-sm' 
+                    : 'bg-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`}
               >
-                <TrendingUp className="w-4 h-4 mr-2" />
+                <TrendingUp className="w-4 h-4" />
                 Best Win Rate
-              </Button>
+              </button>
             </div>
-            <p className="text-sm text-gray-600 mt-3">
-              {activeTab === 'votes' 
-                ? 'Showing photos ranked by total number of votes received'
-                : 'Showing photos ranked by win percentage (wins ÷ comparisons)'}
+            <p className="text-sm text-gray-600 mt-3 text-center px-4">
+              <span className="font-medium">Currently viewing:</span>{' '}
+              <span className="text-cascadia-green font-semibold">
+                {activeTab === 'votes' ? 'Most Votes' : 'Best Win Rate'}
+              </span>
+              <br />
+              <span className="text-xs">
+                {activeTab === 'votes' 
+                  ? 'Photos ranked by total number of votes received'
+                  : 'Photos ranked by win percentage (wins ÷ comparisons)'}
+              </span>
             </p>
           </div>
         </div>

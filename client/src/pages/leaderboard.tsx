@@ -3,8 +3,9 @@ import { Photo } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trophy, Vote, Crown, Medal, Award } from "lucide-react";
+import { Trophy, Vote, Crown, Medal, Award, ArrowLeft, Home } from "lucide-react";
 import { useState } from "react";
+import { Link } from "wouter";
 
 type LeaderboardType = 'votes' | 'wins';
 
@@ -55,6 +56,30 @@ export default function Leaderboard() {
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 py-6">
+          {/* Navigation */}
+          <div className="flex items-center justify-between mb-4">
+            <Link href="/">
+              <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Back to Voting</span>
+                <span className="sm:hidden">Back</span>
+              </Button>
+            </Link>
+            <div className="flex items-center gap-2">
+              <Link href="/">
+                <Button variant="ghost" size="sm" className="flex items-center gap-2">
+                  <Home className="w-4 h-4" />
+                  <span className="hidden sm:inline">Home</span>
+                </Button>
+              </Link>
+              <Link href="/admin">
+                <Button variant="ghost" size="sm" className="hidden sm:flex items-center gap-2">
+                  Admin
+                </Button>
+              </Link>
+            </div>
+          </div>
+          
           <div className="text-center">
             <h1 className="text-3xl font-bold text-gray-900 font-epilogue mb-2">
               Photo Leaderboard
@@ -130,59 +155,79 @@ export default function Leaderboard() {
               return (
                 <Card key={photo.id} className={`transition-all duration-200 hover:shadow-lg ${getRankStyle(rank)}`}>
                   <CardContent className="p-6">
-                    <div className="flex items-center gap-6">
-                      {/* Rank */}
-                      <div className="flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="flex justify-center mb-1">
-                            {getRankIcon(rank)}
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+                      {/* Mobile Layout: Top Row */}
+                      <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto">
+                        {/* Rank */}
+                        <div className="flex items-center justify-center">
+                          <div className="text-center">
+                            <div className="flex justify-center mb-1">
+                              {getRankIcon(rank)}
+                            </div>
+                            <div className="font-bold text-lg text-gray-700">
+                              #{rank}
+                            </div>
                           </div>
-                          <div className="font-bold text-lg text-gray-700">
-                            #{rank}
+                        </div>
+
+                        {/* Photo Thumbnail */}
+                        <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                          <img
+                            src={photo.imageUrl}
+                            alt={photo.title}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        </div>
+
+                        {/* Photo Info */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-base sm:text-lg text-gray-900 font-epilogue truncate">
+                            {photo.title}
+                          </h3>
+                          {photo.description && (
+                            <p className="text-gray-600 text-xs sm:text-sm mt-1 line-clamp-2">
+                              {photo.description}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 sm:mt-3">
+                            <Badge variant="outline" className="text-xs">
+                              {photo.category}
+                            </Badge>
+                            <div className="text-xs text-gray-500 sm:hidden">
+                              Win: {winRate}%
+                            </div>
+                            <div className="hidden sm:block text-xs text-gray-500">
+                              Win Rate: {winRate}%
+                            </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* Photo Thumbnail */}
-                      <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                        <img
-                          src={photo.imageUrl}
-                          alt={photo.title}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-
-                      {/* Photo Info */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-lg text-gray-900 font-epilogue truncate">
-                          {photo.title}
-                        </h3>
-                        {photo.description && (
-                          <p className="text-gray-600 text-sm mt-1 line-clamp-2">
-                            {photo.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-3 mt-3">
-                          <Badge variant="outline" className="text-xs">
-                            {photo.category}
-                          </Badge>
-                          <div className="text-xs text-gray-500">
-                            Win Rate: {winRate}%
+                      {/* Statistics - Desktop: Right Side, Mobile: Bottom */}
+                      <div className="text-right flex-shrink-0 mt-4 sm:mt-0 w-full sm:w-auto">
+                        <div className="flex sm:block justify-between items-center sm:space-y-2">
+                          <div className="text-left sm:text-right">
+                            <div className="text-xl sm:text-2xl font-bold text-cascadia-green">
+                              {statValue.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-gray-500 capitalize">
+                              {activeTab === 'votes' ? 'Total Votes' : 'Total Wins'}
+                            </div>
                           </div>
-                        </div>
-                      </div>
-
-                      {/* Statistics */}
-                      <div className="text-right flex-shrink-0">
-                        <div className="text-3xl font-bold text-cascadia-green">
-                          {statValue.toLocaleString()}
-                        </div>
-                        <div className="text-sm text-gray-500 capitalize">
-                          {activeTab}
-                        </div>
-                        <div className="text-xs text-gray-400 mt-1">
-                          {photo.comparisons.toLocaleString()} comparisons
+                          <div className="border-l sm:border-l-0 sm:border-t pl-4 sm:pl-0 sm:pt-2">
+                            <div className="text-sm">
+                              <span className="text-gray-600">Votes: </span>
+                              <span className="font-semibold text-gray-900">{photo.votes.toLocaleString()}</span>
+                            </div>
+                            <div className="text-sm">
+                              <span className="text-gray-600">Win Rate: </span>
+                              <span className="font-semibold text-cascadia-green">{winRate}%</span>
+                            </div>
+                            <div className="text-xs text-gray-400 mt-1">
+                              {photo.comparisons.toLocaleString()} matches
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>

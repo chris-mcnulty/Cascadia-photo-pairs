@@ -377,6 +377,14 @@ export default function Home() {
                   </a>
                 </li>
                 <li>
+                  <Link 
+                    href="/leaderboard" 
+                    className="text-gray-600 hover:text-green-700 transition-colors duration-200 text-sm"
+                  >
+                    Leaderboard
+                  </Link>
+                </li>
+                <li>
                   <a 
                     href="https://www.chrismcnulty.net/subscribe" 
                     className="text-gray-600 hover:text-green-700 transition-colors duration-200 text-sm"

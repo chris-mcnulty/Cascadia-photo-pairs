@@ -6,6 +6,20 @@ This is a full-stack photo voting application built for displaying and ranking l
 
 The app uses a modern React frontend with shadcn/ui components, Express.js backend, and is designed to work with PostgreSQL database through Drizzle ORM. It includes features like real-time voting statistics, photo pair randomization, comprehensive admin analytics, and intelligent inline photo editing.
 
+## Recent Changes (January 2025)
+
+**Public Leaderboard System (January 2025)**
+- Implemented comprehensive public leaderboard feature with dual ranking modes
+- Created API endpoints /api/leaderboard/votes and /api/leaderboard/wins for public access
+- Built responsive leaderboard page with tabbed interface for "Most Votes" vs "Best Win Rate"
+- Enhanced toggle styling with cascadia-green active state and clear mode indicators
+- Added complete statistics display showing total votes, win rates, and comparison counts
+- Integrated navigation controls with back button and home link for easy return to voting
+- Added leaderboard links to all navigation menus (desktop, mobile, and footer)
+- Prepared purchase button integration for photos with custom sale URLs (activates when store is enabled)
+- Updated legend section explaining difference between vote-based and win-rate-based rankings
+- Optimized mobile layout with responsive statistics and proper touch-friendly controls
+
 ## Recent Changes (August 2025)
 
 **Mobile Website & PWA Consistency (August 2025)**

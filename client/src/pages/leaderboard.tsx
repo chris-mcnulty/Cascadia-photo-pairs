@@ -17,6 +17,11 @@ export default function Leaderboard() {
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
+  // Fetch settings first
+  const { data: settings } = useQuery<Settings>({
+    queryKey: ["/api/settings"],
+  });
+
   // Check if user is logged in and if login features are enabled
   useEffect(() => {
     const checkAuth = async () => {
@@ -43,10 +48,6 @@ export default function Leaderboard() {
     };
     checkAuth();
   }, [settings]);
-
-  const { data: settings } = useQuery<Settings>({
-    queryKey: ["/api/settings"],
-  });
 
   const { data: topByVotes, isLoading: loadingVotes } = useQuery<Photo[]>({
     queryKey: showUserOnly ? ['/api/leaderboard/user/votes'] : ['/api/leaderboard/votes'],

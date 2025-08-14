@@ -12,10 +12,21 @@ interface PhotoPairProps {
 export default function PhotoPair({ photo, onVote, isVoting, settings }: PhotoPairProps) {
   const purchaseUrl = photo.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Check if click is on purchase button or its children
+    const target = e.target as HTMLElement;
+    if (target.closest('.purchase-button')) {
+      return; // Don't trigger vote if clicking purchase button
+    }
+    if (!isVoting) {
+      onVote();
+    }
+  };
+
   return (
     <div 
       className="voting-option group cursor-pointer"
-      onClick={!isVoting ? onVote : undefined}
+      onClick={handleCardClick}
     >
       <Card className="relative bg-white shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]">
         
@@ -48,21 +59,18 @@ export default function PhotoPair({ photo, onVote, isVoting, settings }: PhotoPa
           
           {/* Purchase Link (Admin Configurable) */}
           {settings?.purchaseEnabled && !photo.neverForSale && (
-            <div className="mt-4" onClick={(e) => e.stopPropagation()}>
-              <a 
-                href={purchaseUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center text-blue-600 hover:text-green-700 transition-colors duration-200 text-sm font-medium"
+            <div className="mt-4">
+              <button
+                className="purchase-button inline-flex items-center text-blue-600 hover:text-green-700 transition-colors duration-200 text-sm font-medium"
                 onClick={(e) => {
                   e.stopPropagation();
-                  e.preventDefault();
-                  window.open(purchaseUrl, '_blank', 'noopener,noreferrer');
+                  console.log('Purchase button clicked, opening:', purchaseUrl);
+                  window.open(purchaseUrl, '_blank');
                 }}
               >
                 <ShoppingCart className="w-4 h-4 mr-2" />
                 Purchase Print
-              </a>
+              </button>
             </div>
           )}
         </CardContent>

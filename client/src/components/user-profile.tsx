@@ -119,6 +119,17 @@ export default function UserProfile() {
             <span>Settings</span>
           </DropdownMenuItem>
         </Link>
+        {userData.isAdmin && (
+          <>
+            <DropdownMenuSeparator />
+            <Link href="/admin">
+              <DropdownMenuItem className="cursor-pointer">
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Admin Panel</span>
+              </DropdownMenuItem>
+            </Link>
+          </>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
           <LogOut className="mr-2 h-4 w-4" />

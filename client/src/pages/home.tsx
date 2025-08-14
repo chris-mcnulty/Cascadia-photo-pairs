@@ -160,12 +160,6 @@ export default function Home() {
                 </div>
               )}
               <UserProfile />
-              <a 
-                href="/admin"
-                className="text-gray-500 hover:text-green-700 transition-colors duration-200 text-sm"
-              >
-                Admin
-              </a>
             </nav>
 
             {/* Mobile Menu Button */}

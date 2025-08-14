@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, LogIn, UserPlus } from "lucide-react";
+import { ArrowLeft, LogIn, UserPlus, Eye, EyeOff } from "lucide-react";
 import type { Settings } from "@shared/schema";
 
 export default function LoginPage() {
@@ -18,6 +18,7 @@ export default function LoginPage() {
     email: "",
     password: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
 
   // Fetch admin settings for customizable text
   const { data: settings } = useQuery<Settings>({
@@ -114,13 +115,29 @@ export default function LoginPage() {
                     Forgot password?
                   </Button>
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={formData.password}
-                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={formData.password}
+                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                    className="pr-10"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4 text-gray-500" />
+                    ) : (
+                      <Eye className="h-4 w-4 text-gray-500" />
+                    )}
+                  </Button>
+                </div>
               </div>
 
               <Button 

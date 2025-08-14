@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { db } from "./db";
-import { photos, votes, settings, collections, users, emailVerifications } from "@shared/schema";
+import { photos, votes, settings, collections, users, emailVerifications, userStats } from "@shared/schema";
 import { eq, sql, and, or, inArray, gte, lte } from "drizzle-orm";
 import { storage } from "./storage";
 import { insertVoteSchema, insertSettingsSchema, insertPhotoSchema, insertCollectionSchema } from "@shared/schema";
@@ -705,6 +705,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User statistics endpoint
+  app.get("/api/user/stats", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      
+      if (!payload) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      // Get user statistics from database
+      const [userStatsData] = await db.select().from(userStats).where(eq(userStats.userId, payload.userId));
+      
+      // Get photos the user has voted on
+      const userVotes = await db.select({
+        photoId: votes.winnerPhotoId,
+        count: sql`COUNT(*)`.as('count')
+      })
+      .from(votes)
+      .where(eq(votes.userId, payload.userId))
+      .groupBy(votes.winnerPhotoId)
+      .orderBy(sql`COUNT(*) DESC`)
+      .limit(10);
+      
+      // Get voted photos details
+      const votedPhotos = [];
+      for (const vote of userVotes) {
+        const [photo] = await db.select().from(photos).where(eq(photos.id, vote.photoId));
+        if (photo) {
+          votedPhotos.push({
+            ...photo,
+            userVoteCount: Number(vote.count)
+          });
+        }
+      }
+      
+      // Calculate monthly and quarterly ranks
+      const allUserStats = await db.select().from(userStats).orderBy(sql`${userStats.monthlyVotes} DESC`);
+      const monthlyRank = allUserStats.findIndex(s => s.userId === payload.userId) + 1;
+      const quarterlyRank = allUserStats.sort((a, b) => b.quarterlyVotes - a.quarterlyVotes).findIndex(s => s.userId === payload.userId) + 1;
+      
+      res.json({
+        totalVotes: userStatsData?.totalVotes || 0,
+        monthlyVotes: userStatsData?.monthlyVotes || 0,
+        quarterlyVotes: userStatsData?.quarterlyVotes || 0,
+        favoritePhotos: userStatsData?.favoritePhotos || [],
+        purchasedPhotos: userStatsData?.purchasedPhotos || [],
+        currentStreak: userStatsData?.currentStreak || 0,
+        longestStreak: userStatsData?.longestStreak || 0,
+        lastVoteAt: userStatsData?.lastVoteAt,
+        votedPhotos,
+        monthlyRank,
+        quarterlyRank,
+        totalUsers: allUserStats.length
+      });
+    } catch (error) {
+      console.error('Error fetching user stats:', error);
+      res.status(500).json({ message: "Failed to fetch user statistics" });
+    }
+  });
+  
   // User-specific leaderboard endpoints (requires authentication)
   app.get("/api/leaderboard/user/votes", async (req, res) => {
     try {

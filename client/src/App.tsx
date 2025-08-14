@@ -10,6 +10,7 @@ import Signup from "@/pages/signup";
 import Login from "@/pages/login";
 import ResetPassword from "@/pages/reset-password";
 import NotFound from "@/pages/not-found";
+import UserStats from "@/pages/user-stats";
 
 function Router() {
   return (
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/signup" component={Signup} />
       <Route path="/login" component={Login} />
       <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/user-stats" component={UserStats} />
       <Route component={NotFound} />
     </Switch>
   );

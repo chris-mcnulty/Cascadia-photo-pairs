@@ -43,6 +43,7 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
   lastLoginAt: timestamp("last_login_at"),
   isAdmin: boolean("is_admin").default(false).notNull(),
+  isMasterAdmin: boolean("is_master_admin").default(false).notNull(), // Master admin can promote others
 }, (table) => [
   index("idx_users_email").on(table.email),
   index("idx_users_reset_token").on(table.resetToken),

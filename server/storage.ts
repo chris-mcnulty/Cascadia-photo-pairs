@@ -48,6 +48,7 @@ export interface IStorage {
   // Leaderboard methods
   getTopPhotosByVotes(limit?: number): Promise<Photo[]>;
   getTopPhotosByWins(limit?: number): Promise<Photo[]>;
+  getUserVotedPhotos(userId: string, limit: number, sortBy: 'votes' | 'wins'): Promise<Photo[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -485,6 +486,16 @@ export class MemStorage implements IStorage {
       .filter(photo => !photo.hidden)
       .sort((a, b) => b.wins - a.wins)
       .slice(0, limit);
+  }
+
+  async getUserVotedPhotos(userId: string, limit: number = 10, sortBy: 'votes' | 'wins' = 'votes'): Promise<Photo[]> {
+    // In memory storage, we'll return top photos since we don't track user-specific voting
+    // This is a placeholder implementation
+    if (sortBy === 'wins') {
+      return this.getTopPhotosByWins(limit);
+    } else {
+      return this.getTopPhotosByVotes(limit);
+    }
   }
 }
 
@@ -942,6 +953,46 @@ export class DatabaseStorage implements IStorage {
       .where(eq(photos.hidden, false))
       .orderBy(sql`${photos.wins} DESC`)
       .limit(limit);
+  }
+
+  async getUserVotedPhotos(userId: string, limit: number = 10, sortBy: 'votes' | 'wins' = 'votes'): Promise<Photo[]> {
+    // Get distinct photo IDs that the user has voted on
+    const userVotes = await db
+      .select({ 
+        winnerPhotoId: votes.winnerPhotoId,
+        loserPhotoId: votes.loserPhotoId 
+      })
+      .from(votes)
+      .where(eq(votes.userId, userId));
+    
+    // Collect all unique photo IDs the user has voted on
+    const photoIds = new Set<string>();
+    userVotes.forEach(vote => {
+      if (vote.winnerPhotoId) photoIds.add(vote.winnerPhotoId);
+      if (vote.loserPhotoId) photoIds.add(vote.loserPhotoId);
+    });
+    
+    if (photoIds.size === 0) {
+      return [];
+    }
+    
+    // Get those photos with their stats
+    const photosQuery = db
+      .select()
+      .from(photos)
+      .where(and(
+        inArray(photos.id, Array.from(photoIds)),
+        eq(photos.hidden, false)
+      ));
+    
+    const userPhotos = await photosQuery;
+    
+    // Sort based on preference
+    if (sortBy === 'wins') {
+      return userPhotos.sort((a, b) => b.wins - a.wins).slice(0, limit);
+    } else {
+      return userPhotos.sort((a, b) => b.votes - a.votes).slice(0, limit);
+    }
   }
 }
 

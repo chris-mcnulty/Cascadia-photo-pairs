@@ -3,26 +3,52 @@ import { Photo, Settings } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Trophy, Vote, Crown, Medal, Award, ArrowLeft, Home, TrendingUp, ShoppingCart } from "lucide-react";
-import { useState } from "react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Trophy, Vote, Crown, Medal, Award, ArrowLeft, Home, TrendingUp, ShoppingCart, ChevronDown, ChevronUp, User } from "lucide-react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 
 type LeaderboardType = 'votes' | 'winrate';
 
 export default function Leaderboard() {
   const [activeTab, setActiveTab] = useState<LeaderboardType>('votes');
+  const [showUserOnly, setShowUserOnly] = useState(false);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  // Check if user is logged in
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('auth-token');
+      if (token) {
+        try {
+          const response = await fetch('/api/auth/status', {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          const data = await response.json();
+          setIsLoggedIn(data.authenticated || false);
+        } catch {
+          setIsLoggedIn(false);
+        }
+      }
+    };
+    checkAuth();
+  }, []);
 
   const { data: settings } = useQuery<Settings>({
     queryKey: ["/api/settings"],
   });
 
   const { data: topByVotes, isLoading: loadingVotes } = useQuery<Photo[]>({
-    queryKey: ['/api/leaderboard/votes'],
+    queryKey: showUserOnly ? ['/api/leaderboard/user/votes'] : ['/api/leaderboard/votes'],
     enabled: true,
   });
 
   const { data: topByWins, isLoading: loadingWins } = useQuery<Photo[]>({
-    queryKey: ['/api/leaderboard/wins'],
+    queryKey: showUserOnly ? ['/api/leaderboard/user/wins'] : ['/api/leaderboard/wins'],
     enabled: true,
   });
 
@@ -67,6 +93,18 @@ export default function Leaderboard() {
       default:
         return "bg-white border-gray-200";
     }
+  };
+
+  const toggleDescription = (photoId: string) => {
+    setExpandedDescriptions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(photoId)) {
+        newSet.delete(photoId);
+      } else {
+        newSet.add(photoId);
+      }
+      return newSet;
+    });
   };
 
   return (
@@ -133,9 +171,27 @@ export default function Leaderboard() {
                 Best Win Rate
               </button>
             </div>
+            
+            {/* User-specific toggle (only shown when logged in) */}
+            {isLoggedIn && (
+              <div className="flex items-center space-x-2 mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <User className="w-4 h-4 text-blue-600" />
+                <Label htmlFor="user-photos" className="text-sm font-medium text-blue-900">
+                  Show only my voted photos
+                </Label>
+                <Switch
+                  id="user-photos"
+                  checked={showUserOnly}
+                  onCheckedChange={setShowUserOnly}
+                  className="data-[state=checked]:bg-cascadia-green"
+                />
+              </div>
+            )}
+            
             <p className="text-sm text-gray-600 mt-3 text-center px-4">
               <span className="font-medium">Currently viewing:</span>{' '}
               <span className="text-cascadia-green font-semibold">
+                {showUserOnly ? 'Your Voted Photos - ' : ''}
                 {activeTab === 'votes' ? 'Most Votes' : 'Best Win Rate'}
               </span>
               <br />
@@ -208,27 +264,51 @@ export default function Leaderboard() {
                           />
                         </div>
 
-                        {/* Photo Info */}
+                        {/* Photo Info with fixed width */}
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-base sm:text-lg text-gray-900 font-epilogue truncate">
+                          <h3 className="font-bold text-base sm:text-lg text-gray-900 font-epilogue">
                             {photo.title}
                           </h3>
                           {photo.description && (
-                            <p className="text-gray-600 text-xs sm:text-sm mt-1 line-clamp-2">
-                              {photo.description}
-                            </p>
+                            <div className="mt-1">
+                              <p className={`text-gray-600 text-xs sm:text-sm ${
+                                expandedDescriptions.has(photo.id) ? '' : 'line-clamp-2'
+                              }`}>
+                                {photo.description}
+                              </p>
+                              {photo.description.length > 100 && (
+                                <button
+                                  onClick={() => toggleDescription(photo.id)}
+                                  className="text-cascadia-green hover:text-green-700 text-xs font-medium mt-1 flex items-center gap-1"
+                                >
+                                  {expandedDescriptions.has(photo.id) ? (
+                                    <>
+                                      <ChevronUp className="w-3 h-3" />
+                                      Show less
+                                    </>
+                                  ) : (
+                                    <>
+                                      <ChevronDown className="w-3 h-3" />
+                                      Show more
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
                           )}
-                          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 sm:mt-3">
-                            <Badge variant="outline" className="text-xs">
-                              {photo.category}
-                            </Badge>
-                          </div>
+                          {photo.category && (
+                            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 sm:mt-3">
+                              <Badge variant="outline" className="text-xs">
+                                {photo.category}
+                              </Badge>
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      {/* Statistics - Desktop: Right Side, Mobile: Bottom */}
-                      <div className="text-right flex-shrink-0 mt-4 sm:mt-0 w-full sm:w-auto">
-                        <div className="flex sm:block justify-between items-center sm:space-y-2">
+                      {/* Statistics - Fixed width for consistent layout */}
+                      <div className="flex-shrink-0 mt-4 sm:mt-0 sm:w-48 lg:w-56">
+                        <div className="flex sm:block justify-between items-center">
                           <div className="text-left sm:text-right">
                             <div className="text-xl sm:text-2xl font-bold text-cascadia-green">
                               {activeTab === 'votes' ? photo.votes.toLocaleString() : `${winRate}%`}
@@ -237,28 +317,30 @@ export default function Leaderboard() {
                               {activeTab === 'votes' ? 'Total Votes' : 'Win Rate'}
                             </div>
                           </div>
-                          <div className="border-l sm:border-l-0 sm:border-t pl-4 sm:pl-0 sm:pt-2">
-                            <div className="text-sm">
+                          <div className="border-l sm:border-l-0 sm:border-t pl-4 sm:pl-0 sm:pt-2 sm:mt-2">
+                            <div className="text-sm sm:text-right">
                               <span className="text-gray-600">Votes: </span>
                               <span className="font-semibold text-gray-900">{photo.votes.toLocaleString()}</span>
                             </div>
-                            <div className="text-sm">
+                            <div className="text-sm sm:text-right">
                               <span className="text-gray-600">Win Rate: </span>
                               <span className="font-semibold text-cascadia-green">{winRate}%</span>
                             </div>
-                            <div className="text-xs text-gray-400 mt-1">
+                            <div className="text-xs text-gray-400 mt-1 sm:text-right">
                               {photo.comparisons.toLocaleString()} matches
                             </div>
                             {showPurchaseButton && (
-                              <a
-                                href={photo.customPurchaseUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 mt-2 px-3 py-1 bg-cascadia-green text-white text-xs rounded-md hover:bg-green-700 transition-colors"
-                              >
-                                <ShoppingCart className="w-3 h-3" />
-                                Purchase
-                              </a>
+                              <div className="sm:text-right mt-2">
+                                <a
+                                  href={photo.customPurchaseUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 px-3 py-1 bg-cascadia-green text-white text-xs rounded-md hover:bg-green-700 transition-colors"
+                                >
+                                  <ShoppingCart className="w-3 h-3" />
+                                  Purchase
+                                </a>
+                              </div>
                             )}
                           </div>
                         </div>

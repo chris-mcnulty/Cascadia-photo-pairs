@@ -612,6 +612,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User-specific leaderboard endpoints (requires authentication)
+  app.get("/api/leaderboard/user/votes", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      
+      if (!payload) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      const limit = parseInt(req.query.limit as string) || 10;
+      // Get photos that the user has voted on
+      const userVotedPhotos = await storage.getUserVotedPhotos(payload.userId, limit, 'votes');
+      res.json(userVotedPhotos);
+    } catch (error) {
+      console.error('Error fetching user voted photos by votes:', error);
+      res.status(500).json({ message: "Failed to fetch user leaderboard" });
+    }
+  });
+
+  app.get("/api/leaderboard/user/wins", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      
+      if (!payload) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      const limit = parseInt(req.query.limit as string) || 10;
+      // Get photos that the user has voted on
+      const userVotedPhotos = await storage.getUserVotedPhotos(payload.userId, limit, 'wins');
+      res.json(userVotedPhotos);
+    } catch (error) {
+      console.error('Error fetching user voted photos by wins:', error);
+      res.status(500).json({ message: "Failed to fetch user leaderboard" });
+    }
+  });
+
   // Export voting data (admin only)
   app.get("/api/export", async (req, res) => {
     try {

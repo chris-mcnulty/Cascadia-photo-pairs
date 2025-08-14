@@ -71,6 +71,7 @@ export class MemStorage implements IStorage {
       supportEmail: "support@cascadiaoceanic.com",
       privacyPolicyUrl: "/privacy",
       termsOfServiceUrl: "/terms",
+      userLoginEnabled: false, // OFF by default until ready for production
     };
     
     // Initialize with sample photos (using stock photo URLs)

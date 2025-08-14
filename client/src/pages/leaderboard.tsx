@@ -17,9 +17,15 @@ export default function Leaderboard() {
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
-  // Check if user is logged in
+  // Check if user is logged in and if login features are enabled
   useEffect(() => {
     const checkAuth = async () => {
+      // Only check auth if login features are enabled
+      if (!settings?.userLoginEnabled) {
+        setIsLoggedIn(false);
+        return;
+      }
+      
       const token = localStorage.getItem('auth-token');
       if (token) {
         try {
@@ -36,7 +42,7 @@ export default function Leaderboard() {
       }
     };
     checkAuth();
-  }, []);
+  }, [settings]);
 
   const { data: settings } = useQuery<Settings>({
     queryKey: ["/api/settings"],

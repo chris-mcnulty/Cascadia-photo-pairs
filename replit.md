@@ -8,6 +8,13 @@ The app uses a modern React frontend with shadcn/ui components, Express.js backe
 
 ## Recent Changes (January 2025)
 
+**User Login Feature Toggle & Production Control (January 2025)**
+- Added admin setting to enable/disable user login features (OFF by default)
+- Login/signup buttons now only appear when userLoginEnabled setting is true
+- User-specific leaderboard toggle only shows for logged-in users when feature is enabled
+- Created production-ready toggle with warning in admin panel for controlled rollout
+- Maintains low-barrier viral principle: core voting remains anonymous without login
+
 **Comprehensive User Authentication & Contest System (January 2025)**
 - Built complete user authentication system with registration, login, and password reset
 - Implemented email verification system with token-based verification

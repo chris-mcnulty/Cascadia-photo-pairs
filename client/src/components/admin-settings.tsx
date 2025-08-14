@@ -26,6 +26,7 @@ export default function AdminSettings() {
     supportEmail: "",
     privacyPolicyUrl: "",
     termsOfServiceUrl: "",
+    userLoginEnabled: false,
   });
 
   const updateSettingsMutation = useMutation({
@@ -107,6 +108,7 @@ export default function AdminSettings() {
         supportEmail: settings.supportEmail || "support@cascadiaoceanic.com",
         privacyPolicyUrl: settings.privacyPolicyUrl || "/privacy",
         termsOfServiceUrl: settings.termsOfServiceUrl || "/terms",
+        userLoginEnabled: settings.userLoginEnabled || false,
       });
     }
   }, [settings]);
@@ -163,6 +165,26 @@ export default function AdminSettings() {
             </div>
           </div>
           
+          {/* User Login Toggle - PRODUCTION FEATURE */}
+          <div className="flex items-center justify-between p-4 border-2 border-orange-300 bg-orange-50 rounded-lg">
+            <div className="space-y-0.5">
+              <Label className="text-base font-medium text-orange-900">Enable User Login Features</Label>
+              <div className="text-sm text-orange-700">
+                <strong>⚠️ Production Feature:</strong> Shows login/signup buttons and user-specific features
+              </div>
+              <div className="text-xs text-orange-600 mt-1">
+                Keep OFF until ready for production. When enabled, users will see login options and personalized leaderboard features.
+              </div>
+            </div>
+            <Switch
+              checked={formData.userLoginEnabled}
+              onCheckedChange={(checked) => 
+                setFormData(prev => ({ ...prev, userLoginEnabled: checked }))
+              }
+              className="data-[state=checked]:bg-orange-600"
+            />
+          </div>
+
           {/* Purchase Links Toggle */}
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">

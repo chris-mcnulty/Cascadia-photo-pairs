@@ -144,18 +144,20 @@ export default function Home() {
               >
                 Leaderboard
               </Link>
-              <div className="flex items-center gap-3">
-                <Link href="/login">
-                  <Button variant="outline" size="sm">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href="/signup">
-                  <Button size="sm" className="bg-cascadia-green hover:bg-green-700">
-                    Sign Up
-                  </Button>
-                </Link>
-              </div>
+              {settings?.userLoginEnabled && (
+                <div className="flex items-center gap-3">
+                  <Link href="/login">
+                    <Button variant="outline" size="sm">
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link href="/signup">
+                    <Button size="sm" className="bg-cascadia-green hover:bg-green-700">
+                      Sign Up
+                    </Button>
+                  </Link>
+                </div>
+              )}
               <a 
                 href="/admin"
                 className="text-gray-500 hover:text-green-700 transition-colors duration-200 text-sm"
@@ -217,12 +219,34 @@ export default function Home() {
                   <FaInstagram className="w-4 h-4" />
                   Instagram
                 </a>
-                <a 
-                  href="https://www.chrismcnulty.net/subscribe" 
-                  className="bg-cascadia-green text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium text-center"
+                <Link
+                  href="/leaderboard"
+                  className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"
                 >
-                  Subscribe
-                </a>
+                  Leaderboard
+                </Link>
+                {settings?.userLoginEnabled && (
+                  <>
+                    <Link href="/login">
+                      <Button variant="outline" size="sm" className="w-full">
+                        Sign In
+                      </Button>
+                    </Link>
+                    <Link href="/signup">
+                      <Button size="sm" className="bg-cascadia-green hover:bg-green-700 w-full">
+                        Sign Up
+                      </Button>
+                    </Link>
+                  </>
+                )}
+                {!settings?.userLoginEnabled && (
+                  <a 
+                    href="https://www.chrismcnulty.net/subscribe" 
+                    className="bg-cascadia-green text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium text-center"
+                  >
+                    Subscribe
+                  </a>
+                )}
                 <a 
                   href="/admin"
                   className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"

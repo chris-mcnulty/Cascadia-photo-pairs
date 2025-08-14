@@ -104,27 +104,27 @@ export default function SimpleAnnouncements() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Dismissable Announcement Header Bar */}
       {announcement?.announcementEnabled && !dismissedAnnouncement && (
-        <Alert variant={getAnnouncementVariant(announcement.announcementType)} className="relative">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-2">
+        <div className="bg-green-600 text-white px-4 py-3 relative shadow-sm">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <div className="flex items-center gap-3">
               {getAnnouncementIcon(announcement.announcementType)}
-              <AlertDescription className="font-medium">
+              <span className="font-medium">
                 <strong>Announcement:</strong> {announcement.announcementText}
-              </AlertDescription>
+              </span>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="p-1 h-6 w-6 -mt-1"
+              className="p-1 h-6 w-6 text-white hover:bg-green-700"
               onClick={() => setDismissedAnnouncement(true)}
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
-        </Alert>
+        </div>
       )}
 
       {/* Collapsible News & Updates Section */}
@@ -159,7 +159,7 @@ export default function SimpleAnnouncements() {
           </div>
 
           {newsExpanded && (
-            <div className="space-y-4 mt-4 mb-8">
+            <div className="space-y-6 mt-6 mb-12">
             {/* Contest Alerts */}
             {announcement?.monthlyContestActive && (
               <Alert className="bg-green-50 border-green-200">
@@ -201,7 +201,7 @@ export default function SimpleAnnouncements() {
 
             {/* News Items */}
             {sortedNewsItems.length > 0 && (
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {sortedNewsItems.map((item) => (
                   <Card key={item.id} className="hover:shadow-md transition-shadow">
                     <CardContent className="p-4">

@@ -330,10 +330,11 @@ export default function Home() {
           votesCount={votesCount}
         />
       ) : (
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          
-          {/* Announcements */}
+        <>
+          {/* Announcements outside main container for full-width header bar */}
           <SimpleAnnouncements />
+          
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           
           {/* Introduction Section */}
           <div className="text-center mb-12">
@@ -414,7 +415,8 @@ export default function Home() {
           </div>
         </div>
 
-        </main>
+          </main>
+        </>
       )}
 
       {/* Footer - only show for desktop */}

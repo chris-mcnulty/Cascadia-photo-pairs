@@ -23,14 +23,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { password } = req.body;
       const settings = await storage.getSettings();
       
+      if (!password) {
+        return res.status(400).json({ message: "Password is required" });
+      }
+      
       if (password !== settings.adminPassword) {
         return res.status(401).json({ message: "Invalid password" });
       }
       
+      // Generate a simple session ID for admin
+      const sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      
       // For now, simple admin authentication without MFA
       res.json({ 
-        success: true,
-        isAdmin: true
+        sessionId,
+        authenticated: true,
+        message: "Admin login successful"
       });
     } catch (error) {
       console.error('Admin login error:', error);

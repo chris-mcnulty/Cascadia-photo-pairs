@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Lock, Smartphone, ArrowLeft } from "lucide-react";
+import { Lock, Smartphone, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { Link } from "wouter";
 import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
 
@@ -29,11 +29,12 @@ export default function AdminLogin({ onAuthenticated }: AdminLoginProps) {
   const [password, setPassword] = useState('');
   const [mfaCode, setMfaCode] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const passwordMutation = useMutation({
     mutationFn: async (password: string) => {
       try {
-        const response = await fetch('/api/auth/login', {
+        const response = await fetch('/api/auth/admin-login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ password })
@@ -70,6 +71,13 @@ export default function AdminLogin({ onAuthenticated }: AdminLoginProps) {
         toast({
           title: "SMS sent",
           description: data.message,
+        });
+      } else if (data.authenticated && data.sessionId) {
+        // Direct login without MFA
+        onAuthenticated(data.sessionId);
+        toast({
+          title: "Welcome!",
+          description: "Successfully logged in to admin panel.",
         });
       }
     },
@@ -193,15 +201,30 @@ export default function AdminLogin({ onAuthenticated }: AdminLoginProps) {
               <form onSubmit={handlePasswordSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="password">Admin Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Enter admin password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    disabled={passwordMutation.isPending}
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Enter admin password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      disabled={passwordMutation.isPending}
+                      required
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 p-1"
+                      disabled={passwordMutation.isPending}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="w-4 h-4" />
+                      ) : (
+                        <Eye className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
                 </div>
                 
                 <Button 

@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Photo, Settings } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 import VotingInterface from "@/components/voting-interface";
 import MobileVotingInterface from "@/components/mobile-voting-interface";
 

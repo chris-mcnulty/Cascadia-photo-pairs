@@ -9,9 +9,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Photo, InsertPhoto } from "@shared/schema";
-import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit, Globe, ArrowUpDown, Tag, CheckSquare, Square, ShoppingCart } from "lucide-react";
+import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit, Globe, ArrowUpDown, Tag, CheckSquare, Square, ShoppingCart, AlertCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function PhotoManager() {
   const { toast } = useToast();
@@ -25,6 +35,7 @@ export default function PhotoManager() {
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [bulkCategory, setBulkCategory] = useState<string>("");
+  const [confirmSaleAction, setConfirmSaleAction] = useState<{ open: boolean; action: 'forSale' | 'notForSale' | null }>({ open: false, action: null });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<InsertPhoto & { neverForSale?: boolean }>({
     title: "",
@@ -224,12 +235,14 @@ export default function PhotoManager() {
       queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
       setSelectedPhotos(new Set());
       setShowBulkActions(false);
+      setConfirmSaleAction({ open: false, action: null });
       toast({
         title: "Sale status updated",
-        description: `Selected photos have been marked as ${variables.neverForSale ? 'not for sale' : 'available for sale'}.`,
+        description: `${selectedPhotos.size} photo${selectedPhotos.size > 1 ? 's have' : ' has'} been marked as ${variables.neverForSale ? 'not for sale' : 'available for sale'}.`,
       });
     },
     onError: () => {
+      setConfirmSaleAction({ open: false, action: null });
       toast({
         title: "Failed to update sale status",
         description: "Could not update photo sale status. Please try again.",
@@ -237,6 +250,20 @@ export default function PhotoManager() {
       });
     },
   });
+
+  const handleSaleStatusConfirm = () => {
+    if (confirmSaleAction.action === 'forSale') {
+      bulkUpdateSaleMutation.mutate({ 
+        photoIds: Array.from(selectedPhotos), 
+        neverForSale: false 
+      });
+    } else if (confirmSaleAction.action === 'notForSale') {
+      bulkUpdateSaleMutation.mutate({ 
+        photoIds: Array.from(selectedPhotos), 
+        neverForSale: true 
+      });
+    }
+  };
 
   const resetForm = () => {
     setFormData({
@@ -691,7 +718,7 @@ export default function PhotoManager() {
                       <span className="text-sm font-medium text-green-800">Sale Status:</span>
                       <Button
                         size="sm"
-                        onClick={() => bulkUpdateSaleMutation.mutate({ photoIds: Array.from(selectedPhotos), neverForSale: false })}
+                        onClick={() => setConfirmSaleAction({ open: true, action: 'forSale' })}
                         disabled={bulkUpdateSaleMutation.isPending}
                         className="bg-green-600 hover:bg-green-700"
                       >
@@ -699,7 +726,7 @@ export default function PhotoManager() {
                       </Button>
                       <Button
                         size="sm"
-                        onClick={() => bulkUpdateSaleMutation.mutate({ photoIds: Array.from(selectedPhotos), neverForSale: true })}
+                        onClick={() => setConfirmSaleAction({ open: true, action: 'notForSale' })}
                         disabled={bulkUpdateSaleMutation.isPending}
                         variant="destructive"
                       >
@@ -1090,6 +1117,52 @@ export default function PhotoManager() {
           )}
         </CardContent>
       </Card>
+
+      {/* Confirmation Modal for Sale Status Changes */}
+      <AlertDialog open={confirmSaleAction.open} onOpenChange={(open) => !open && setConfirmSaleAction({ open: false, action: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-500" />
+              Confirm Sale Status Change
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                You are about to change the sale status for <strong>{selectedPhotos.size} photo{selectedPhotos.size > 1 ? 's' : ''}</strong>.
+              </p>
+              {confirmSaleAction.action === 'forSale' ? (
+                <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-800">
+                    <strong>Mark for Sale:</strong> These photos will be available for purchase when the store is enabled. 
+                    Make sure each photo has appropriate pricing or custom purchase URLs configured.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800">
+                    <strong>Mark Not for Sale:</strong> These photos will never show purchase links, 
+                    regardless of global store settings. This action will remove them from commerce features.
+                  </p>
+                </div>
+              )}
+              <p className="text-sm text-gray-600 mt-2">
+                This action can be reversed by selecting the photos again and changing their status.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setConfirmSaleAction({ open: false, action: null })}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleSaleStatusConfirm}
+              className={confirmSaleAction.action === 'forSale' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'}
+            >
+              {bulkUpdateSaleMutation.isPending ? 'Updating...' : 'Confirm'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

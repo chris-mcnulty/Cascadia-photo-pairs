@@ -11,6 +11,22 @@ interface PhotoPairProps {
 
 export default function PhotoPair({ photo, onVote, isVoting, settings }: PhotoPairProps) {
   const purchaseUrl = photo.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
+  
+  const handlePurchaseClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    console.log('Purchase button clicked!');
+    console.log('Opening URL:', purchaseUrl);
+    console.log('Photo:', photo.title, 'For Sale:', !photo.neverForSale);
+    
+    // Try to open in new tab
+    const newWindow = window.open(purchaseUrl, '_blank');
+    if (!newWindow) {
+      // If popup blocked, navigate in same tab
+      console.log('Popup blocked, navigating directly');
+      window.location.href = purchaseUrl;
+    }
+  };
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Check if click is on purchase button or its children
@@ -61,12 +77,9 @@ export default function PhotoPair({ photo, onVote, isVoting, settings }: PhotoPa
           {settings?.purchaseEnabled && !photo.neverForSale && (
             <div className="mt-4">
               <button
-                className="purchase-button inline-flex items-center text-blue-600 hover:text-green-700 transition-colors duration-200 text-sm font-medium"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  console.log('Purchase button clicked, opening:', purchaseUrl);
-                  window.open(purchaseUrl, '_blank');
-                }}
+                type="button"
+                className="purchase-button inline-flex items-center px-3 py-1 text-blue-600 hover:text-white hover:bg-blue-600 border border-blue-600 rounded transition-all duration-200 text-sm font-medium"
+                onClick={handlePurchaseClick}
               >
                 <ShoppingCart className="w-4 h-4 mr-2" />
                 Purchase Print

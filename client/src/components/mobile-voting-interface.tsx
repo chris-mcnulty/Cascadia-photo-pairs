@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Photo, Settings } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Heart, ChevronLeft, ChevronRight, Zap, Menu, X, Smartphone, Plus, MousePointer, RefreshCw, Infinity, Globe, Mail, Share2, MessageSquare } from "lucide-react";
+import { Heart, ChevronLeft, ChevronRight, Zap, Menu, X, Smartphone, Plus, MousePointer, RefreshCw, Infinity, Globe, Mail, Share2, MessageSquare, ArrowLeft } from "lucide-react";
 import { FaInstagram, FaFacebookF, FaLinkedinIn } from "react-icons/fa6";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -82,8 +82,19 @@ export default function MobileVotingInterface({
         {/* Mobile Header with Navigation */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
           <div className="flex items-center justify-between p-4">
+            {/* Back Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onToggleView?.()}
+              className="p-2 flex items-center gap-2"
+            >
+              <ArrowLeft className="h-5 w-5" />
+              <span className="text-sm">Back</span>
+            </Button>
+
             {/* Logo */}
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 flex-1 justify-center">
               <div className="w-8 h-8 rounded overflow-hidden">
                 <img 
                   src={cascadiaLogoPath} 

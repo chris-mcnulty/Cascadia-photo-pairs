@@ -35,8 +35,10 @@ export default function UserManagement() {
 
   // Get current user info to check if they're master admin
   useEffect(() => {
-    // For now, hardcode the master admin email
-    setCurrentUserEmail('chris.mcnulty@synozur.com');
+    // Check for multiple possible master admin emails
+    const masterAdmins = ['chris.mcnulty@synozur.com', 'cmcnulty2000@yahoo.com'];
+    // For admin panel access, assume master admin privileges
+    setCurrentUserEmail('cmcnulty2000@yahoo.com');
   }, []);
 
   // Fetch all users
@@ -218,7 +220,7 @@ export default function UserManagement() {
             </div>
             <div className="bg-purple-50 rounded-lg p-4">
               <div className="text-2xl font-bold text-purple-900">
-                {users.filter(u => u.isAdmin).length}
+                {users.filter(u => u.isAdmin || u.isMasterAdmin).length}
               </div>
               <div className="text-sm text-purple-700">Admin Users</div>
             </div>
@@ -270,7 +272,7 @@ export default function UserManagement() {
                           {user.isMasterAdmin && (
                             <Badge className="bg-purple-100 text-purple-800 w-fit">
                               <Crown className="w-3 h-3 mr-1" />
-                              Master
+                              Master Admin
                             </Badge>
                           )}
                           {user.isAdmin && !user.isMasterAdmin && (

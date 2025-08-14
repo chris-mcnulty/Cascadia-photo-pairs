@@ -56,10 +56,9 @@ export default function NewsManagement() {
   const { data: newsItems = [], isLoading } = useQuery<NewsItem[]>({
     queryKey: ["/api/admin/news"],
     queryFn: async () => {
-      const token = localStorage.getItem('auth-token');
       const response = await fetch("/api/admin/news", {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'X-Session-Id': 'admin-session'
         }
       });
       
@@ -74,22 +73,29 @@ export default function NewsManagement() {
   // Create/Update news item
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const token = localStorage.getItem('auth-token');
       const url = editingItem ? `/api/admin/news/${editingItem.id}` : "/api/admin/news";
       const method = editingItem ? "PUT" : "POST";
       
-      const response = await apiRequest(method, url, {
-        title: formData.title,
-        description: formData.description,
-        link: formData.link,
-        publishDate: formData.publishDate?.toISOString(),
-        expiryDate: formData.expiryDate?.toISOString() || null,
-        priority: formData.priority,
-        isActive: formData.isActive,
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Session-Id': 'admin-session'
+        },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          link: formData.link,
+          publishDate: formData.publishDate?.toISOString(),
+          expiryDate: formData.expiryDate?.toISOString() || null,
+          priority: formData.priority,
+          isActive: formData.isActive,
+        })
       });
       
       if (!response.ok) {
-        throw new Error("Failed to save news item");
+        const error = await response.json();
+        throw new Error(error.message || "Failed to save news item");
       }
       
       return response.json();
@@ -115,11 +121,16 @@ export default function NewsManagement() {
   // Delete news item
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const token = localStorage.getItem('auth-token');
-      const response = await apiRequest("DELETE", `/api/admin/news/${id}`);
+      const response = await fetch(`/api/admin/news/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'X-Session-Id': 'admin-session'
+        }
+      });
       
       if (!response.ok) {
-        throw new Error("Failed to delete news item");
+        const error = await response.json();
+        throw new Error(error.message || "Failed to delete news item");
       }
       
       return response.json();

@@ -97,6 +97,16 @@ The app uses a modern React frontend with shadcn/ui components, Express.js backe
 - Category input fields integrated into both add photo and edit photo forms for seamless workflow
 - Complete category management workflow: create during upload, edit individually, or assign in bulk
 
+**Bulk Sale Status Management (January 2025)**
+- Implemented bulk sale status management with checkbox selection
+- Added "Mark for Sale" and "Mark Not for Sale" bulk actions
+- Confirmation modals with color-coded warnings (green for sale, red for not for sale)
+- Shows photo count in confirmation dialog before applying changes
+- Sale status filter dropdown to view "All", "For Sale", or "Not For Sale" photos
+- Backend endpoints for bulk updating neverForSale status
+- Visual indicators showing current sale status for each photo
+- Default setting: new photos are not for sale (neverForSale: true)
+
 **Intelligent Photo Pair Selection Algorithm (August 2025)**
 - Implemented smart photo selection rules to ensure fair and varied voting experiences
 - Rule 1: No duplicate photos within the same comparison pair (A vs A prevented)

@@ -36,6 +36,7 @@ export default function PhotoManager() {
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [bulkCategory, setBulkCategory] = useState<string>("");
   const [confirmSaleAction, setConfirmSaleAction] = useState<{ open: boolean; action: 'forSale' | 'notForSale' | null }>({ open: false, action: null });
+  const [saleStatusFilter, setSaleStatusFilter] = useState<"all" | "forSale" | "notForSale">("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState<InsertPhoto & { neverForSale?: boolean }>({
     title: "",
@@ -643,23 +644,44 @@ export default function PhotoManager() {
           {photos && photos.length > 0 && (
             <div className="space-y-4 mb-4 pb-4 border-b">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <ArrowUpDown className="w-4 h-4" />
-                  <span className="text-sm font-medium">Sort by:</span>
-                  <Select value={sortBy} onValueChange={(value: "name" | "votes" | "created") => setSortBy(value)}>
-                    <SelectTrigger className="w-40">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="name">Name (A-Z)</SelectItem>
-                      <SelectItem value="votes">Total Votes</SelectItem>
-                      <SelectItem value="created">Date Added</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <ArrowUpDown className="w-4 h-4" />
+                    <span className="text-sm font-medium">Sort by:</span>
+                    <Select value={sortBy} onValueChange={(value: "name" | "votes" | "created") => setSortBy(value)}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name">Name (A-Z)</SelectItem>
+                        <SelectItem value="votes">Total Votes</SelectItem>
+                        <SelectItem value="created">Date Added</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium">Filter by Sale:</span>
+                    <Select value={saleStatusFilter} onValueChange={(value: "all" | "forSale" | "notForSale") => setSaleStatusFilter(value)}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Photos</SelectItem>
+                        <SelectItem value="forSale">For Sale</SelectItem>
+                        <SelectItem value="notForSale">Not For Sale</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="text-sm text-gray-600">
-                    {photos.length} photos total
+                    {photos.filter(p => {
+                      if (saleStatusFilter === "forSale") return !p.neverForSale;
+                      if (saleStatusFilter === "notForSale") return p.neverForSale;
+                      return true;
+                    }).length} photos {saleStatusFilter !== "all" && "shown"}
                   </div>
                   {selectedPhotos.size > 0 && (
                     <div className="text-sm text-blue-600 font-medium">
@@ -753,15 +775,23 @@ export default function PhotoManager() {
             </div>
           ) : photos && photos.length > 0 ? (
             <div className="grid gap-4">
-              {[...photos].sort((a, b) => {
-                if (sortBy === "name") {
-                  return a.title.localeCompare(b.title);
-                } else if (sortBy === "votes") {
-                  return b.votes - a.votes; // Higher votes first
-                } else { // created
-                  return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // Newest first
-                }
-              }).map((photo) => (
+              {[...photos]
+                .filter(photo => {
+                  // Apply sale status filter
+                  if (saleStatusFilter === "forSale") return !photo.neverForSale;
+                  if (saleStatusFilter === "notForSale") return photo.neverForSale;
+                  return true;
+                })
+                .sort((a, b) => {
+                  if (sortBy === "name") {
+                    return a.title.localeCompare(b.title);
+                  } else if (sortBy === "votes") {
+                    return b.votes - a.votes; // Higher votes first
+                  } else { // created
+                    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // Newest first
+                  }
+                })
+                .map((photo) => (
                 <div key={photo.id} className="space-y-4">
                   {/* Photo display row */}
                   <div className="flex items-center gap-4 p-4 border rounded-lg">

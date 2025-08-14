@@ -48,13 +48,17 @@ export default function PhotoPair({ photo, onVote, isVoting, settings }: PhotoPa
           
           {/* Purchase Link (Admin Configurable) */}
           {settings?.purchaseEnabled && !photo.neverForSale && (
-            <div className="mt-4">
+            <div className="mt-4" onClick={(e) => e.stopPropagation()}>
               <a 
                 href={purchaseUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center text-blue-600 hover:text-green-700 transition-colors duration-200 text-sm font-medium"
-                onClick={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  window.open(purchaseUrl, '_blank', 'noopener,noreferrer');
+                }}
               >
                 <ShoppingCart className="w-4 h-4 mr-2" />
                 Purchase Print

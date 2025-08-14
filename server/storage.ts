@@ -66,6 +66,10 @@ export class MemStorage implements IStorage {
       defaultPurchaseUrl: "https://www.chrismcnulty.net/store",
       adminPassword: "BradyBunch12!",
       mfaPhoneNumber: "+16179809810",
+      contestSignupText: "Join our monthly photo contest! The person who votes the most wins a free print of their choice.",
+      supportEmail: "support@cascadiaoceanic.com",
+      privacyPolicyUrl: "/privacy",
+      termsOfServiceUrl: "/terms",
     };
     
     // Initialize with sample photos (using stock photo URLs)
@@ -590,6 +594,10 @@ export class DatabaseStorage implements IStorage {
         defaultPurchaseUrl: "https://chrismcnulty.net/store",
         adminPassword: "BradyBunch12!",
         mfaPhoneNumber: "+16179809810",
+        contestSignupText: "Join our monthly photo contest! The person who votes the most wins a free print of their choice.",
+        supportEmail: "support@cascadiaoceanic.com",
+        privacyPolicyUrl: "/privacy",
+        termsOfServiceUrl: "/terms",
       };
       
       const [newSetting] = await db.insert(settings).values(defaultSettings).returning();

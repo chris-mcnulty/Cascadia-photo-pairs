@@ -22,6 +22,10 @@ export default function AdminSettings() {
     defaultPurchaseUrl: "https://www.chrismcnulty.net/store",
     adminPassword: "",
     mfaPhoneNumber: "",
+    contestSignupText: "",
+    supportEmail: "",
+    privacyPolicyUrl: "",
+    termsOfServiceUrl: "",
   });
 
   const updateSettingsMutation = useMutation({
@@ -99,6 +103,10 @@ export default function AdminSettings() {
         defaultPurchaseUrl: settings.defaultPurchaseUrl || "https://www.chrismcnulty.net/store",
         adminPassword: settings.adminPassword || "",
         mfaPhoneNumber: settings.mfaPhoneNumber || "",
+        contestSignupText: settings.contestSignupText || "Join our monthly photo contest! The person who votes the most wins a free print of their choice.",
+        supportEmail: settings.supportEmail || "support@cascadiaoceanic.com",
+        privacyPolicyUrl: settings.privacyPolicyUrl || "/privacy",
+        termsOfServiceUrl: settings.termsOfServiceUrl || "/terms",
       });
     }
   }, [settings]);
@@ -230,6 +238,85 @@ export default function AdminSettings() {
             />
             <div className="text-sm text-gray-500">
               Phone number to receive SMS verification codes. Include country code (e.g., +1 for US).
+            </div>
+          </div>
+
+          {/* Contest/Signup Text */}
+          <div className="space-y-2">
+            <Label htmlFor="contestSignupText" className="text-base font-medium">
+              Contest Signup Text
+            </Label>
+            <textarea
+              id="contestSignupText"
+              placeholder="Join our monthly photo contest! The person who votes the most wins a free print of their choice."
+              value={formData.contestSignupText}
+              onChange={(e) => 
+                setFormData(prev => ({ ...prev, contestSignupText: e.target.value }))
+              }
+              className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            />
+            <div className="text-sm text-gray-500">
+              This text appears on the signup page to encourage users to register. Mention benefits like leaderboard access and contest entries.
+            </div>
+          </div>
+
+          {/* Support Email */}
+          <div className="space-y-2">
+            <Label htmlFor="supportEmail" className="text-base font-medium">
+              Support Email
+            </Label>
+            <Input
+              id="supportEmail"
+              type="email"
+              placeholder="support@cascadiaoceanic.com"
+              value={formData.supportEmail}
+              onChange={(e) => 
+                setFormData(prev => ({ ...prev, supportEmail: e.target.value }))
+              }
+              className="w-full"
+            />
+            <div className="text-sm text-gray-500">
+              Contact email displayed in footer and support sections.
+            </div>
+          </div>
+
+          {/* Privacy Policy URL */}
+          <div className="space-y-2">
+            <Label htmlFor="privacyPolicyUrl" className="text-base font-medium">
+              Privacy Policy URL
+            </Label>
+            <Input
+              id="privacyPolicyUrl"
+              type="text"
+              placeholder="/privacy"
+              value={formData.privacyPolicyUrl}
+              onChange={(e) => 
+                setFormData(prev => ({ ...prev, privacyPolicyUrl: e.target.value }))
+              }
+              className="w-full"
+            />
+            <div className="text-sm text-gray-500">
+              URL or path to your privacy policy page (shown in footer).
+            </div>
+          </div>
+
+          {/* Terms of Service URL */}
+          <div className="space-y-2">
+            <Label htmlFor="termsOfServiceUrl" className="text-base font-medium">
+              Terms of Service URL
+            </Label>
+            <Input
+              id="termsOfServiceUrl"
+              type="text"
+              placeholder="/terms"
+              value={formData.termsOfServiceUrl}
+              onChange={(e) => 
+                setFormData(prev => ({ ...prev, termsOfServiceUrl: e.target.value }))
+              }
+              className="w-full"
+            />
+            <div className="text-sm text-gray-500">
+              URL or path to your terms of service page (shown in footer).
             </div>
           </div>
 

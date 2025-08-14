@@ -28,6 +28,8 @@ export default function AdminSettings() {
     termsOfServiceUrl: "",
     userLoginEnabledDev: true,
     userLoginEnabledProd: false,
+    consentCopyLong: "",
+    consentCopyShort: "",
   });
 
   const updateSettingsMutation = useMutation({
@@ -111,6 +113,8 @@ export default function AdminSettings() {
         termsOfServiceUrl: settings.termsOfServiceUrl || "/terms",
         userLoginEnabledDev: settings.userLoginEnabledDev !== undefined ? settings.userLoginEnabledDev : true,
         userLoginEnabledProd: settings.userLoginEnabledProd !== undefined ? settings.userLoginEnabledProd : false,
+        consentCopyLong: settings.consentCopyLong || "By registering, you agree to receive updates, tips, and offers from Christopher F. McNulty (Chris) and Cascadia Oceanic LLC. You can unsubscribe anytime via the link in our emails or by contacting privacy@chrismcnulty.net. We do not sell your information. See our Privacy Policy: https://www.chrismcnulty.net/privacy",
+        consentCopyShort: settings.consentCopyShort || "By registering, you agree to receive updates from Chris McNulty and Cascadia Oceanic. Unsubscribe anytime. Privacy Policy: chrismcnulty.net/privacy",
       });
     }
   }, [settings]);
@@ -366,6 +370,44 @@ export default function AdminSettings() {
             />
             <div className="text-sm text-gray-500">
               URL or path to your terms of service page (shown in footer).
+            </div>
+          </div>
+
+          {/* Consent Copy - Long Form */}
+          <div className="space-y-2">
+            <Label htmlFor="consentCopyLong" className="text-base font-medium">
+              Consent Copy - Long Form (Web)
+            </Label>
+            <textarea
+              id="consentCopyLong"
+              placeholder="By registering, you agree to receive updates, tips, and offers from Christopher F. McNulty (Chris) and Cascadia Oceanic LLC..."
+              value={formData.consentCopyLong}
+              onChange={(e) => 
+                setFormData(prev => ({ ...prev, consentCopyLong: e.target.value }))
+              }
+              className="w-full min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            />
+            <div className="text-sm text-gray-500">
+              Full consent text displayed on web signup pages. Should include complete privacy policy and unsubscribe information.
+            </div>
+          </div>
+
+          {/* Consent Copy - Short Form */}
+          <div className="space-y-2">
+            <Label htmlFor="consentCopyShort" className="text-base font-medium">
+              Consent Copy - Short Form (Mobile)
+            </Label>
+            <textarea
+              id="consentCopyShort"
+              placeholder="By registering, you agree to receive updates from Chris McNulty and Cascadia Oceanic..."
+              value={formData.consentCopyShort}
+              onChange={(e) => 
+                setFormData(prev => ({ ...prev, consentCopyShort: e.target.value }))
+              }
+              className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            />
+            <div className="text-sm text-gray-500">
+              Shortened consent text for mobile signup forms. Should be concise but legally compliant.
             </div>
           </div>
 

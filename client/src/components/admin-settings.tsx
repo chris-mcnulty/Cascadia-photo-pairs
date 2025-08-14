@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Settings } from "@shared/schema";
 
 export default function AdminSettings() {
   const { toast } = useToast();
+  const [isDatabaseSectionOpen, setIsDatabaseSectionOpen] = useState(false);
   
   const { data: settings, isLoading } = useQuery<Settings>({
     queryKey: ["/api/settings"],
@@ -135,41 +138,6 @@ export default function AdminSettings() {
           <CardTitle>Application Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          
-          {/* Database Management Section */}
-          <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
-            <div className="space-y-2">
-              <Label className="text-lg font-semibold text-green-900">Shared Database Configuration</Label>
-              <p className="text-sm text-green-700">
-                <strong>Database Status:</strong> Your development and production environments share the same Neon database. 
-                Changes made in either environment appear in both immediately. Your photo collection is synchronized across environments.
-              </p>
-              <div className="text-xs text-green-600 bg-green-100 p-2 rounded">
-                Current status: Database shared between environments
-              </div>
-            </div>
-            
-            <div className="flex gap-3">
-              <Button
-                type="button"
-                onClick={() => migrateToProductionMutation.mutate()}
-                disabled={migrateToProductionMutation.isPending}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                {migrateToProductionMutation.isPending ? "Checking..." : "Verify Database Sync"}
-              </Button>
-              
-              <Button
-                type="button"
-                onClick={() => initDatabaseMutation.mutate()}
-                disabled={initDatabaseMutation.isPending}
-                variant="outline"
-                className="border-blue-600 text-blue-600 hover:bg-blue-50"
-              >
-                {initDatabaseMutation.isPending ? "Initializing..." : "Quick Initialize"}
-              </Button>
-            </div>
-          </div>
           
           {/* User Login Toggle - Split Dev/Prod Settings */}
           <div className="space-y-4">
@@ -422,6 +390,65 @@ export default function AdminSettings() {
             </Button>
           </div>
         </CardContent>
+      </Card>
+      
+      {/* Collapsed Database Management Section */}
+      <Card className="mt-6 border-orange-300">
+        <Collapsible open={isDatabaseSectionOpen} onOpenChange={setIsDatabaseSectionOpen}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="hover:bg-orange-50 cursor-pointer">
+              <CardTitle className="flex items-center justify-between text-orange-800">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-orange-600" />
+                  Advanced Database Operations
+                </div>
+                {isDatabaseSectionOpen ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-4 pt-0">
+              <div className="p-4 border-2 border-orange-200 rounded-lg bg-orange-50">
+                <div className="space-y-2">
+                  <Label className="text-lg font-semibold text-orange-900">⚠️ Database Management</Label>
+                  <p className="text-sm text-orange-800">
+                    <strong>Warning:</strong> These operations can affect your entire database. Use with caution.
+                    Your development and production environments share the same Neon database.
+                  </p>
+                  <div className="text-xs text-orange-700 bg-orange-100 p-2 rounded">
+                    Current status: Database shared between environments
+                  </div>
+                </div>
+                
+                <div className="flex gap-3 mt-4">
+                  <Button
+                    type="button"
+                    onClick={() => migrateToProductionMutation.mutate()}
+                    disabled={migrateToProductionMutation.isPending}
+                    variant="outline"
+                    className="border-orange-600 text-orange-600 hover:bg-orange-50"
+                  >
+                    {migrateToProductionMutation.isPending ? "Checking..." : "Verify Database Sync"}
+                  </Button>
+                  
+                  <Button
+                    type="button"
+                    onClick={() => initDatabaseMutation.mutate()}
+                    disabled={initDatabaseMutation.isPending}
+                    variant="outline"
+                    className="border-orange-600 text-orange-600 hover:bg-orange-50"
+                  >
+                    {initDatabaseMutation.isPending ? "Initializing..." : "Quick Initialize"}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
     </form>
   );

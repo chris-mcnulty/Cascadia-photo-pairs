@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Calendar, Trash2, TrendingUp, BarChart3, AlertTriangle, Download, ArrowUpDown, FilterIcon } from "lucide-react";
+import { Calendar, Trash2, TrendingUp, BarChart3, AlertTriangle, Download, ArrowUpDown, FilterIcon, ChevronDown, ChevronRight } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface StatsData {
   totalVotes: number;
@@ -35,6 +36,7 @@ export default function AdminAnalytics() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [selectedVoterType, setSelectedVoterType] = useState<string>("all");
   const [rankingLimit, setRankingLimit] = useState<number>(20);
+  const [isPurgeSectionOpen, setIsPurgeSectionOpen] = useState(false);
 
   const { data: stats, isLoading } = useQuery<StatsData>({
     queryKey: ["/api/stats", startDate, endDate, selectedCategory, selectedVoterType],
@@ -461,15 +463,26 @@ export default function AdminAnalytics() {
         </CardContent>
       </Card>
 
-      {/* Test Data Purge */}
-      <Card className="border-red-200 dark:border-red-800">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-300">
-            <AlertTriangle className="w-5 h-5" />
-            Test Data Management
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      {/* Collapsed Test Data Purge Section */}
+      <Card className="border-red-300">
+        <Collapsible open={isPurgeSectionOpen} onOpenChange={setIsPurgeSectionOpen}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="hover:bg-red-50 cursor-pointer">
+              <CardTitle className="flex items-center justify-between text-red-800">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-red-600" />
+                  ⚠️ Test Data Management
+                </div>
+                {isPurgeSectionOpen ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-4 pt-0">
           <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border-l-4 border-red-400">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
@@ -574,7 +587,9 @@ export default function AdminAnalytics() {
               </div>
             </div>
           )}
-        </CardContent>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
     </div>
   );

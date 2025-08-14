@@ -17,6 +17,7 @@ import { FaFacebookF, FaLinkedinIn, FaXTwitter } from "react-icons/fa6";
 import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
 import { useTitle } from "@/hooks/use-title";
 import UserProfile from "@/components/user-profile";
+import Announcements from "@/components/announcements";
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -269,6 +270,9 @@ export default function Home() {
         />
       ) : (
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          
+          {/* Announcements */}
+          <Announcements />
           
           {/* Introduction Section */}
           <div className="text-center mb-12">

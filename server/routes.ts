@@ -1,8 +1,18 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { db } from "./db";
-import { photos, votes, settings, collections, users, emailVerifications, userStats } from "@shared/schema";
-import { eq, sql, and, or, inArray, gte, lte } from "drizzle-orm";
+import { 
+  photos, 
+  votes, 
+  settings, 
+  settings as settingsTable,
+  collections, 
+  users, 
+  emailVerifications, 
+  userStats, 
+  newsItems as newsItemsTable 
+} from "@shared/schema";
+import { eq, sql, and, or, inArray, gte, lte, desc, isNull } from "drizzle-orm";
 import { storage } from "./storage";
 import { insertVoteSchema, insertSettingsSchema, insertPhotoSchema, insertCollectionSchema } from "@shared/schema";
 import { 
@@ -888,6 +898,241 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting user:', error);
       res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+  
+  // Announcements endpoint (public)
+  app.get("/api/announcements", async (req, res) => {
+    try {
+      const [settings] = await db.select().from(settingsTable);
+      
+      if (!settings) {
+        return res.json({
+          announcementEnabled: false,
+          announcementText: "",
+          announcementType: "info",
+          monthlyContestActive: false,
+          quarterlyContestActive: false,
+        });
+      }
+      
+      const now = new Date();
+      const monthlyActive = settings.monthlyContestEnabled && 
+        settings.monthlyContestStartDate && 
+        settings.monthlyContestEndDate &&
+        now >= new Date(settings.monthlyContestStartDate) &&
+        now <= new Date(settings.monthlyContestEndDate);
+        
+      const quarterlyActive = settings.quarterlyContestEnabled && 
+        settings.quarterlyContestStartDate && 
+        settings.quarterlyContestEndDate &&
+        now >= new Date(settings.quarterlyContestStartDate) &&
+        now <= new Date(settings.quarterlyContestEndDate);
+      
+      res.json({
+        announcementEnabled: settings.announcementEnabled,
+        announcementText: settings.announcementText,
+        announcementType: settings.announcementType || "info",
+        monthlyContestActive: monthlyActive,
+        quarterlyContestActive: quarterlyActive,
+        monthlyContestText: settings.monthlyContestText || "",
+        quarterlyContestText: settings.quarterlyContestText || "",
+        monthlyContestStartDate: settings.monthlyContestStartDate,
+        monthlyContestEndDate: settings.monthlyContestEndDate,
+        quarterlyContestStartDate: settings.quarterlyContestStartDate,
+        quarterlyContestEndDate: settings.quarterlyContestEndDate,
+      });
+    } catch (error) {
+      console.error('Error fetching announcements:', error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+  
+  // News items endpoint (public)
+  app.get("/api/news", async (req, res) => {
+    try {
+      const now = new Date();
+      const newsItems = await db
+        .select()
+        .from(newsItemsTable)
+        .where(
+          and(
+            eq(newsItemsTable.isActive, true),
+            lte(newsItemsTable.publishDate, sql`${now}`),
+            or(
+              isNull(newsItemsTable.expiryDate),
+              gte(newsItemsTable.expiryDate, sql`${now}`)
+            )
+          )
+        )
+        .orderBy(desc(newsItemsTable.priority), desc(newsItemsTable.publishDate))
+        .limit(5);
+      
+      res.json(newsItems);
+    } catch (error) {
+      console.error('Error fetching news:', error);
+      res.status(500).json({ message: "Failed to fetch news" });
+    }
+  });
+  
+  // Admin: Get all news items
+  app.get("/api/admin/news", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      
+      if (!payload) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      // Check if user is admin
+      const [currentUser] = await db.select().from(users).where(eq(users.id, payload.userId));
+      if (!currentUser || !currentUser.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const newsItems = await db
+        .select()
+        .from(newsItemsTable)
+        .orderBy(desc(newsItemsTable.createdAt));
+      
+      res.json(newsItems);
+    } catch (error) {
+      console.error('Error fetching admin news:', error);
+      res.status(500).json({ message: "Failed to fetch news items" });
+    }
+  });
+  
+  // Admin: Create news item
+  app.post("/api/admin/news", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      
+      if (!payload) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      // Check if user is admin
+      const [currentUser] = await db.select().from(users).where(eq(users.id, payload.userId));
+      if (!currentUser || !currentUser.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const { title, description, link, publishDate, expiryDate, priority, isActive } = req.body;
+      
+      const [newsItem] = await db
+        .insert(newsItemsTable)
+        .values({
+          title,
+          description,
+          link,
+          publishDate: new Date(publishDate),
+          expiryDate: expiryDate ? new Date(expiryDate) : null,
+          priority: priority || 0,
+          isActive: isActive !== false,
+        })
+        .returning();
+      
+      res.json(newsItem);
+    } catch (error) {
+      console.error('Error creating news item:', error);
+      res.status(500).json({ message: "Failed to create news item" });
+    }
+  });
+  
+  // Admin: Update news item
+  app.put("/api/admin/news/:id", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      
+      if (!payload) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      // Check if user is admin
+      const [currentUser] = await db.select().from(users).where(eq(users.id, payload.userId));
+      if (!currentUser || !currentUser.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const { id } = req.params;
+      const { title, description, link, publishDate, expiryDate, priority, isActive } = req.body;
+      
+      const [updatedItem] = await db
+        .update(newsItemsTable)
+        .set({
+          title,
+          description,
+          link,
+          publishDate: new Date(publishDate),
+          expiryDate: expiryDate ? new Date(expiryDate) : null,
+          priority: priority || 0,
+          isActive: isActive !== false,
+        })
+        .where(eq(newsItemsTable.id, id))
+        .returning();
+      
+      if (!updatedItem) {
+        return res.status(404).json({ message: "News item not found" });
+      }
+      
+      res.json(updatedItem);
+    } catch (error) {
+      console.error('Error updating news item:', error);
+      res.status(500).json({ message: "Failed to update news item" });
+    }
+  });
+  
+  // Admin: Delete news item
+  app.delete("/api/admin/news/:id", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      
+      if (!payload) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      // Check if user is admin
+      const [currentUser] = await db.select().from(users).where(eq(users.id, payload.userId));
+      if (!currentUser || !currentUser.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const { id } = req.params;
+      
+      await db.delete(newsItemsTable).where(eq(newsItemsTable.id, id));
+      
+      res.json({ message: "News item deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting news item:', error);
+      res.status(500).json({ message: "Failed to delete news item" });
     }
   });
   

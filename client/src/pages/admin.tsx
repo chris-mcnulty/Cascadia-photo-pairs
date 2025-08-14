@@ -9,13 +9,15 @@ import AdminLogin from "@/components/admin-login";
 import AdminAnalytics from "@/components/admin-analytics";
 import UserManagement from "@/components/admin/user-management";
 import ContestSettings from "@/components/admin/contest-settings";
-import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy } from "lucide-react";
+import AnnouncementSettings from "@/components/admin/announcement-settings";
+import NewsManagement from "@/components/admin/news-management";
+import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell } from "lucide-react";
 import { Link } from "wouter";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
 
 function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"analytics" | "stats" | "settings" | "photos" | "users" | "contests">("analytics");
+  const [activeTab, setActiveTab] = useState<"analytics" | "stats" | "settings" | "photos" | "users" | "contests" | "announcements">("analytics");
   const { logout, isAuthenticated, sessionId } = useAuth();
 
   const { data: stats } = useQuery<{
@@ -155,6 +157,14 @@ function AdminDashboard() {
             Contests
           </Button>
           <Button
+            variant={activeTab === "announcements" ? "default" : "outline"}
+            onClick={() => setActiveTab("announcements")}
+            className="flex items-center"
+          >
+            <Bell className="w-4 h-4 mr-2" />
+            Announcements
+          </Button>
+          <Button
             variant={activeTab === "settings" ? "default" : "outline"}
             onClick={() => setActiveTab("settings")}
             className="flex items-center"
@@ -170,6 +180,12 @@ function AdminDashboard() {
         {activeTab === "photos" && <PhotoManager />}
         {activeTab === "users" && <UserManagement />}
         {activeTab === "contests" && <ContestSettings />}
+        {activeTab === "announcements" && (
+          <div className="space-y-6">
+            <AnnouncementSettings />
+            <NewsManagement />
+          </div>
+        )}
         {activeTab === "settings" && <AdminSettings />}
       </div>
     </div>

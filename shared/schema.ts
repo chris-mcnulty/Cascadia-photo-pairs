@@ -82,8 +82,10 @@ export const settings = pgTable("settings", {
   quarterlyContestEnabled: boolean("quarterly_contest_enabled").default(false).notNull(),
   quarterlyContestStartDate: timestamp("quarterly_contest_start_date"),
   quarterlyContestEndDate: timestamp("quarterly_contest_end_date"),
-  monthlyContestText: text("monthly_contest_text").default("Enter our monthly photo contest! Top voters win prizes."),
-  quarterlyContestText: text("quarterly_contest_text").default("Join our quarterly championship for bigger rewards!"),
+  // Master announcement settings
+  announcementEnabled: boolean("announcement_enabled").default(false).notNull(),
+  announcementText: text("announcement_text"),
+  announcementType: varchar("announcement_type").default("info"), // info, warning, success, contest
   monthlyContestEnabled: boolean("monthly_contest_enabled").default(false).notNull(),
   monthlyContestStartDate: timestamp("monthly_contest_start_date"),
   monthlyContestEndDate: timestamp("monthly_contest_end_date"),
@@ -234,3 +236,27 @@ export type UserFavorite = typeof userFavorites.$inferSelect;
 export type InsertUserFavorite = z.infer<typeof insertUserFavoriteSchema>;
 export type EmailVerification = typeof emailVerifications.$inferSelect;
 export type InsertEmailVerification = z.infer<typeof insertEmailVerificationSchema>;
+
+// News/Announcements table
+export const newsItems = pgTable("news_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title").notNull(),
+  description: text("description").notNull(),
+  link: text("link").notNull(),
+  publishDate: timestamp("publish_date").notNull(),
+  expiryDate: timestamp("expiry_date"),
+  isActive: boolean("is_active").default(true).notNull(),
+  priority: integer("priority").default(0).notNull(), // Higher priority shows first
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_news_items_publish_date").on(table.publishDate),
+  index("idx_news_items_active").on(table.isActive),
+]);
+
+export const insertNewsItemSchema = createInsertSchema(newsItems).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertNewsItem = z.infer<typeof insertNewsItemSchema>;
+export type NewsItem = typeof newsItems.$inferSelect;

@@ -245,24 +245,22 @@ export default function Leaderboard() {
               
               return (
                 <Card key={photo.id} className={`transition-all duration-200 hover:shadow-lg ${getRankStyle(rank)}`}>
-                  <CardContent className="p-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
-                      {/* Mobile Layout: Top Row */}
-                      <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto">
-                        {/* Rank */}
-                        <div className="flex items-center justify-center">
-                          <div className="text-center">
-                            <div className="flex justify-center mb-1">
-                              {getRankIcon(rank)}
-                            </div>
-                            <div className="font-bold text-lg text-gray-700">
-                              #{rank}
-                            </div>
-                          </div>
+                  <CardContent className="p-4 sm:p-6">
+                    {/* Mobile-first layout with grid for consistent alignment */}
+                    <div className="grid grid-cols-12 gap-3 sm:gap-4 items-start">
+                      {/* Rank - Always visible */}
+                      <div className="col-span-2 sm:col-span-1 flex flex-col items-center">
+                        <div className="flex justify-center mb-1">
+                          {getRankIcon(rank)}
                         </div>
+                        <div className="font-bold text-sm sm:text-base text-gray-700">
+                          #{rank}
+                        </div>
+                      </div>
 
-                        {/* Photo Thumbnail */}
-                        <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                      {/* Photo Thumbnail */}
+                      <div className="col-span-3 sm:col-span-2">
+                        <div className="w-full aspect-square rounded-lg overflow-hidden bg-gray-100 max-w-[80px] sm:max-w-[100px]">
                           <img
                             src={photo.imageUrl}
                             alt={photo.title}
@@ -270,86 +268,91 @@ export default function Leaderboard() {
                             loading="lazy"
                           />
                         </div>
-
-                        {/* Photo Info with fixed width */}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-base sm:text-lg text-gray-900 font-epilogue">
-                            {photo.title}
-                          </h3>
-                          {photo.description && (
-                            <div className="mt-1">
-                              <p className={`text-gray-600 text-xs sm:text-sm ${
-                                expandedDescriptions.has(photo.id) ? '' : 'line-clamp-2'
-                              }`}>
-                                {photo.description}
-                              </p>
-                              {photo.description.length > 100 && (
-                                <button
-                                  onClick={() => toggleDescription(photo.id)}
-                                  className="text-cascadia-green hover:text-green-700 text-xs font-medium mt-1 flex items-center gap-1"
-                                >
-                                  {expandedDescriptions.has(photo.id) ? (
-                                    <>
-                                      <ChevronUp className="w-3 h-3" />
-                                      Show less
-                                    </>
-                                  ) : (
-                                    <>
-                                      <ChevronDown className="w-3 h-3" />
-                                      Show more
-                                    </>
-                                  )}
-                                </button>
-                              )}
-                            </div>
-                          )}
-                          {photo.category && (
-                            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2 sm:mt-3">
-                              <Badge variant="outline" className="text-xs">
-                                {photo.category}
-                              </Badge>
-                            </div>
-                          )}
-                        </div>
                       </div>
 
-                      {/* Statistics - Fixed width for consistent layout */}
-                      <div className="flex-shrink-0 mt-4 sm:mt-0 sm:w-48 lg:w-56">
-                        <div className="flex sm:block justify-between items-center">
-                          <div className="text-left sm:text-right">
+                      {/* Photo Info - Constrained width to prevent overflow */}
+                      <div className="col-span-7 sm:col-span-6 min-w-0 pr-2">
+                        <h3 className="font-bold text-sm sm:text-base text-gray-900 font-epilogue mb-1 truncate">
+                          {photo.title}
+                        </h3>
+                        
+                        {photo.category && (
+                          <Badge variant="outline" className="text-xs mb-2">
+                            {photo.category}
+                          </Badge>
+                        )}
+                        
+                        {photo.description && (
+                          <div className="mt-1">
+                            <p className={`text-gray-600 text-xs leading-tight ${
+                              expandedDescriptions.has(photo.id) ? '' : 'line-clamp-3 sm:line-clamp-2'
+                            }`}>
+                              {photo.description}
+                            </p>
+                            {photo.description.length > 80 && (
+                              <button
+                                onClick={() => toggleDescription(photo.id)}
+                                className="text-cascadia-green hover:text-green-700 text-xs font-medium mt-1 flex items-center gap-1"
+                              >
+                                {expandedDescriptions.has(photo.id) ? (
+                                  <>
+                                    <ChevronUp className="w-3 h-3" />
+                                    Less
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown className="w-3 h-3" />
+                                    More
+                                  </>
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Statistics - Fixed width column */}
+                      <div className="col-span-12 sm:col-span-3 mt-3 sm:mt-0">
+                        <div className="bg-gray-50 rounded-lg p-3 sm:bg-transparent sm:p-0">
+                          {/* Primary stat - large and prominent */}
+                          <div className="text-center sm:text-right mb-2 sm:mb-3">
                             <div className="text-xl sm:text-2xl font-bold text-cascadia-green">
                               {activeTab === 'votes' ? photo.votes.toLocaleString() : `${winRate}%`}
                             </div>
-                            <div className="text-xs text-gray-500">
-                              {activeTab === 'votes' ? 'Total Votes' : 'Win Rate'}
+                            <div className="text-xs text-gray-500 font-medium">
+                              {activeTab === 'votes' ? 'Win Rate' : 'Total Votes'}
                             </div>
                           </div>
-                          <div className="border-l sm:border-l-0 sm:border-t pl-4 sm:pl-0 sm:pt-2 sm:mt-2">
-                            <div className="text-sm sm:text-right">
+                          
+                          {/* Secondary stats - compact */}
+                          <div className="text-xs space-y-1 sm:text-right">
+                            <div>
                               <span className="text-gray-600">Votes: </span>
                               <span className="font-semibold text-gray-900">{photo.votes.toLocaleString()}</span>
                             </div>
-                            <div className="text-sm sm:text-right">
+                            <div>
                               <span className="text-gray-600">Win Rate: </span>
                               <span className="font-semibold text-cascadia-green">{winRate}%</span>
                             </div>
-                            <div className="text-xs text-gray-400 mt-1 sm:text-right">
+                            <div className="text-gray-400">
                               {photo.comparisons.toLocaleString()} matches
                             </div>
-                            {showPurchaseButton && (
-                              <div className="sm:text-right mt-2">
-                                <a
-                                  href={photo.customPurchaseUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 px-3 py-1 bg-cascadia-green text-white text-xs rounded-md hover:bg-green-700 transition-colors"
-                                >
-                                  <ShoppingCart className="w-3 h-3" />
-                                  Purchase
-                                </a>
-                              </div>
-                            )}
                           </div>
+                          
+                          {/* Purchase button */}
+                          {showPurchaseButton && (
+                            <div className="text-center sm:text-right mt-3">
+                              <a
+                                href={photo.customPurchaseUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-cascadia-green text-white text-xs rounded-md hover:bg-green-700 transition-colors"
+                              >
+                                <ShoppingCart className="w-3 h-3" />
+                                Purchase
+                              </a>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

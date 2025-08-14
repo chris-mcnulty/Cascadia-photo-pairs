@@ -19,6 +19,94 @@ import { useTitle } from "@/hooks/use-title";
 import UserProfile from "@/components/user-profile";
 import Announcements from "@/components/announcements";
 
+// Authentication status hook (for both admin and regular users)
+function useUserAuth() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem('auth-token');
+        if (!token) {
+          setIsAuthenticated(false);
+          setUser(null);
+          return;
+        }
+
+        const response = await fetch('/api/auth/user', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          setIsAuthenticated(true);
+          setUser(userData);
+        } else {
+          localStorage.removeItem('auth-token');
+          setIsAuthenticated(false);
+          setUser(null);
+        }
+      } catch (error) {
+        localStorage.removeItem('auth-token');
+        setIsAuthenticated(false);
+        setUser(null);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem('auth-token');
+    setIsAuthenticated(false);
+    setUser(null);
+    window.location.href = '/';
+  };
+
+  return { isAuthenticated, user, logout };
+}
+
+// Dynamic authentication buttons component
+function AuthenticationButtons({ isMobile = false }: { isMobile?: boolean }) {
+  const { isAuthenticated, user, logout } = useUserAuth();
+
+  if (isAuthenticated) {
+    return (
+      <div className={isMobile ? "flex flex-col gap-3" : "flex items-center gap-3"}>
+        <Link href="/profile">
+          <Button variant="outline" size="sm" className={isMobile ? "w-full" : ""}>
+            {user?.firstName ? `Hi, ${user.firstName}` : "Profile"}
+          </Button>
+        </Link>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={logout}
+          className={isMobile ? "w-full" : ""}
+        >
+          Sign Out
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className={isMobile ? "flex flex-col gap-3" : "flex items-center gap-3"}>
+      <Link href="/login">
+        <Button variant="outline" size="sm" className={isMobile ? "w-full" : ""}>
+          Sign In
+        </Button>
+      </Link>
+      <Link href="/signup">
+        <Button size="sm" className={`bg-cascadia-green hover:bg-green-700 ${isMobile ? "w-full" : ""}`}>
+          Sign Up
+        </Button>
+      </Link>
+    </div>
+  );
+}
+
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [useMobileInterface, setUseMobileInterface] = useState(false);
@@ -146,19 +234,8 @@ export default function Home() {
               >
                 Leaderboard
               </Link>
-              {settings?.userLoginEnabled && (
-                <div className="flex items-center gap-3">
-                  <Link href="/login">
-                    <Button variant="outline" size="sm">
-                      Sign In
-                    </Button>
-                  </Link>
-                  <Link href="/signup">
-                    <Button size="sm" className="bg-cascadia-green hover:bg-green-700">
-                      Sign Up
-                    </Button>
-                  </Link>
-                </div>
+              {settings?.userLoginEnabledDev && (
+                <AuthenticationButtons />
               )}
               <UserProfile />
             </nav>
@@ -222,21 +299,10 @@ export default function Home() {
                 >
                   Leaderboard
                 </Link>
-                {settings?.userLoginEnabled && (
-                  <>
-                    <Link href="/login">
-                      <Button variant="outline" size="sm" className="w-full">
-                        Sign In
-                      </Button>
-                    </Link>
-                    <Link href="/signup">
-                      <Button size="sm" className="bg-cascadia-green hover:bg-green-700 w-full">
-                        Sign Up
-                      </Button>
-                    </Link>
-                  </>
+                {settings?.userLoginEnabledDev && (
+                  <AuthenticationButtons isMobile />
                 )}
-                {!settings?.userLoginEnabled && (
+                {!settings?.userLoginEnabledDev && (
                   <a 
                     href="https://www.chrismcnulty.net/subscribe" 
                     className="bg-cascadia-green text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium text-center"

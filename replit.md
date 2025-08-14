@@ -6,6 +6,13 @@ This is a full-stack photo voting application designed for ranking landscape pho
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Site Owner Information
+- **Primary Owner**: Chris McNulty (cmcnulty2000@yahoo.com)
+- **Site Launch Date**: August 5, 2025
+- **Owner Role**: Photographer and site owner, master admin with full privileges
+- **Admin Hierarchy**: Master admins (protected) > Co-admins (can be downgraded) > Standard users
+- **Voting History**: All admin votes belong to Chris McNulty starting from August 5, 2025
+
 ## System Architecture
 
 ### Frontend Architecture
@@ -39,6 +46,8 @@ Preferred communication style: Simple, everyday language.
 - **System**: Complete user authentication with registration, login, password reset, and email verification.
 - **Security**: JWT-based authentication (7-day expiry), bcrypt for password hashing.
 - **Admin**: Admin dashboard for statistics and settings, with an option to enable/disable user login features. SMS-based two-factor authentication for admin security.
+- **Master Admin System**: cmcnulty2000@yahoo.com (Chris McNulty) is the primary master admin with MFA backdoor (121365). Master admins cannot be downgraded, co-admins can be downgraded to standard users.
+- **Analytics**: Both admins and master admins count as "admins" for tabulation purposes.
 
 ### Key Features
 - **Voting**: Photo pair randomization, win/loss ratio tracking, intelligent photo pair selection algorithm (no duplicates, no consecutive pairs).

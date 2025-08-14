@@ -1,154 +1,278 @@
-import { Request, Response, NextFunction } from 'express';
-import { storage } from './storage';
-import twilio from 'twilio';
-import { db } from './db';
-import { sessions } from '@shared/schema';
-import { eq, sql } from 'drizzle-orm';
-import type { Session, InsertSession } from '@shared/schema';
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import { db } from "./db";
+import { users, userStats, emailVerifications, userFavorites, contestEntries } from "@shared/schema";
+import { eq, and, gte } from "drizzle-orm";
+import type { User } from "@shared/schema";
 
-interface AuthSession {
-  isAuthenticated: boolean;
-  pendingMfa: boolean;
-  mfaCode?: string;
-  mfaExpiry?: number;
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
+const JWT_EXPIRES_IN = "7d";
+
+export interface AuthTokenPayload {
+  userId: string;
+  email: string;
+  isAdmin: boolean;
 }
 
-const twilioClient = twilio(
-  process.env.TWILIO_ACCOUNT_SID,
-  process.env.TWILIO_AUTH_TOKEN
-);
-
-export function generateSessionId(): string {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
 }
 
-export function generateMfaCode(): string {
-  // Hardcoded for testing - user requested 121365
-  return "121365";
+export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
 }
 
-export async function sendMfaCode(phoneNumber: string, code: string): Promise<boolean> {
-  // Temporarily skip SMS sending and return success for testing
-  console.log(`MFA Code for ${phoneNumber}: ${code} (hardcoded for testing)`);
+export function generateToken(payload: AuthTokenPayload): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+}
+
+export function verifyToken(token: string): AuthTokenPayload | null {
+  try {
+    return jwt.verify(token, JWT_SECRET) as AuthTokenPayload;
+  } catch {
+    return null;
+  }
+}
+
+export function generateResetToken(): string {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+export function generateVerificationToken(): string {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+export async function createUser(
+  email: string, 
+  username: string, 
+  password: string,
+  firstName?: string,
+  lastName?: string
+): Promise<User> {
+  const passwordHash = await hashPassword(password);
+  
+  // Create user
+  const [user] = await db.insert(users).values({
+    email,
+    username,
+    passwordHash,
+    firstName,
+    lastName,
+  }).returning();
+
+  // Create user stats entry
+  await db.insert(userStats).values({
+    userId: user.id,
+  });
+
+  return user;
+}
+
+export async function authenticateUser(emailOrUsername: string, password: string): Promise<User | null> {
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(
+      emailOrUsername.includes("@") 
+        ? eq(users.email, emailOrUsername)
+        : eq(users.username, emailOrUsername)
+    );
+
+  if (!user) return null;
+
+  const isValid = await verifyPassword(password, user.passwordHash);
+  if (!isValid) return null;
+
+  // Update last login
+  await db
+    .update(users)
+    .set({ lastLoginAt: new Date() })
+    .where(eq(users.id, user.id));
+
+  return user;
+}
+
+export async function createPasswordResetToken(email: string): Promise<string | null> {
+  const [user] = await db.select().from(users).where(eq(users.email, email));
+  if (!user) return null;
+
+  const token = generateResetToken();
+  const expiry = new Date(Date.now() + 3600000); // 1 hour
+
+  await db
+    .update(users)
+    .set({ 
+      resetToken: token,
+      resetTokenExpiry: expiry 
+    })
+    .where(eq(users.id, user.id));
+
+  return token;
+}
+
+export async function resetPassword(token: string, newPassword: string): Promise<boolean> {
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(
+      and(
+        eq(users.resetToken, token),
+        gte(users.resetTokenExpiry, new Date())
+      )
+    );
+
+  if (!user) return false;
+
+  const passwordHash = await hashPassword(newPassword);
+  
+  await db
+    .update(users)
+    .set({ 
+      passwordHash,
+      resetToken: null,
+      resetTokenExpiry: null 
+    })
+    .where(eq(users.id, user.id));
+
   return true;
 }
 
-export async function getSession(sessionId: string): Promise<AuthSession> {
-  try {
-    const [session] = await db.select().from(sessions).where(eq(sessions.id, sessionId));
-    
-    if (!session) {
-      return { isAuthenticated: false, pendingMfa: false };
-    }
-    
-    // Check if session is expired (24 hours)
-    const lastActive = new Date(session.lastActiveAt);
-    const now = new Date();
-    const hoursSinceActive = (now.getTime() - lastActive.getTime()) / (1000 * 60 * 60);
-    
-    if (hoursSinceActive > 24) {
-      await clearSession(sessionId);
-      return { isAuthenticated: false, pendingMfa: false };
-    }
-    
-    // Update last active timestamp
-    await db
-      .update(sessions)
-      .set({ lastActiveAt: sql`CURRENT_TIMESTAMP` })
-      .where(eq(sessions.id, sessionId));
-    
-    return {
-      isAuthenticated: session.isAuthenticated,
-      pendingMfa: session.pendingMfa,
-      mfaCode: session.mfaCode || undefined,
-      mfaExpiry: session.mfaExpiry ? parseInt(session.mfaExpiry) : undefined,
-    };
-  } catch (error) {
-    console.error('Error getting session:', error);
-    return { isAuthenticated: false, pendingMfa: false };
-  }
-}
+export async function createEmailVerificationToken(userId: string): Promise<string> {
+  const token = generateVerificationToken();
+  const expiresAt = new Date(Date.now() + 86400000); // 24 hours
 
-export async function setSession(sessionId: string, session: AuthSession): Promise<void> {
-  try {
-    const sessionData: InsertSession = {
-      id: sessionId,
-      isAuthenticated: session.isAuthenticated,
-      pendingMfa: session.pendingMfa,
-      mfaCode: session.mfaCode || null,
-      mfaExpiry: session.mfaExpiry ? session.mfaExpiry.toString() : null,
-    };
-    
-    // Upsert the session
-    await db
-      .insert(sessions)
-      .values(sessionData)
-      .onConflictDoUpdate({
-        target: sessions.id,
-        set: {
-          isAuthenticated: sessionData.isAuthenticated,
-          pendingMfa: sessionData.pendingMfa,
-          mfaCode: sessionData.mfaCode,
-          mfaExpiry: sessionData.mfaExpiry,
-          lastActiveAt: sql`CURRENT_TIMESTAMP`,
-        },
-      });
-  } catch (error) {
-    console.error('Error setting session:', error);
-  }
-}
-
-export async function clearSession(sessionId: string): Promise<void> {
-  try {
-    await db.delete(sessions).where(eq(sessions.id, sessionId));
-  } catch (error) {
-    console.error('Error clearing session:', error);
-  }
-}
-
-export function requireAuth(req: Request, res: Response, next: NextFunction): void {
-  const sessionId = req.headers['x-session-id'] as string;
-  
-  if (!sessionId) {
-    res.status(401).json({ message: 'Session ID required', requiresAuth: true });
-    return;
-  }
-  
-  getSession(sessionId).then(session => {
-    if (!session.isAuthenticated) {
-      res.status(401).json({ message: 'Authentication required', requiresAuth: true });
-      return;
-    }
-    
-    next();
-  }).catch(error => {
-    console.error('Auth error:', error);
-    res.status(500).json({ message: 'Authentication error' });
+  await db.insert(emailVerifications).values({
+    userId,
+    token,
+    expiresAt,
   });
+
+  return token;
 }
 
-// Cleanup expired MFA codes and old sessions every 5 minutes
-setInterval(async () => {
-  try {
-    const now = Date.now();
-    const oneDayAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
-    
-    // Clear expired MFA codes
-    await db
-      .update(sessions)
-      .set({ 
-        pendingMfa: false, 
-        mfaCode: null, 
-        mfaExpiry: null 
-      })
-      .where(sql`${sessions.mfaExpiry} IS NOT NULL AND CAST(${sessions.mfaExpiry} AS BIGINT) < ${now}`);
-    
-    // Delete sessions older than 24 hours
-    await db
-      .delete(sessions)
-      .where(sql`${sessions.lastActiveAt} < ${oneDayAgo}`);
-      
-  } catch (error) {
-    console.error('Session cleanup error:', error);
+export async function verifyEmail(token: string): Promise<boolean> {
+  const [verification] = await db
+    .select()
+    .from(emailVerifications)
+    .where(
+      and(
+        eq(emailVerifications.token, token),
+        gte(emailVerifications.expiresAt, new Date())
+      )
+    );
+
+  if (!verification) return false;
+
+  await db
+    .update(users)
+    .set({ emailVerified: true })
+    .where(eq(users.id, verification.userId));
+
+  // Delete used token
+  await db
+    .delete(emailVerifications)
+    .where(eq(emailVerifications.id, verification.id));
+
+  return true;
+}
+
+// Contest tracking functions
+export function getCurrentContestPeriod(type: "monthly" | "quarterly"): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth() + 1;
+  
+  if (type === "monthly") {
+    return `${year}-${month.toString().padStart(2, "0")}`;
+  } else {
+    const quarter = Math.ceil(month / 3);
+    return `${year}-Q${quarter}`;
   }
-}, 5 * 60 * 1000);
+}
+
+export async function trackUserVote(userId: string): Promise<void> {
+  // Get current stats
+  const [stats] = await db
+    .select()
+    .from(userStats)
+    .where(eq(userStats.userId, userId));
+    
+  if (stats) {
+    // Update existing stats
+    await db
+      .update(userStats)
+      .set({ 
+        totalVotes: stats.totalVotes + 1,
+        monthlyVotes: stats.monthlyVotes + 1,
+        quarterlyVotes: stats.quarterlyVotes + 1,
+        lastVoteAt: new Date()
+      })
+      .where(eq(userStats.userId, userId));
+  } else {
+    // Create new stats entry
+    await db.insert(userStats).values({
+      userId,
+      totalVotes: 1,
+      monthlyVotes: 1,
+      quarterlyVotes: 1,
+      lastVoteAt: new Date()
+    });
+  }
+
+  // Update or create contest entries
+  const monthlyPeriod = getCurrentContestPeriod("monthly");
+  const quarterlyPeriod = getCurrentContestPeriod("quarterly");
+
+  // Monthly contest entry
+  const [monthlyEntry] = await db
+    .select()
+    .from(contestEntries)
+    .where(
+      and(
+        eq(contestEntries.userId, userId),
+        eq(contestEntries.contestPeriod, monthlyPeriod),
+        eq(contestEntries.contestType, "monthly")
+      )
+    );
+
+  if (monthlyEntry) {
+    await db
+      .update(contestEntries)
+      .set({ voteCount: monthlyEntry.voteCount + 1 })
+      .where(eq(contestEntries.id, monthlyEntry.id));
+  } else {
+    await db.insert(contestEntries).values({
+      userId,
+      contestPeriod: monthlyPeriod,
+      contestType: "monthly",
+      voteCount: 1,
+    });
+  }
+
+  // Quarterly contest entry
+  const [quarterlyEntry] = await db
+    .select()
+    .from(contestEntries)
+    .where(
+      and(
+        eq(contestEntries.userId, userId),
+        eq(contestEntries.contestPeriod, quarterlyPeriod),
+        eq(contestEntries.contestType, "quarterly")
+      )
+    );
+
+  if (quarterlyEntry) {
+    await db
+      .update(contestEntries)
+      .set({ voteCount: quarterlyEntry.voteCount + 1 })
+      .where(eq(contestEntries.id, quarterlyEntry.id));
+  } else {
+    await db.insert(contestEntries).values({
+      userId,
+      contestPeriod: quarterlyPeriod,
+      contestType: "quarterly",
+      voteCount: 1,
+    });
+  }
+}

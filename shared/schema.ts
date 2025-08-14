@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -27,12 +27,34 @@ export const photos = pgTable("photos", {
   neverForSale: boolean("never_for_sale").default(true).notNull(), // Changed default to true
 });
 
+// Moving users table before votes table
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").notNull().unique(),
+  username: varchar("username").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: text("profile_image_url"),
+  emailVerified: boolean("email_verified").default(false).notNull(),
+  resetToken: varchar("reset_token"),
+  resetTokenExpiry: timestamp("reset_token_expiry"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  lastLoginAt: timestamp("last_login_at"),
+  isAdmin: boolean("is_admin").default(false).notNull(),
+}, (table) => [
+  index("idx_users_email").on(table.email),
+  index("idx_users_reset_token").on(table.resetToken),
+]);
+
 export const votes = pgTable("votes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   photoId: varchar("photo_id").notNull().references(() => photos.id),
   winnerPhotoId: varchar("winner_photo_id").notNull().references(() => photos.id),
   loserPhotoId: varchar("loser_photo_id").notNull().references(() => photos.id),
   voterType: text("voter_type").default("user").notNull(), // "admin" or "user"
+  userId: varchar("user_id").references(() => users.id), // Track which user voted
   timestamp: text("timestamp").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
@@ -42,6 +64,11 @@ export const settings = pgTable("settings", {
   defaultPurchaseUrl: text("default_purchase_url").default("https://www.chrismcnulty.net/store"),
   adminPassword: text("admin_password").default("BradyBunch12!").notNull(),
   mfaPhoneNumber: text("mfa_phone_number").default("+16179809810").notNull(),
+  // New fields for customizable content
+  contestSignupText: text("contest_signup_text").default("Join our monthly photo contest! The person who votes the most wins a free print of their choice."),
+  supportEmail: text("support_email").default("support@cascadiaoceanic.com"),
+  privacyPolicyUrl: text("privacy_policy_url").default("/privacy"),
+  termsOfServiceUrl: text("terms_of_service_url").default("/terms"),
 });
 
 export const sessions = pgTable("sessions", {
@@ -96,3 +123,92 @@ export type InsertSettings = z.infer<typeof insertSettingsSchema>;
 export type Settings = typeof settings.$inferSelect;
 export type InsertSession = z.infer<typeof insertSessionSchema>;
 export type Session = typeof sessions.$inferSelect;
+
+// User statistics table
+export const userStats = pgTable("user_stats", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  totalVotes: integer("total_votes").default(0).notNull(),
+  monthlyVotes: integer("monthly_votes").default(0).notNull(),
+  quarterlyVotes: integer("quarterly_votes").default(0).notNull(),
+  favoritePhotos: jsonb("favorite_photos").default([]).$type<string[]>(),
+  purchasedPhotos: jsonb("purchased_photos").default([]).$type<string[]>(),
+  lastVoteAt: timestamp("last_vote_at"),
+  currentStreak: integer("current_streak").default(0).notNull(),
+  longestStreak: integer("longest_streak").default(0).notNull(),
+});
+
+// Contest entries table
+export const contestEntries = pgTable("contest_entries", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  contestPeriod: varchar("contest_period").notNull(), // "2025-01" for monthly, "2025-Q1" for quarterly
+  contestType: varchar("contest_type").notNull(), // "monthly" or "quarterly"
+  voteCount: integer("vote_count").default(0).notNull(),
+  enteredAt: timestamp("entered_at").defaultNow().notNull(),
+  isWinner: boolean("is_winner").default(false).notNull(),
+}, (table) => [
+  index("idx_contest_entries_period").on(table.contestPeriod),
+  index("idx_contest_entries_user").on(table.userId),
+]);
+
+// User favorites table for tracking favorite photos
+export const userFavorites = pgTable("user_favorites", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  photoId: varchar("photo_id").notNull().references(() => photos.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_user_favorites_user").on(table.userId),
+  index("idx_user_favorites_photo").on(table.photoId),
+]);
+
+// Email verification tokens
+export const emailVerifications = pgTable("email_verifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  token: varchar("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Insert schemas for new tables
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  emailVerified: true,
+  isAdmin: true,
+});
+
+export const insertUserStatsSchema = createInsertSchema(userStats).omit({
+  id: true,
+});
+
+export const insertContestEntrySchema = createInsertSchema(contestEntries).omit({
+  id: true,
+  enteredAt: true,
+  isWinner: true,
+});
+
+export const insertUserFavoriteSchema = createInsertSchema(userFavorites).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertEmailVerificationSchema = createInsertSchema(emailVerifications).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Type exports for new tables
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UserStats = typeof userStats.$inferSelect;
+export type InsertUserStats = z.infer<typeof insertUserStatsSchema>;
+export type ContestEntry = typeof contestEntries.$inferSelect;
+export type InsertContestEntry = z.infer<typeof insertContestEntrySchema>;
+export type UserFavorite = typeof userFavorites.$inferSelect;
+export type InsertUserFavorite = z.infer<typeof insertUserFavoriteSchema>;
+export type EmailVerification = typeof emailVerifications.$inferSelect;
+export type InsertEmailVerification = z.infer<typeof insertEmailVerificationSchema>;

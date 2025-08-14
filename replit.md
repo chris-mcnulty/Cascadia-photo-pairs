@@ -8,6 +8,18 @@ The app uses a modern React frontend with shadcn/ui components, Express.js backe
 
 ## Recent Changes (January 2025)
 
+**Comprehensive User Authentication & Contest System (January 2025)**
+- Built complete user authentication system with registration, login, and password reset
+- Implemented email verification system with token-based verification
+- Created user statistics tracking (total votes, monthly votes, quarterly votes)
+- Developed contest entry system for monthly and quarterly voting competitions
+- Added user favorites and purchase history tracking
+- Built email notification system for welcome, verification, and contest winner emails
+- Integrated JWT-based authentication with 7-day token expiry
+- Created secure password hashing with bcrypt
+- Added customizable admin settings for contest text, support email, and privacy links
+- Database schema expanded with users, userStats, contestEntries, userFavorites tables
+
 **Public Leaderboard System (January 2025)**
 - Implemented comprehensive public leaderboard feature with dual ranking modes
 - Created API endpoints /api/leaderboard/votes and /api/leaderboard/wins for public access

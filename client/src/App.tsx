@@ -24,6 +24,7 @@ function Router() {
       <Route path="/reset-password" component={ResetPassword} />
       <Route path="/user-stats" component={UserStats} />
       <Route path="/profile" component={Profile} />
+      <Route path="/user-settings" component={Profile} />
       <Route component={NotFound} />
     </Switch>
   );

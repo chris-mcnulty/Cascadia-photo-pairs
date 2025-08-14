@@ -699,18 +699,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Transform date strings to Date objects for validation
       const processedData = { ...req.body };
-      if (processedData.monthlyContestStartDate && typeof processedData.monthlyContestStartDate === 'string') {
-        processedData.monthlyContestStartDate = new Date(processedData.monthlyContestStartDate);
-      }
-      if (processedData.monthlyContestEndDate && typeof processedData.monthlyContestEndDate === 'string') {
-        processedData.monthlyContestEndDate = new Date(processedData.monthlyContestEndDate);
-      }
-      if (processedData.quarterlyContestStartDate && typeof processedData.quarterlyContestStartDate === 'string') {
-        processedData.quarterlyContestStartDate = new Date(processedData.quarterlyContestStartDate);
-      }
-      if (processedData.quarterlyContestEndDate && typeof processedData.quarterlyContestEndDate === 'string') {
-        processedData.quarterlyContestEndDate = new Date(processedData.quarterlyContestEndDate);
-      }
+      
+      // Handle all possible date formats (strings, Date objects, or null)
+      const processDate = (dateValue: any) => {
+        if (!dateValue) return null;
+        if (typeof dateValue === 'string') return new Date(dateValue);
+        if (dateValue instanceof Date) return dateValue;
+        return null;
+      };
+      
+      processedData.monthlyContestStartDate = processDate(processedData.monthlyContestStartDate);
+      processedData.monthlyContestEndDate = processDate(processedData.monthlyContestEndDate);
+      processedData.quarterlyContestStartDate = processDate(processedData.quarterlyContestStartDate);
+      processedData.quarterlyContestEndDate = processDate(processedData.quarterlyContestEndDate);
       
       const settingsData = insertSettingsSchema.parse(processedData);
       console.log('Parsed settings data:', JSON.stringify(settingsData, null, 2));

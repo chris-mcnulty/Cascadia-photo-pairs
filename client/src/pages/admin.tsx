@@ -158,17 +158,38 @@ function AdminDashboard() {
 
 function AuthenticatedAdmin() {
   const { isAuthenticated, sessionId, login } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   
-  console.log('AuthenticatedAdmin - isAuthenticated:', isAuthenticated, 'sessionId:', sessionId);
+  useEffect(() => {
+    const checkAdminAuth = async () => {
+      // Check if this is truly an admin session
+      if (sessionId) {
+        try {
+          const response = await fetch('/api/auth/admin-status', {
+            headers: {
+              'x-session-id': sessionId
+            }
+          });
+          const data = await response.json();
+          setIsAdmin(data.isAdmin || false);
+        } catch (error) {
+          console.error('Admin auth check failed:', error);
+          setIsAdmin(false);
+        }
+      }
+      setCheckingAuth(false);
+    };
+    checkAdminAuth();
+  }, [sessionId]);
   
-  // Extra debugging to understand what's happening
-  if (!isAuthenticated && !sessionId) {
-    console.log('Showing AdminLogin because not authenticated');
-  } else {
-    console.log('Showing AdminDashboard because authenticated');
+  if (checkingAuth) {
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="text-lg">Checking authorization...</div>
+    </div>;
   }
   
-  if (!isAuthenticated || !sessionId) {
+  if (!isAuthenticated || !sessionId || !isAdmin) {
     return <AdminLogin onAuthenticated={login} />;
   }
   

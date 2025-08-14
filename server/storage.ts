@@ -580,6 +580,7 @@ export class DatabaseStorage implements IStorage {
       winnerPhotoId: insertVote.winnerPhotoId || insertVote.photoId,
       loserPhotoId: insertVote.loserPhotoId || insertVote.photoId,
       voterType: insertVote.voterType || "user",
+      userId: insertVote.userId || null,
       timestamp: new Date().toISOString(),
     };
 

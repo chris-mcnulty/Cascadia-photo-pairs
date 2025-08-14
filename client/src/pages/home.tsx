@@ -16,6 +16,7 @@ import { FaInstagram, FaThreads, FaBluesky } from "react-icons/fa6";
 import { FaFacebookF, FaLinkedinIn, FaXTwitter } from "react-icons/fa6";
 import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
 import { useTitle } from "@/hooks/use-title";
+import UserProfile from "@/components/user-profile";
 
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -158,6 +159,7 @@ export default function Home() {
                   </Link>
                 </div>
               )}
+              <UserProfile />
               <a 
                 href="/admin"
                 className="text-gray-500 hover:text-green-700 transition-colors duration-200 text-sm"

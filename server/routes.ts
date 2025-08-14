@@ -184,38 +184,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get Auth Status
-  app.get("/api/auth/status", async (req, res) => {
-    // Check for admin session first
+  // Get current user data
+  app.get("/api/auth/user", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      
+      if (!payload) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      // Get user data from database
+      const [user] = await db.select({
+        id: users.id,
+        email: users.email,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        profileImageUrl: users.profileImageUrl,
+        isAdmin: users.isAdmin,
+        emailVerified: users.emailVerified
+      }).from(users).where(eq(users.id, payload.userId));
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json(user);
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      res.status(500).json({ message: "Failed to fetch user data" });
+    }
+  });
+  
+  // Get Admin Auth Status (separate endpoint for admin panel)
+  app.get("/api/auth/admin-status", async (req, res) => {
     const adminSessionId = req.headers['x-session-id'] as string;
     if (adminSessionId) {
-      // Simple validation - in production you'd check this against a sessions table
-      // For now, any non-empty session ID is considered valid for admin
+      // This confirms admin panel access
+      return res.json({ 
+        authenticated: true,
+        isAdmin: true
+      });
+    }
+    return res.json({ authenticated: false, isAdmin: false });
+  });
+  
+  // Get Auth Status
+  app.get("/api/auth/status", async (req, res) => {
+    // Check for user JWT token first (not admin session)
+    const authHeader = req.headers.authorization;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      
+      if (payload) {
+        return res.json({ 
+          authenticated: true,
+          userId: payload.userId,
+          isAdmin: payload.isAdmin || false
+        });
+      }
+    }
+    
+    // Check for admin session (separate from user auth)
+    const adminSessionId = req.headers['x-session-id'] as string;
+    if (adminSessionId) {
+      // This is only for admin panel access, not user features
       return res.json({ 
         authenticated: true,
         isAdmin: true
       });
     }
     
-    // Check for user JWT token
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.json({ authenticated: false });
-    }
-    
-    const token = authHeader.substring(7);
-    const payload = verifyToken(token);
-    
-    if (!payload) {
-      return res.json({ authenticated: false });
-    }
-    
-    res.json({ 
-      authenticated: true,
-      userId: payload.userId,
-      isAdmin: payload.isAdmin
-    });
+    return res.json({ authenticated: false });
   });
 
   // Get all photos (optimized for admin interface)
@@ -426,23 +475,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const voteData = insertVoteSchema.parse(req.body);
       const { winnerPhotoId, loserPhotoId } = req.body;
       
-      // Check if user is admin
-      const sessionId = req.headers['x-session-id'] as string;
+      // Determine voter type and user ID
       let voterType = 'user';
+      let userId: string | undefined;
       
-      // Temporarily disabled session check until auth is fully implemented
-      // if (sessionId) {
-      //   const session = await getSession(sessionId);
-      //   if (session.isAuthenticated) {
-      //     voterType = 'admin';
-      //   }
-      // }
+      // Check for admin session
+      const sessionId = req.headers['x-session-id'] as string;
+      if (sessionId) {
+        voterType = 'admin';
+      }
+      
+      // Check for user JWT token
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.substring(7);
+        const payload = verifyToken(token);
+        if (payload) {
+          userId = payload.userId;
+          // If user has admin role, set voter type to admin
+          if (payload.isAdmin) {
+            voterType = 'admin';
+          }
+        }
+      }
       
       const vote = await storage.createVote({ 
         photoId: voteData.photoId, 
         winnerPhotoId: winnerPhotoId || voteData.photoId,
         loserPhotoId: loserPhotoId || voteData.photoId,
-        voterType
+        voterType,
+        userId
       });
       
       // Record comparison stats

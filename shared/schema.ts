@@ -71,7 +71,7 @@ export const settings = pgTable("settings", {
   privacyPolicyUrl: text("privacy_policy_url").default("/privacy"),
   termsOfServiceUrl: text("terms_of_service_url").default("/terms"),
   consentCopyLong: text("consent_copy_long").default("By registering, you agree to receive updates, tips, and offers from Christopher F. McNulty (Chris) and Cascadia Oceanic LLC. You can unsubscribe anytime via the link in our emails or by contacting privacy@chrismcnulty.net. We do not sell your information. See our Privacy Policy: https://www.chrismcnulty.net/privacy"),
-  consentCopyShort: text("consent_copy_short").default("By registering, you agree to receive updates from Chris McNulty and Cascadia Oceanic. Unsubscribe anytime. Privacy Policy: chrismcnulty.net/privacy"),
+  consentCopyShort: text("consent_copy_short").default("I agree to receive updates from Christopher F. McNulty (Chris) & Cascadia Oceanic LLC and accept the Privacy Policy."),
   // User login feature toggles - separate for dev/prod environments
   userLoginEnabledDev: boolean("user_login_enabled_dev").default(true).notNull(), // ON in development for testing
   userLoginEnabledProd: boolean("user_login_enabled_prod").default(false).notNull(), // OFF in production until ready

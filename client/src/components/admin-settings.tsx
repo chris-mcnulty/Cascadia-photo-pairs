@@ -114,7 +114,7 @@ export default function AdminSettings() {
         userLoginEnabledDev: settings.userLoginEnabledDev !== undefined ? settings.userLoginEnabledDev : true,
         userLoginEnabledProd: settings.userLoginEnabledProd !== undefined ? settings.userLoginEnabledProd : false,
         consentCopyLong: settings.consentCopyLong || "By registering, you agree to receive updates, tips, and offers from Christopher F. McNulty (Chris) and Cascadia Oceanic LLC. You can unsubscribe anytime via the link in our emails or by contacting privacy@chrismcnulty.net. We do not sell your information. See our Privacy Policy: https://www.chrismcnulty.net/privacy",
-        consentCopyShort: settings.consentCopyShort || "By registering, you agree to receive updates from Chris McNulty and Cascadia Oceanic. Unsubscribe anytime. Privacy Policy: chrismcnulty.net/privacy",
+        consentCopyShort: settings.consentCopyShort || "I agree to receive updates from Christopher F. McNulty (Chris) & Cascadia Oceanic LLC and accept the Privacy Policy.",
       });
     }
   }, [settings]);
@@ -399,7 +399,7 @@ export default function AdminSettings() {
             </Label>
             <textarea
               id="consentCopyShort"
-              placeholder="By registering, you agree to receive updates from Chris McNulty and Cascadia Oceanic..."
+              placeholder="I agree to receive updates from Christopher F. McNulty (Chris) & Cascadia Oceanic LLC and accept the Privacy Policy."
               value={formData.consentCopyShort}
               onChange={(e) => 
                 setFormData(prev => ({ ...prev, consentCopyShort: e.target.value }))

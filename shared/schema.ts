@@ -85,13 +85,7 @@ export const settings = pgTable("settings", {
   // Master announcement settings
   announcementEnabled: boolean("announcement_enabled").default(false).notNull(),
   announcementText: text("announcement_text"),
-  announcementType: varchar("announcement_type").default("info"), // info, warning, success, contest
-  monthlyContestEnabled: boolean("monthly_contest_enabled").default(false).notNull(),
-  monthlyContestStartDate: timestamp("monthly_contest_start_date"),
-  monthlyContestEndDate: timestamp("monthly_contest_end_date"),
-  quarterlyContestEnabled: boolean("quarterly_contest_enabled").default(false).notNull(),
-  quarterlyContestStartDate: timestamp("quarterly_contest_start_date"),
-  quarterlyContestEndDate: timestamp("quarterly_contest_end_date")
+  announcementType: varchar("announcement_type").default("info") // info, warning, success, contest
 });
 
 export const sessions = pgTable("sessions", {

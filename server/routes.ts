@@ -687,11 +687,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Update settings (admin only)
   app.put("/api/settings", async (req, res) => {
     try {
+      console.log('Received settings data:', JSON.stringify(req.body, null, 2));
       const settingsData = insertSettingsSchema.parse(req.body);
+      console.log('Parsed settings data:', JSON.stringify(settingsData, null, 2));
       const settings = await storage.updateSettings(settingsData);
       res.json(settings);
     } catch (error) {
-      res.status(400).json({ message: "Invalid settings data" });
+      console.error('Settings validation error:', error);
+      if (error instanceof Error) {
+        res.status(400).json({ 
+          message: "Invalid settings data", 
+          error: error.message,
+          details: error
+        });
+      } else {
+        res.status(400).json({ message: "Invalid settings data" });
+      }
     }
   });
 

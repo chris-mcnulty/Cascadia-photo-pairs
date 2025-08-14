@@ -670,28 +670,28 @@ export default function PhotoManager() {
               </div>
 
               {/* Bulk Actions */}
-              {selectedPhotos.size > 0 ? (
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={selectedPhotos.size === photos.length ? clearSelection : selectAllPhotos}
-                      className="text-blue-600 hover:text-blue-800"
-                    >
-                      {selectedPhotos.size === photos.length ? (
-                        <>
-                          <Square className="w-4 h-4 mr-1" />
-                          Clear All
-                        </>
-                      ) : (
-                        <>
-                          <CheckSquare className="w-4 h-4 mr-1" />
-                          Select All
-                        </>
-                      )}
-                    </Button>
-                    
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={selectedPhotos.size === photos.length ? clearSelection : selectAllPhotos}
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  {selectedPhotos.size === photos.length ? (
+                    <>
+                      <Square className="w-4 h-4 mr-1" />
+                      Clear All
+                    </>
+                  ) : (
+                    <>
+                      <CheckSquare className="w-4 h-4 mr-1" />
+                      Select All
+                    </>
+                  )}
+                </Button>
+                
+                {selectedPhotos.size > 0 && (
+                  <>
                     {/* Bulk Category */}
                     <Tag className="w-4 h-4 text-blue-600 ml-4" />
                     <span className="text-sm font-medium">Bulk Category:</span>
@@ -717,44 +717,37 @@ export default function PhotoManager() {
                     >
                       Cancel
                     </Button>
-                  </div>
-                  
-                  {/* Bulk Sale Status - Always visible when photos selected */}
-                  <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-300 shadow-sm">
+                  </>
+                )}
+              </div>
+              
+              {/* Bulk Sale Status - Separate section always visible when photos selected */}
+              {selectedPhotos.size > 0 && (
+                <div className="mt-4 p-4 bg-green-50 rounded-lg border-2 border-green-300">
+                  <div className="flex items-center gap-3">
                     <ShoppingCart className="w-5 h-5 text-green-700" />
                     <span className="text-base font-semibold text-green-900">Bulk Sale Management ({selectedPhotos.size} photos):</span>
                     <Button
-                      size="default"
-                      onClick={() => setConfirmSaleAction({ open: true, action: 'forSale' })}
+                      onClick={() => {
+                        console.log('Mark for Sale clicked');
+                        setConfirmSaleAction({ open: true, action: 'forSale' });
+                      }}
                       disabled={bulkUpdateSaleMutation.isPending}
-                      className="bg-green-600 hover:bg-green-700 text-white font-medium px-4"
+                      className="bg-green-600 hover:bg-green-700 text-white"
                     >
-                      <ShoppingCart className="w-4 h-4 mr-2" />
                       Mark for Sale
                     </Button>
                     <Button
-                      size="default"
-                      onClick={() => setConfirmSaleAction({ open: true, action: 'notForSale' })}
+                      onClick={() => {
+                        console.log('Mark Not for Sale clicked');
+                        setConfirmSaleAction({ open: true, action: 'notForSale' });
+                      }}
                       disabled={bulkUpdateSaleMutation.isPending}
-                      className="bg-red-600 hover:bg-red-700 text-white font-medium px-4"
+                      className="bg-red-600 hover:bg-red-700 text-white"
                     >
-                      <X className="w-4 h-4 mr-2" />
                       Mark Not for Sale
                     </Button>
                   </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={selectAllPhotos}
-                    className="text-blue-600 hover:text-blue-800"
-                  >
-                    <CheckSquare className="w-4 h-4 mr-1" />
-                    Select All
-                  </Button>
-                  <span className="text-sm text-gray-500">Select photos to manage categories and sale status</span>
                 </div>
               )}
             </div>

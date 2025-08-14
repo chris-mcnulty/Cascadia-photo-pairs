@@ -77,9 +77,9 @@ export default function PhotoPair({ photo, onVote, isVoting, settings }: PhotoPa
         </Card>
       </div>
       
-      {/* Purchase Link - Outside the animated card */}
-      {settings?.purchaseEnabled && !photo.neverForSale && (
-        <div className="mt-3 text-center">
+      {/* Purchase Link Area - Always reserve space */}
+      <div className="mt-3 text-center" style={{ minHeight: '40px' }}>
+        {settings?.purchaseEnabled && !photo.neverForSale && (
           <button
             type="button"
             className="inline-flex items-center px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg"
@@ -88,8 +88,8 @@ export default function PhotoPair({ photo, onVote, isVoting, settings }: PhotoPa
             <ShoppingCart className="w-4 h-4 mr-2" />
             Purchase Print
           </button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

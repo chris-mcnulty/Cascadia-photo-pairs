@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import AdminStats from "@/components/admin-stats";
 import AdminSettings from "@/components/admin-settings";
 import PhotoManager from "@/components/photo-manager";
 import AdminLogin from "@/components/admin-login";
@@ -11,13 +10,13 @@ import UserManagement from "@/components/admin/user-management";
 import ContestSettings from "@/components/admin/contest-settings";
 import AnnouncementSettings from "@/components/admin/announcement-settings";
 import NewsManagement from "@/components/admin/news-management";
-import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell } from "lucide-react";
+import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell, MessageSquare } from "lucide-react";
 import { Link } from "wouter";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
 
 function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"analytics" | "stats" | "settings" | "photos" | "users" | "contests" | "announcements">("analytics");
+  const [activeTab, setActiveTab] = useState<"analytics" | "photos" | "users" | "communication" | "settings">("analytics");
   const { logout, isAuthenticated, sessionId } = useAuth();
 
   const { data: stats } = useQuery<{
@@ -114,7 +113,7 @@ function AdminDashboard() {
           </div>
         )}
 
-        {/* Tabs */}
+        {/* Tabs - Reorganized into logical groups */}
         <div className="flex space-x-1 mb-8">
           <Button
             variant={activeTab === "analytics" ? "default" : "outline"}
@@ -123,14 +122,6 @@ function AdminDashboard() {
           >
             <BarChart3 className="w-4 h-4 mr-2" />
             Analytics
-          </Button>
-          <Button
-            variant={activeTab === "stats" ? "default" : "outline"}
-            onClick={() => setActiveTab("stats")}
-            className="flex items-center"
-          >
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Statistics
           </Button>
           <Button
             variant={activeTab === "photos" ? "default" : "outline"}
@@ -146,23 +137,15 @@ function AdminDashboard() {
             className="flex items-center"
           >
             <Users className="w-4 h-4 mr-2" />
-            Users
+            User Management
           </Button>
           <Button
-            variant={activeTab === "contests" ? "default" : "outline"}
-            onClick={() => setActiveTab("contests")}
+            variant={activeTab === "communication" ? "default" : "outline"}
+            onClick={() => setActiveTab("communication")}
             className="flex items-center"
           >
-            <Trophy className="w-4 h-4 mr-2" />
-            Contests
-          </Button>
-          <Button
-            variant={activeTab === "announcements" ? "default" : "outline"}
-            onClick={() => setActiveTab("announcements")}
-            className="flex items-center"
-          >
-            <Bell className="w-4 h-4 mr-2" />
-            Announcements
+            <MessageSquare className="w-4 h-4 mr-2" />
+            Communication
           </Button>
           <Button
             variant={activeTab === "settings" ? "default" : "outline"}
@@ -176,12 +159,11 @@ function AdminDashboard() {
 
         {/* Tab Content */}
         {activeTab === "analytics" && <AdminAnalytics />}
-        {activeTab === "stats" && <AdminStats />}
         {activeTab === "photos" && <PhotoManager />}
         {activeTab === "users" && <UserManagement />}
-        {activeTab === "contests" && <ContestSettings />}
-        {activeTab === "announcements" && (
+        {activeTab === "communication" && (
           <div className="space-y-6">
+            <ContestSettings />
             <AnnouncementSettings />
             <NewsManagement />
           </div>

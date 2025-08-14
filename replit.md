@@ -41,6 +41,16 @@ The app uses a modern React frontend with shadcn/ui components, Express.js backe
 
 ## Recent Changes (August 2025)
 
+**Admin Panel Reorganization (August 2025)**
+- Reorganized admin panel to reduce clutter by grouping related features
+- Combined user management into dedicated "User Management" section
+- Created "Communication" section grouping Contests, Announcements, and News
+- Removed redundant Statistics tab as Analytics already provides same information
+- Simplified navigation with 5 main sections: Analytics, Photos, User Management, Communication, Settings
+- Improved UI hierarchy for better administrative workflow
+
+## Recent Changes (August 2025)
+
 **Mobile Website & PWA Consistency (August 2025)**
 - Fixed mobile website layout to match PWA experience exactly
 - Removed problematic social sharing links (Twitter/X, BlueSky) to prevent overflow

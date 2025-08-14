@@ -69,8 +69,9 @@ export const settings = pgTable("settings", {
   supportEmail: text("support_email").default("support@cascadiaoceanic.com"),
   privacyPolicyUrl: text("privacy_policy_url").default("/privacy"),
   termsOfServiceUrl: text("terms_of_service_url").default("/terms"),
-  // User login feature toggle - OFF by default until ready for production
-  userLoginEnabled: boolean("user_login_enabled").default(false).notNull(),
+  // User login feature toggles - separate for dev/prod environments
+  userLoginEnabledDev: boolean("user_login_enabled_dev").default(true).notNull(), // ON in development for testing
+  userLoginEnabledProd: boolean("user_login_enabled_prod").default(false).notNull(), // OFF in production until ready
 });
 
 export const sessions = pgTable("sessions", {

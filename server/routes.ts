@@ -507,7 +507,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/settings", async (req, res) => {
     try {
       const settings = await storage.getSettings();
-      res.json(settings);
+      
+      // Determine which login setting to use based on environment
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      const userLoginEnabled = isDevelopment 
+        ? settings.userLoginEnabledDev 
+        : settings.userLoginEnabledProd;
+      
+      // Send settings with the appropriate login flag for the current environment
+      res.json({
+        ...settings,
+        userLoginEnabled, // Add a computed field for the current environment
+      });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch settings" });
     }

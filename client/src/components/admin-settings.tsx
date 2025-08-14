@@ -26,7 +26,8 @@ export default function AdminSettings() {
     supportEmail: "",
     privacyPolicyUrl: "",
     termsOfServiceUrl: "",
-    userLoginEnabled: false,
+    userLoginEnabledDev: true,
+    userLoginEnabledProd: false,
   });
 
   const updateSettingsMutation = useMutation({
@@ -108,7 +109,8 @@ export default function AdminSettings() {
         supportEmail: settings.supportEmail || "support@cascadiaoceanic.com",
         privacyPolicyUrl: settings.privacyPolicyUrl || "/privacy",
         termsOfServiceUrl: settings.termsOfServiceUrl || "/terms",
-        userLoginEnabled: settings.userLoginEnabled || false,
+        userLoginEnabledDev: settings.userLoginEnabledDev !== undefined ? settings.userLoginEnabledDev : true,
+        userLoginEnabledProd: settings.userLoginEnabledProd !== undefined ? settings.userLoginEnabledProd : false,
       });
     }
   }, [settings]);
@@ -165,24 +167,49 @@ export default function AdminSettings() {
             </div>
           </div>
           
-          {/* User Login Toggle - PRODUCTION FEATURE */}
-          <div className="flex items-center justify-between p-4 border-2 border-orange-300 bg-orange-50 rounded-lg">
-            <div className="space-y-0.5">
-              <Label className="text-base font-medium text-orange-900">Enable User Login Features</Label>
-              <div className="text-sm text-orange-700">
-                <strong>⚠️ Production Feature:</strong> Shows login/signup buttons and user-specific features
+          {/* User Login Toggle - Split Dev/Prod Settings */}
+          <div className="space-y-4">
+            <div className="text-lg font-semibold text-gray-900">User Login Features</div>
+            
+            {/* Development Toggle */}
+            <div className="flex items-center justify-between p-4 border border-blue-300 bg-blue-50 rounded-lg">
+              <div className="space-y-0.5">
+                <Label className="text-base font-medium text-blue-900">Enable in Development</Label>
+                <div className="text-sm text-blue-700">
+                  Test login/signup features in development environment
+                </div>
+                <div className="text-xs text-blue-600 mt-1">
+                  Safe to enable - only affects development environment
+                </div>
               </div>
-              <div className="text-xs text-orange-600 mt-1">
-                Keep OFF until ready for production. When enabled, users will see login options and personalized leaderboard features.
-              </div>
+              <Switch
+                checked={formData.userLoginEnabledDev}
+                onCheckedChange={(checked) => 
+                  setFormData(prev => ({ ...prev, userLoginEnabledDev: checked }))
+                }
+                className="data-[state=checked]:bg-blue-600"
+              />
             </div>
-            <Switch
-              checked={formData.userLoginEnabled}
-              onCheckedChange={(checked) => 
-                setFormData(prev => ({ ...prev, userLoginEnabled: checked }))
-              }
-              className="data-[state=checked]:bg-orange-600"
-            />
+
+            {/* Production Toggle */}
+            <div className="flex items-center justify-between p-4 border-2 border-orange-300 bg-orange-50 rounded-lg">
+              <div className="space-y-0.5">
+                <Label className="text-base font-medium text-orange-900">Enable in Production</Label>
+                <div className="text-sm text-orange-700">
+                  <strong>⚠️ Production Feature:</strong> Shows login/signup buttons to all users
+                </div>
+                <div className="text-xs text-orange-600 mt-1">
+                  Keep OFF until fully tested and ready for production rollout
+                </div>
+              </div>
+              <Switch
+                checked={formData.userLoginEnabledProd}
+                onCheckedChange={(checked) => 
+                  setFormData(prev => ({ ...prev, userLoginEnabledProd: checked }))
+                }
+                className="data-[state=checked]:bg-orange-600"
+              />
+            </div>
           </div>
 
           {/* Purchase Links Toggle */}

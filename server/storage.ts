@@ -71,7 +71,8 @@ export class MemStorage implements IStorage {
       supportEmail: "support@cascadiaoceanic.com",
       privacyPolicyUrl: "/privacy",
       termsOfServiceUrl: "/terms",
-      userLoginEnabled: false, // OFF by default until ready for production
+      userLoginEnabledDev: true, // ON in development for testing
+      userLoginEnabledProd: false, // OFF in production until ready
     };
     
     // Initialize with sample photos (using stock photo URLs)
@@ -610,6 +611,8 @@ export class DatabaseStorage implements IStorage {
         supportEmail: "support@cascadiaoceanic.com",
         privacyPolicyUrl: "/privacy",
         termsOfServiceUrl: "/terms",
+        userLoginEnabledDev: true,
+        userLoginEnabledProd: false,
       };
       
       const [newSetting] = await db.insert(settings).values(defaultSettings).returning();

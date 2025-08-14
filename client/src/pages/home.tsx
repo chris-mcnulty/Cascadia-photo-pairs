@@ -111,7 +111,7 @@ export default function Home() {
             </div>
 
             {/* Navigation Links */}
-            <nav className="hidden md:flex items-center space-x-8">
+            <nav className="hidden md:flex items-center space-x-6">
               <Button
                 variant="outline"
                 size="sm"
@@ -138,21 +138,27 @@ export default function Home() {
                 <FaInstagram className="w-4 h-4" />
                 Instagram
               </a>
-              <a 
+              <Link 
                 href="/leaderboard"
                 className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"
               >
                 Leaderboard
-              </a>
-              <a 
-                href="https://www.chrismcnulty.net/subscribe" 
-                className="bg-cascadia-green text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium"
-              >
-                Subscribe
-              </a>
+              </Link>
+              <div className="flex items-center gap-3">
+                <Link href="/login">
+                  <Button variant="outline" size="sm">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button size="sm" className="bg-cascadia-green hover:bg-green-700">
+                    Sign Up
+                  </Button>
+                </Link>
+              </div>
               <a 
                 href="/admin"
-                className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"
+                className="text-gray-500 hover:text-green-700 transition-colors duration-200 text-sm"
               >
                 Admin
               </a>
@@ -475,11 +481,37 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Copyright */}
+          {/* Copyright and Legal Links */}
           <div className="border-t border-gray-200 pt-8 mt-8 text-center">
-            <p className="text-gray-500 text-sm">
+            <p className="text-gray-500 text-sm mb-2">
               © Christopher F. McNulty 2025. All rights reserved.
             </p>
+            <div className="flex justify-center space-x-4 text-sm">
+              {settings?.privacyPolicyUrl && (
+                <a 
+                  href={settings.privacyPolicyUrl} 
+                  className="text-gray-500 hover:text-green-700 transition-colors"
+                >
+                  Privacy Policy
+                </a>
+              )}
+              {settings?.termsOfServiceUrl && (
+                <a 
+                  href={settings.termsOfServiceUrl} 
+                  className="text-gray-500 hover:text-green-700 transition-colors"
+                >
+                  Terms of Service
+                </a>
+              )}
+              {settings?.supportEmail && (
+                <a 
+                  href={`mailto:${settings.supportEmail}`} 
+                  className="text-gray-500 hover:text-green-700 transition-colors"
+                >
+                  Contact Support
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </footer>

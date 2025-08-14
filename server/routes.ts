@@ -1,17 +1,19 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { db } from "./db";
+import { photos, votes, settings, collections, users, emailVerifications } from "@shared/schema";
+import { eq, sql, and, or, inArray, gte, lte } from "drizzle-orm";
 import { storage } from "./storage";
 import { insertVoteSchema, insertSettingsSchema, insertPhotoSchema, insertCollectionSchema } from "@shared/schema";
-// Temporarily commenting out auth imports until we implement the full user system
-// import { 
-//   generateSessionId, 
-//   generateMfaCode, 
-//   sendMfaCode, 
-//   getSession, 
-//   setSession, 
-//   clearSession, 
-//   requireAuth 
-// } from "./auth";
+import { 
+  createUser, 
+  authenticateUser, 
+  generateToken, 
+  verifyToken,
+  resetPassword,
+  generateVerificationToken
+} from "./auth";
+import { sendVerificationEmail, sendPasswordResetEmail } from "./email";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -36,19 +38,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Temporarily disabled MFA verification until auth module is complete
-  // app.post("/api/auth/verify-mfa", async (req, res) => {
-  //   // MFA verification will be implemented with full user system
-  //   res.status(501).json({ message: "MFA not yet implemented" });
-  // });
+  // User Registration
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const { email, password, firstName, lastName } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      
+      // Check if user already exists
+      const [existingUser] = await db.select().from(users).where(eq(users.email, email));
+      if (existingUser) {
+        return res.status(409).json({ message: "Email already registered" });
+      }
+      
+      // Generate username from email
+      const username = email.split('@')[0];
+      
+      // Create user
+      const user = await createUser(email, username, password, firstName, lastName);
+      
+      // Generate verification token
+      const verificationToken = generateVerificationToken();
+      await db.insert(emailVerifications).values({
+        userId: user.id,
+        token: verificationToken,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+      });
+      
+      // Send verification email (if email service is configured)
+      await sendVerificationEmail(email, verificationToken);
+      
+      res.json({ 
+        message: "Registration successful! Please check your email to verify your account.",
+        userId: user.id
+      });
+    } catch (error) {
+      console.error('Registration error:', error);
+      res.status(500).json({ message: "Registration failed" });
+    }
+  });
   
-  // app.post("/api/auth/logout", async (req, res) => {
-  //   res.json({ message: "Logged out successfully" });
-  // });
+  // User Login
+  app.post("/api/auth/login", async (req, res) => {
+    try {
+      const { email, password } = req.body;
+      
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+      
+      const user = await authenticateUser(email, password);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+      
+      // Generate JWT token
+      const token = generateToken({
+        userId: user.id,
+        email: user.email,
+        isAdmin: user.isAdmin || false,
+      });
+      
+      res.json({ 
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          isAdmin: user.isAdmin,
+          emailVerified: user.emailVerified,
+        }
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ message: "Login failed" });
+    }
+  });
   
-  // app.get("/api/auth/status", async (req, res) => {
-  //   res.json({ authenticated: false });
-  // });
+  // Request Password Reset
+  app.post("/api/auth/request-reset", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+      
+      // Generate 6-digit code instead of long token for better UX
+      const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiry = new Date(Date.now() + 3600000); // 1 hour
+      
+      // Update user with reset code
+      const [user] = await db.select().from(users).where(eq(users.email, email));
+      if (user) {
+        await db
+          .update(users)
+          .set({ 
+            resetToken: resetCode,
+            resetTokenExpiry: expiry 
+          })
+          .where(eq(users.id, user.id));
+        
+        // Send reset email
+        await sendPasswordResetEmail(email, resetCode);
+      }
+      
+      // Always return success to prevent email enumeration
+      res.json({ message: "If the email exists, a reset code has been sent" });
+    } catch (error) {
+      console.error('Password reset request error:', error);
+      res.status(500).json({ message: "Failed to process reset request" });
+    }
+  });
+  
+  // Reset Password
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, password } = req.body;
+      
+      if (!token || !password) {
+        return res.status(400).json({ message: "Reset code and new password are required" });
+      }
+      
+      const success = await resetPassword(token, password);
+      if (!success) {
+        return res.status(400).json({ message: "Invalid or expired reset code" });
+      }
+      
+      res.json({ message: "Password reset successful" });
+    } catch (error) {
+      console.error('Password reset error:', error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+  
+  // Get Auth Status
+  app.get("/api/auth/status", async (req, res) => {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.json({ authenticated: false });
+    }
+    
+    const token = authHeader.substring(7);
+    const payload = verifyToken(token);
+    
+    if (!payload) {
+      return res.json({ authenticated: false });
+    }
+    
+    res.json({ 
+      authenticated: true,
+      userId: payload.userId,
+      isAdmin: payload.isAdmin
+    });
+  });
 
   // Get all photos (optimized for admin interface)
   app.get("/api/photos", async (req, res) => {

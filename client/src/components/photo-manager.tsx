@@ -721,35 +721,27 @@ export default function PhotoManager() {
                 )}
               </div>
               
-              {/* Bulk Sale Status - Separate section always visible when photos selected */}
-              {selectedPhotos.size > 0 && (
-                <div className="mt-4 p-4 bg-green-50 rounded-lg border-2 border-green-300">
-                  <div className="flex items-center gap-3">
-                    <ShoppingCart className="w-5 h-5 text-green-700" />
-                    <span className="text-base font-semibold text-green-900">Bulk Sale Management ({selectedPhotos.size} photos):</span>
-                    <Button
-                      onClick={() => {
-                        console.log('Mark for Sale clicked');
-                        setConfirmSaleAction({ open: true, action: 'forSale' });
-                      }}
-                      disabled={bulkUpdateSaleMutation.isPending}
-                      className="bg-green-600 hover:bg-green-700 text-white"
+              
+              {/* Bulk Sale Status - Directly below bulk actions */}
+              {selectedPhotos.size > 0 ? (
+                <div style={{ marginTop: '16px', padding: '16px', backgroundColor: '#d1fae5', borderRadius: '8px', border: '2px solid #10b981' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <strong>Sale Status ({selectedPhotos.size} selected):</strong>
+                    <button
+                      onClick={() => setConfirmSaleAction({ open: true, action: 'forSale' })}
+                      style={{ padding: '8px 16px', backgroundColor: '#10b981', color: 'white', borderRadius: '4px', border: 'none', cursor: 'pointer' }}
                     >
                       Mark for Sale
-                    </Button>
-                    <Button
-                      onClick={() => {
-                        console.log('Mark Not for Sale clicked');
-                        setConfirmSaleAction({ open: true, action: 'notForSale' });
-                      }}
-                      disabled={bulkUpdateSaleMutation.isPending}
-                      className="bg-red-600 hover:bg-red-700 text-white"
+                    </button>
+                    <button
+                      onClick={() => setConfirmSaleAction({ open: true, action: 'notForSale' })}
+                      style={{ padding: '8px 16px', backgroundColor: '#ef4444', color: 'white', borderRadius: '4px', border: 'none', cursor: 'pointer' }}
                     >
                       Mark Not for Sale
-                    </Button>
+                    </button>
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
 

@@ -129,7 +129,7 @@ export default function SimpleAnnouncements() {
 
       {/* Collapsible News & Updates Section */}
       {(announcement?.monthlyContestActive || announcement?.quarterlyContestActive || sortedNewsItems.length > 0) && (
-        <div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div onClick={() => setNewsExpanded(!newsExpanded)}>
             <Button
               variant="outline"

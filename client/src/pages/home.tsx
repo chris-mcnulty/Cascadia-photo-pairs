@@ -344,19 +344,7 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Voting Progress */}
-          <Card className="bg-cascadia-light mb-8">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Your Voting Progress</h3>
-                <div className="text-sm text-gray-600">
-                  {votesCount} votes cast
-                </div>
-              </div>
-              <Progress value={progressPercentage} className="h-2" />
-              <p className="text-xs text-gray-500 mt-2">Keep voting to help us curate the exhibition!</p>
-            </CardContent>
-          </Card>
+
 
           {/* Desktop Voting Interface */}
           {photoPair && (
@@ -369,25 +357,39 @@ export default function Home() {
           )}
 
           {/* Voting Instructions */}
-        <div className="text-center mt-8 mb-12">
-          <p className="text-gray-600 mb-4">Click on your preferred artwork to vote</p>
-          <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
-            <div className="flex items-center">
-              <MousePointer className="w-4 h-4 mr-2" />
-              Click to vote
-            </div>
-            <div className="flex items-center">
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Auto-load next pair
-            </div>
-            <div className="flex items-center">
-              <Infinity className="w-4 h-4 mr-2" />
-              Vote unlimited times
+          <div className="text-center mt-8 mb-12">
+            <p className="text-gray-600 mb-4">Click on your preferred artwork to vote</p>
+            <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
+              <div className="flex items-center">
+                <MousePointer className="w-4 h-4 mr-2" />
+                Click to vote
+              </div>
+              <div className="flex items-center">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Auto-load next pair
+              </div>
+              <div className="flex items-center">
+                <Infinity className="w-4 h-4 mr-2" />
+                Vote unlimited times
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Call to Action Section */}
+          {/* Voting Progress - Desktop Only */}
+          <Card className="bg-cascadia-light mb-12">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Your Voting Progress</h3>
+                <div className="text-sm text-gray-600">
+                  {votesCount} votes cast
+                </div>
+              </div>
+              <Progress value={progressPercentage} className="h-2" />
+              <p className="text-xs text-gray-500 mt-2">Keep voting to help us curate the exhibition!</p>
+            </CardContent>
+          </Card>
+
+          {/* Call to Action Section */}
         <div className="bg-gradient-to-r from-green-700 to-green-600 rounded-2xl p-8 text-white text-center">
           <div className="max-w-3xl mx-auto">
             <h3 className="text-2xl font-bold mb-4">Explore More Photography</h3>

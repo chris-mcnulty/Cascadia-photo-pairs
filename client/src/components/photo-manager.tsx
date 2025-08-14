@@ -669,32 +669,32 @@ export default function PhotoManager() {
               </div>
 
               {/* Bulk Actions */}
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={selectedPhotos.size === photos.length ? clearSelection : selectAllPhotos}
-                  className="text-blue-600 hover:text-blue-800"
-                >
-                  {selectedPhotos.size === photos.length ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={selectedPhotos.size === photos.length ? clearSelection : selectAllPhotos}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    {selectedPhotos.size === photos.length ? (
+                      <>
+                        <Square className="w-4 h-4 mr-1" />
+                        Clear All
+                      </>
+                    ) : (
+                      <>
+                        <CheckSquare className="w-4 h-4 mr-1" />
+                        Select All
+                      </>
+                    )}
+                  </Button>
+                  
+                  {selectedPhotos.size > 0 && (
                     <>
-                      <Square className="w-4 h-4 mr-1" />
-                      Clear All
-                    </>
-                  ) : (
-                    <>
-                      <CheckSquare className="w-4 h-4 mr-1" />
-                      Select All
-                    </>
-                  )}
-                </Button>
-                
-                {selectedPhotos.size > 0 && (
-                  <div className="flex flex-col gap-2 ml-4">
-                    {/* Bulk Category */}
-                    <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border">
-                      <Tag className="w-4 h-4 text-blue-600" />
-                      <span className="text-sm font-medium text-blue-800">Bulk Category:</span>
+                      {/* Bulk Category */}
+                      <Tag className="w-4 h-4 text-blue-600 ml-4" />
+                      <span className="text-sm font-medium">Bulk Category:</span>
                       <Input
                         type="text"
                         placeholder="Enter category name"
@@ -710,28 +710,6 @@ export default function PhotoManager() {
                       >
                         {bulkUpdateCategoryMutation.isPending ? "Updating..." : "Apply"}
                       </Button>
-                    </div>
-                    
-                    {/* Bulk Sale Status */}
-                    <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg border">
-                      <ShoppingCart className="w-4 h-4 text-green-600" />
-                      <span className="text-sm font-medium text-green-800">Sale Status:</span>
-                      <Button
-                        size="sm"
-                        onClick={() => setConfirmSaleAction({ open: true, action: 'forSale' })}
-                        disabled={bulkUpdateSaleMutation.isPending}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        Mark for Sale
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => setConfirmSaleAction({ open: true, action: 'notForSale' })}
-                        disabled={bulkUpdateSaleMutation.isPending}
-                        variant="destructive"
-                      >
-                        Mark Not for Sale
-                      </Button>
                       <Button
                         variant="outline"
                         size="sm"
@@ -739,7 +717,31 @@ export default function PhotoManager() {
                       >
                         Cancel
                       </Button>
-                    </div>
+                    </>
+                  )}
+                </div>
+                
+                {/* Bulk Sale Status - separate row */}
+                {selectedPhotos.size > 0 && (
+                  <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                    <ShoppingCart className="w-4 h-4 text-green-600" />
+                    <span className="text-sm font-medium text-green-800">Sale Status:</span>
+                    <Button
+                      size="sm"
+                      onClick={() => setConfirmSaleAction({ open: true, action: 'forSale' })}
+                      disabled={bulkUpdateSaleMutation.isPending}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      Mark for Sale
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => setConfirmSaleAction({ open: true, action: 'notForSale' })}
+                      disabled={bulkUpdateSaleMutation.isPending}
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                    >
+                      Mark Not for Sale
+                    </Button>
                   </div>
                 )}
               </div>

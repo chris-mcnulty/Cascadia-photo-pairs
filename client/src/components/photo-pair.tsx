@@ -40,54 +40,56 @@ export default function PhotoPair({ photo, onVote, isVoting, settings }: PhotoPa
   };
 
   return (
-    <div 
-      className="voting-option group cursor-pointer"
-      onClick={handleCardClick}
-    >
-      <Card className="relative bg-white shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]">
-        
-        {/* Vote Overlay */}
-        <div className="absolute inset-0 bg-green-700 bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center z-10">
-          <div className="bg-white rounded-full p-4 opacity-0 group-hover:opacity-100 transform scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg">
-            <Heart className="text-green-700 w-6 h-6 fill-current" />
-          </div>
-        </div>
-
-        {/* Photo */}
-        <div className="w-full h-96 bg-gray-100 flex items-center justify-center">
-          <img 
-            src={photo.imageUrl} 
-            alt={photo.title} 
-            className="w-full h-full object-contain" 
-          />
-        </div>
-        
-        {/* Photo Info */}
-        <CardContent className="p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-2">
-            {photo.title}
-          </h4>
-          {photo.description && (
-            <p className="text-sm text-gray-600 mb-4">
-              {photo.description}
-            </p>
-          )}
+    <div className="voting-option">
+      <div 
+        className="group cursor-pointer"
+        onClick={handleCardClick}
+      >
+        <Card className="relative bg-white shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]">
           
-          {/* Purchase Link (Admin Configurable) */}
-          {settings?.purchaseEnabled && !photo.neverForSale && (
-            <div className="mt-4">
-              <button
-                type="button"
-                className="purchase-button inline-flex items-center px-3 py-1 text-blue-600 hover:text-white hover:bg-blue-600 border border-blue-600 rounded transition-all duration-200 text-sm font-medium"
-                onClick={handlePurchaseClick}
-              >
-                <ShoppingCart className="w-4 h-4 mr-2" />
-                Purchase Print
-              </button>
+          {/* Vote Overlay */}
+          <div className="absolute inset-0 bg-green-700 bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 flex items-center justify-center z-10">
+            <div className="bg-white rounded-full p-4 opacity-0 group-hover:opacity-100 transform scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg">
+              <Heart className="text-green-700 w-6 h-6 fill-current" />
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+
+          {/* Photo */}
+          <div className="w-full h-96 bg-gray-100 flex items-center justify-center">
+            <img 
+              src={photo.imageUrl} 
+              alt={photo.title} 
+              className="w-full h-full object-contain" 
+            />
+          </div>
+          
+          {/* Photo Info */}
+          <CardContent className="p-6">
+            <h4 className="text-lg font-semibold text-gray-900 mb-2">
+              {photo.title}
+            </h4>
+            {photo.description && (
+              <p className="text-sm text-gray-600">
+                {photo.description}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Purchase Link - Outside the animated card */}
+      {settings?.purchaseEnabled && !photo.neverForSale && (
+        <div className="mt-3 text-center">
+          <button
+            type="button"
+            className="inline-flex items-center px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg"
+            onClick={handlePurchaseClick}
+          >
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            Purchase Print
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -184,6 +184,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Update user profile
+  app.put("/api/user/profile", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      
+      if (!payload) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      const { firstName, lastName, username, profileImageUrl } = req.body;
+      
+      // Update user profile
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          firstName,
+          lastName,
+          username,
+          profileImageUrl,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, payload.userId))
+        .returning();
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json(updatedUser);
+    } catch (error) {
+      console.error('Error updating user profile:', error);
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+  
   // Get current user data
   app.get("/api/auth/user", async (req, res) => {
     try {
@@ -705,6 +747,150 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: Get all users (requires admin)
+  app.get("/api/admin/users", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      
+      if (!payload) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      // Check if user is admin
+      const [currentUser] = await db.select().from(users).where(eq(users.id, payload.userId));
+      if (!currentUser || !currentUser.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      // Get all users with their vote counts
+      const allUsers = await db.select({
+        id: users.id,
+        email: users.email,
+        username: users.username,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        emailVerified: users.emailVerified,
+        isAdmin: users.isAdmin,
+        isMasterAdmin: users.isMasterAdmin,
+        createdAt: users.createdAt,
+        lastLoginAt: users.lastLoginAt,
+        totalVotes: sql`(SELECT COUNT(*) FROM ${votes} WHERE ${votes.userId} = ${users.id})`.as('totalVotes')
+      })
+      .from(users)
+      .orderBy(sql`${users.createdAt} DESC`);
+      
+      res.json(allUsers);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+  
+  // Admin: Update user admin status (requires master admin)
+  app.put("/api/admin/users/:userId/admin", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      
+      if (!payload) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      // Check if current user is master admin
+      const [currentUser] = await db.select().from(users).where(eq(users.id, payload.userId));
+      if (!currentUser || !currentUser.isMasterAdmin) {
+        return res.status(403).json({ message: "Only master admin can promote/demote other admins" });
+      }
+      
+      const { userId } = req.params;
+      const { isAdmin } = req.body;
+      
+      // Prevent modifying master admin status
+      const [targetUser] = await db.select().from(users).where(eq(users.id, userId));
+      if (targetUser?.isMasterAdmin) {
+        return res.status(403).json({ message: "Cannot modify master admin status" });
+      }
+      
+      // Update user admin status
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          isAdmin,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId))
+        .returning();
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json(updatedUser);
+    } catch (error) {
+      console.error('Error updating admin status:', error);
+      res.status(500).json({ message: "Failed to update admin status" });
+    }
+  });
+  
+  // Admin: Delete user (requires admin, cannot delete admins)
+  app.delete("/api/admin/users/:userId", async (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+      
+      const token = authHeader.substring(7);
+      const payload = verifyToken(token);
+      
+      if (!payload) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
+      
+      // Check if current user is admin
+      const [currentUser] = await db.select().from(users).where(eq(users.id, payload.userId));
+      if (!currentUser || !currentUser.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      
+      const { userId } = req.params;
+      
+      // Check if target user is admin or master admin
+      const [targetUser] = await db.select().from(users).where(eq(users.id, userId));
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      if (targetUser.isAdmin || targetUser.isMasterAdmin) {
+        return res.status(403).json({ message: "Cannot delete admin users" });
+      }
+      
+      // Delete user and related data
+      await db.delete(userStats).where(eq(userStats.userId, userId));
+      await db.delete(votes).where(eq(votes.userId, userId));
+      await db.delete(users).where(eq(users.id, userId));
+      
+      res.json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
+  
   // User statistics endpoint
   app.get("/api/user/stats", async (req, res) => {
     try {

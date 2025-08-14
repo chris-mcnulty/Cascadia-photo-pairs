@@ -7,13 +7,14 @@ import AdminSettings from "@/components/admin-settings";
 import PhotoManager from "@/components/photo-manager";
 import AdminLogin from "@/components/admin-login";
 import AdminAnalytics from "@/components/admin-analytics";
-import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut } from "lucide-react";
+import UserManagement from "@/components/admin/user-management";
+import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users } from "lucide-react";
 import { Link } from "wouter";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
 
 function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"analytics" | "stats" | "settings" | "photos">("analytics");
+  const [activeTab, setActiveTab] = useState<"analytics" | "stats" | "settings" | "photos" | "users">("analytics");
   const { logout, isAuthenticated, sessionId } = useAuth();
 
   const { data: stats } = useQuery<{
@@ -137,6 +138,14 @@ function AdminDashboard() {
             Photos
           </Button>
           <Button
+            variant={activeTab === "users" ? "default" : "outline"}
+            onClick={() => setActiveTab("users")}
+            className="flex items-center"
+          >
+            <Users className="w-4 h-4 mr-2" />
+            Users
+          </Button>
+          <Button
             variant={activeTab === "settings" ? "default" : "outline"}
             onClick={() => setActiveTab("settings")}
             className="flex items-center"
@@ -150,6 +159,7 @@ function AdminDashboard() {
         {activeTab === "analytics" && <AdminAnalytics />}
         {activeTab === "stats" && <AdminStats />}
         {activeTab === "photos" && <PhotoManager />}
+        {activeTab === "users" && <UserManagement />}
         {activeTab === "settings" && <AdminSettings />}
       </div>
     </div>

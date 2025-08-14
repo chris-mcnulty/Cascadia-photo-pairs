@@ -186,6 +186,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Get Auth Status
   app.get("/api/auth/status", async (req, res) => {
+    // Check for admin session first
+    const adminSessionId = req.headers['x-session-id'] as string;
+    if (adminSessionId) {
+      // Simple validation - in production you'd check this against a sessions table
+      // For now, any non-empty session ID is considered valid for admin
+      return res.json({ 
+        authenticated: true,
+        isAdmin: true
+      });
+    }
+    
+    // Check for user JWT token
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

@@ -74,11 +74,6 @@ function AuthenticationButtons({ isMobile = false }: { isMobile?: boolean }) {
   if (isAuthenticated) {
     return (
       <div className={isMobile ? "flex flex-col gap-3" : "flex items-center gap-3"}>
-        <Link href="/profile">
-          <Button variant="outline" size="sm" className={isMobile ? "w-full" : ""}>
-            {user?.firstName ? `Hi, ${user.firstName}` : "Profile"}
-          </Button>
-        </Link>
         <Button 
           variant="outline" 
           size="sm" 

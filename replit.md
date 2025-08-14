@@ -11,7 +11,9 @@ Preferred communication style: Simple, everyday language.
 - **Site Launch Date**: August 5, 2025
 - **Owner Role**: Photographer and site owner, master admin with full privileges
 - **Admin Hierarchy**: Master admins (protected) > Co-admins (can be downgraded) > Standard users
+- **Current Admins**: cmcnulty2000@yahoo.com (master admin), chris.mcnulty@synozur.com (co-admin)
 - **Voting History**: All admin votes belong to Chris McNulty starting from August 5, 2025
+- **Email Service**: SendGrid integration ready but API key pending due to SendGrid login issue (ticket open)
 
 ## System Architecture
 

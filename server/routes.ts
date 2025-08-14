@@ -891,6 +891,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Contest status endpoint (public)
+  app.get("/api/contest-status", async (req, res) => {
+    try {
+      const [settings] = await db.select().from(settingsTable);
+      
+      if (!settings) {
+        return res.json({
+          monthlyContestEnabled: false,
+          monthlyContestActive: false,
+          monthlyContestText: "",
+          quarterlyContestEnabled: false,
+          quarterlyContestActive: false,
+          quarterlyContestText: "",
+        });
+      }
+      
+      const now = new Date();
+      const monthlyActive = settings.monthlyContestEnabled && 
+        settings.monthlyContestStartDate && 
+        settings.monthlyContestEndDate &&
+        now >= new Date(settings.monthlyContestStartDate) &&
+        now <= new Date(settings.monthlyContestEndDate);
+        
+      const quarterlyActive = settings.quarterlyContestEnabled && 
+        settings.quarterlyContestStartDate && 
+        settings.quarterlyContestEndDate &&
+        now >= new Date(settings.quarterlyContestStartDate) &&
+        now <= new Date(settings.quarterlyContestEndDate);
+      
+      res.json({
+        monthlyContestEnabled: settings.monthlyContestEnabled,
+        monthlyContestActive: monthlyActive,
+        monthlyContestText: settings.monthlyContestText || "",
+        quarterlyContestEnabled: settings.quarterlyContestEnabled,
+        quarterlyContestActive: quarterlyActive,
+        quarterlyContestText: settings.quarterlyContestText || "",
+      });
+    } catch (error) {
+      console.error('Error fetching contest status:', error);
+      res.status(500).json({ message: "Failed to fetch contest status" });
+    }
+  });
+  
   // User statistics endpoint
   app.get("/api/user/stats", async (req, res) => {
     try {

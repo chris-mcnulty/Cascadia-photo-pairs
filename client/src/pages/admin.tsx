@@ -8,13 +8,14 @@ import PhotoManager from "@/components/photo-manager";
 import AdminLogin from "@/components/admin-login";
 import AdminAnalytics from "@/components/admin-analytics";
 import UserManagement from "@/components/admin/user-management";
-import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users } from "lucide-react";
+import ContestSettings from "@/components/admin/contest-settings";
+import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy } from "lucide-react";
 import { Link } from "wouter";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
 
 function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"analytics" | "stats" | "settings" | "photos" | "users">("analytics");
+  const [activeTab, setActiveTab] = useState<"analytics" | "stats" | "settings" | "photos" | "users" | "contests">("analytics");
   const { logout, isAuthenticated, sessionId } = useAuth();
 
   const { data: stats } = useQuery<{
@@ -146,6 +147,14 @@ function AdminDashboard() {
             Users
           </Button>
           <Button
+            variant={activeTab === "contests" ? "default" : "outline"}
+            onClick={() => setActiveTab("contests")}
+            className="flex items-center"
+          >
+            <Trophy className="w-4 h-4 mr-2" />
+            Contests
+          </Button>
+          <Button
             variant={activeTab === "settings" ? "default" : "outline"}
             onClick={() => setActiveTab("settings")}
             className="flex items-center"
@@ -160,6 +169,7 @@ function AdminDashboard() {
         {activeTab === "stats" && <AdminStats />}
         {activeTab === "photos" && <PhotoManager />}
         {activeTab === "users" && <UserManagement />}
+        {activeTab === "contests" && <ContestSettings />}
         {activeTab === "settings" && <AdminSettings />}
       </div>
     </div>

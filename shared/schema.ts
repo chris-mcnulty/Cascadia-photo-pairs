@@ -73,6 +73,23 @@ export const settings = pgTable("settings", {
   // User login feature toggles - separate for dev/prod environments
   userLoginEnabledDev: boolean("user_login_enabled_dev").default(true).notNull(), // ON in development for testing
   userLoginEnabledProd: boolean("user_login_enabled_prod").default(false).notNull(), // OFF in production until ready
+  // Contest management fields
+  monthlyContestText: text("monthly_contest_text").default("Enter our monthly photo contest! Top voters win prizes."),
+  quarterlyContestText: text("quarterly_contest_text").default("Join our quarterly championship for bigger rewards!"),
+  monthlyContestEnabled: boolean("monthly_contest_enabled").default(false).notNull(),
+  monthlyContestStartDate: timestamp("monthly_contest_start_date"),
+  monthlyContestEndDate: timestamp("monthly_contest_end_date"),
+  quarterlyContestEnabled: boolean("quarterly_contest_enabled").default(false).notNull(),
+  quarterlyContestStartDate: timestamp("quarterly_contest_start_date"),
+  quarterlyContestEndDate: timestamp("quarterly_contest_end_date"),
+  monthlyContestText: text("monthly_contest_text").default("Enter our monthly photo contest! Top voters win prizes."),
+  quarterlyContestText: text("quarterly_contest_text").default("Join our quarterly championship for bigger rewards!"),
+  monthlyContestEnabled: boolean("monthly_contest_enabled").default(false).notNull(),
+  monthlyContestStartDate: timestamp("monthly_contest_start_date"),
+  monthlyContestEndDate: timestamp("monthly_contest_end_date"),
+  quarterlyContestEnabled: boolean("quarterly_contest_enabled").default(false).notNull(),
+  quarterlyContestStartDate: timestamp("quarterly_contest_start_date"),
+  quarterlyContestEndDate: timestamp("quarterly_contest_end_date")
 });
 
 export const sessions = pgTable("sessions", {

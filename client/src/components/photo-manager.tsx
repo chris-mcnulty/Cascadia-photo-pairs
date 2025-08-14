@@ -689,7 +689,7 @@ export default function PhotoManager() {
                   )}
                 </Button>
                 
-                {showBulkActions && (
+                {selectedPhotos.size > 0 && (
                   <div className="flex flex-col gap-2 ml-4">
                     {/* Bulk Category */}
                     <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border">

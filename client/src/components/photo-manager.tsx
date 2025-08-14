@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Photo, InsertPhoto } from "@shared/schema";
-import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit, Globe, ArrowUpDown, Tag, CheckSquare, Square, ShoppingCart, AlertCircle } from "lucide-react";
+import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit, Globe, ArrowUpDown, Tag, CheckSquare, Square, ShoppingCart, AlertCircle, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -293,6 +293,7 @@ export default function PhotoManager() {
     }
     setSelectedPhotos(newSelection);
     setShowBulkActions(newSelection.size > 0);
+    console.log('Photo selection toggled:', photoId, 'Total selected:', newSelection.size);
   };
 
   const selectAllPhotos = () => {
@@ -669,82 +670,93 @@ export default function PhotoManager() {
               </div>
 
               {/* Bulk Actions */}
-              <div className="flex flex-col gap-2">
+              {selectedPhotos.size > 0 ? (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={selectedPhotos.size === photos.length ? clearSelection : selectAllPhotos}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      {selectedPhotos.size === photos.length ? (
+                        <>
+                          <Square className="w-4 h-4 mr-1" />
+                          Clear All
+                        </>
+                      ) : (
+                        <>
+                          <CheckSquare className="w-4 h-4 mr-1" />
+                          Select All
+                        </>
+                      )}
+                    </Button>
+                    
+                    {/* Bulk Category */}
+                    <Tag className="w-4 h-4 text-blue-600 ml-4" />
+                    <span className="text-sm font-medium">Bulk Category:</span>
+                    <Input
+                      type="text"
+                      placeholder="Enter category name"
+                      value={bulkCategory}
+                      onChange={(e) => setBulkCategory(e.target.value)}
+                      className="w-40 h-8"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleBulkCategoryUpdate}
+                      disabled={bulkUpdateCategoryMutation.isPending || !bulkCategory.trim()}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {bulkUpdateCategoryMutation.isPending ? "Updating..." : "Apply"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearSelection}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                  
+                  {/* Bulk Sale Status - Always visible when photos selected */}
+                  <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border-2 border-green-300 shadow-sm">
+                    <ShoppingCart className="w-5 h-5 text-green-700" />
+                    <span className="text-base font-semibold text-green-900">Bulk Sale Management ({selectedPhotos.size} photos):</span>
+                    <Button
+                      size="default"
+                      onClick={() => setConfirmSaleAction({ open: true, action: 'forSale' })}
+                      disabled={bulkUpdateSaleMutation.isPending}
+                      className="bg-green-600 hover:bg-green-700 text-white font-medium px-4"
+                    >
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      Mark for Sale
+                    </Button>
+                    <Button
+                      size="default"
+                      onClick={() => setConfirmSaleAction({ open: true, action: 'notForSale' })}
+                      disabled={bulkUpdateSaleMutation.isPending}
+                      className="bg-red-600 hover:bg-red-700 text-white font-medium px-4"
+                    >
+                      <X className="w-4 h-4 mr-2" />
+                      Mark Not for Sale
+                    </Button>
+                  </div>
+                </div>
+              ) : (
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={selectedPhotos.size === photos.length ? clearSelection : selectAllPhotos}
+                    onClick={selectAllPhotos}
                     className="text-blue-600 hover:text-blue-800"
                   >
-                    {selectedPhotos.size === photos.length ? (
-                      <>
-                        <Square className="w-4 h-4 mr-1" />
-                        Clear All
-                      </>
-                    ) : (
-                      <>
-                        <CheckSquare className="w-4 h-4 mr-1" />
-                        Select All
-                      </>
-                    )}
+                    <CheckSquare className="w-4 h-4 mr-1" />
+                    Select All
                   </Button>
-                  
-                  {selectedPhotos.size > 0 && (
-                    <>
-                      {/* Bulk Category */}
-                      <Tag className="w-4 h-4 text-blue-600 ml-4" />
-                      <span className="text-sm font-medium">Bulk Category:</span>
-                      <Input
-                        type="text"
-                        placeholder="Enter category name"
-                        value={bulkCategory}
-                        onChange={(e) => setBulkCategory(e.target.value)}
-                        className="w-40 h-8"
-                      />
-                      <Button
-                        size="sm"
-                        onClick={handleBulkCategoryUpdate}
-                        disabled={bulkUpdateCategoryMutation.isPending || !bulkCategory.trim()}
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        {bulkUpdateCategoryMutation.isPending ? "Updating..." : "Apply"}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={clearSelection}
-                      >
-                        Cancel
-                      </Button>
-                    </>
-                  )}
+                  <span className="text-sm text-gray-500">Select photos to manage categories and sale status</span>
                 </div>
-                
-                {/* Bulk Sale Status - separate row */}
-                {selectedPhotos.size > 0 && (
-                  <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg border border-green-200">
-                    <ShoppingCart className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-medium text-green-800">Sale Status:</span>
-                    <Button
-                      size="sm"
-                      onClick={() => setConfirmSaleAction({ open: true, action: 'forSale' })}
-                      disabled={bulkUpdateSaleMutation.isPending}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      Mark for Sale
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => setConfirmSaleAction({ open: true, action: 'notForSale' })}
-                      disabled={bulkUpdateSaleMutation.isPending}
-                      className="bg-red-600 hover:bg-red-700 text-white"
-                    >
-                      Mark Not for Sale
-                    </Button>
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           )}
 

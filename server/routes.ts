@@ -181,6 +181,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk update photo sale status (admin only) - MUST come before the :id routes
+  app.put("/api/photos/bulk-sale", requireAuth, async (req, res) => {
+    try {
+      const { photoIds, neverForSale } = req.body;
+      
+      if (!Array.isArray(photoIds) || photoIds.length === 0) {
+        return res.status(400).json({ message: "Invalid photoIds array" });
+      }
+      
+      if (typeof neverForSale !== 'boolean') {
+        return res.status(400).json({ message: "Invalid neverForSale value" });
+      }
+      
+      console.log(`Bulk updating ${photoIds.length} photos sale status to: ${neverForSale ? 'not for sale' : 'for sale'}`, photoIds);
+      const updated = await storage.updatePhotosSaleStatus(photoIds, neverForSale);
+      
+      if (!updated) {
+        return res.status(404).json({ message: "No photos were updated" });
+      }
+      
+      console.log(`Successfully updated photo sale status`);
+      res.json({ message: "Photo sale status updated successfully" });
+    } catch (error) {
+      console.error('Bulk sale status update route error:', error);
+      res.status(500).json({ message: "Failed to update photo sale status", error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
   // Bulk update photo categories (admin only) - MUST come before the :id routes
   app.put("/api/photos/bulk-category", requireAuth, async (req, res) => {
     try {

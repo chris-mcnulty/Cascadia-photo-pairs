@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Photo, InsertPhoto } from "@shared/schema";
-import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit, Globe, ArrowUpDown, Tag, CheckSquare, Square } from "lucide-react";
+import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit, Globe, ArrowUpDown, Tag, CheckSquare, Square, ShoppingCart } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 
@@ -32,7 +32,7 @@ export default function PhotoManager() {
     imageUrl: "",
     customPurchaseUrl: "",
     category: "",
-    neverForSale: false,
+    neverForSale: true, // Default to not for sale
   });
 
   const { data: photos, isLoading, error } = useQuery<Photo[]>({
@@ -211,6 +211,33 @@ export default function PhotoManager() {
     },
   });
 
+  const bulkUpdateSaleMutation = useMutation({
+    mutationFn: async ({ photoIds, neverForSale }: { photoIds: string[]; neverForSale: boolean }) => {
+      const sessionId = localStorage.getItem('admin-session-id');
+      const response = await apiRequest("PUT", "/api/photos/bulk-sale", { photoIds, neverForSale }, sessionId ? { 'x-session-id': sessionId } : undefined);
+      if (!response.ok) {
+        throw new Error("Failed to update photo sale status");
+      }
+      return response.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+      setSelectedPhotos(new Set());
+      setShowBulkActions(false);
+      toast({
+        title: "Sale status updated",
+        description: `Selected photos have been marked as ${variables.neverForSale ? 'not for sale' : 'available for sale'}.`,
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to update sale status",
+        description: "Could not update photo sale status. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const resetForm = () => {
     setFormData({
       title: "",
@@ -218,7 +245,7 @@ export default function PhotoManager() {
       imageUrl: "",
       customPurchaseUrl: "",
       category: "",
-      neverForSale: false,
+      neverForSale: true, // Default to not for sale
     });
     setShowAddForm(false);
     setEditingPhoto(null);
@@ -636,31 +663,56 @@ export default function PhotoManager() {
                 </Button>
                 
                 {showBulkActions && (
-                  <div className="flex items-center gap-2 ml-4 p-2 bg-blue-50 rounded-lg border">
-                    <Tag className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-800">Bulk Category:</span>
-                    <Input
-                      type="text"
-                      placeholder="Enter category name"
-                      value={bulkCategory}
-                      onChange={(e) => setBulkCategory(e.target.value)}
-                      className="w-40 h-8"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={handleBulkCategoryUpdate}
-                      disabled={bulkUpdateCategoryMutation.isPending || !bulkCategory.trim()}
-                      className="bg-blue-600 hover:bg-blue-700"
-                    >
-                      {bulkUpdateCategoryMutation.isPending ? "Updating..." : "Apply"}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearSelection}
-                    >
-                      Cancel
-                    </Button>
+                  <div className="flex flex-col gap-2 ml-4">
+                    {/* Bulk Category */}
+                    <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border">
+                      <Tag className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-800">Bulk Category:</span>
+                      <Input
+                        type="text"
+                        placeholder="Enter category name"
+                        value={bulkCategory}
+                        onChange={(e) => setBulkCategory(e.target.value)}
+                        className="w-40 h-8"
+                      />
+                      <Button
+                        size="sm"
+                        onClick={handleBulkCategoryUpdate}
+                        disabled={bulkUpdateCategoryMutation.isPending || !bulkCategory.trim()}
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        {bulkUpdateCategoryMutation.isPending ? "Updating..." : "Apply"}
+                      </Button>
+                    </div>
+                    
+                    {/* Bulk Sale Status */}
+                    <div className="flex items-center gap-2 p-2 bg-green-50 rounded-lg border">
+                      <ShoppingCart className="w-4 h-4 text-green-600" />
+                      <span className="text-sm font-medium text-green-800">Sale Status:</span>
+                      <Button
+                        size="sm"
+                        onClick={() => bulkUpdateSaleMutation.mutate({ photoIds: Array.from(selectedPhotos), neverForSale: false })}
+                        disabled={bulkUpdateSaleMutation.isPending}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        Mark for Sale
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => bulkUpdateSaleMutation.mutate({ photoIds: Array.from(selectedPhotos), neverForSale: true })}
+                        disabled={bulkUpdateSaleMutation.isPending}
+                        variant="destructive"
+                      >
+                        Mark Not for Sale
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={clearSelection}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>

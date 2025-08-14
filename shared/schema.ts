@@ -24,7 +24,7 @@ export const photos = pgTable("photos", {
   comparisons: integer("comparisons").default(0).notNull(),
   hidden: boolean("hidden").default(false).notNull(),
   customPurchaseUrl: text("custom_purchase_url"),
-  neverForSale: boolean("never_for_sale").default(false).notNull(),
+  neverForSale: boolean("never_for_sale").default(true).notNull(), // Changed default to true
 });
 
 export const votes = pgTable("votes", {

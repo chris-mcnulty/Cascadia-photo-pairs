@@ -39,6 +39,7 @@ export interface IStorage {
   // Photo management
   deletePhoto(id: string): Promise<boolean>;
   updatePhotosCategory(photoIds: string[], category: string): Promise<boolean>;
+  updatePhotosSaleStatus(photoIds: string[], neverForSale: boolean): Promise<boolean>;
   purgeTestData(beforeDate: string): Promise<{ votesDeleted: number; photosReset: boolean }>;
   
   // Special method for comparison tracking
@@ -427,6 +428,19 @@ export class MemStorage implements IStorage {
     return updated > 0;
   }
 
+  async updatePhotosSaleStatus(photoIds: string[], neverForSale: boolean): Promise<boolean> {
+    let updated = 0;
+    photoIds.forEach(id => {
+      const photo = this.photos.get(id);
+      if (photo) {
+        photo.neverForSale = neverForSale;
+        this.photos.set(id, photo);
+        updated++;
+      }
+    });
+    return updated > 0;
+  }
+
   async purgeTestData(beforeDate: string): Promise<{ votesDeleted: number; photosReset: boolean }> {
     const cutoffDate = new Date(beforeDate);
     const votes = Array.from(this.votes.entries());
@@ -736,6 +750,21 @@ export class DatabaseStorage implements IStorage {
       return result.rowCount ? result.rowCount > 0 : false;
     } catch (error) {
       console.error('DatabaseStorage: Error updating photo categories:', error);
+      return false;
+    }
+  }
+
+  async updatePhotosSaleStatus(photoIds: string[], neverForSale: boolean): Promise<boolean> {
+    try {
+      console.log(`DatabaseStorage: Updating sale status for ${photoIds.length} photos to "${neverForSale ? 'not for sale' : 'for sale'}"`);
+      const result = await db
+        .update(photos)
+        .set({ neverForSale })
+        .where(inArray(photos.id, photoIds));
+      console.log(`DatabaseStorage: Update result:`, result);
+      return result.rowCount ? result.rowCount > 0 : false;
+    } catch (error) {
+      console.error('DatabaseStorage: Error updating photo sale status:', error);
       return false;
     }
   }

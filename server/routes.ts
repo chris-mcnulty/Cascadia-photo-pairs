@@ -21,7 +21,8 @@ import {
   generateToken, 
   verifyToken,
   resetPassword,
-  generateVerificationToken
+  generateVerificationToken,
+  trackUserVote
 } from "./auth";
 import { sendVerificationEmail, sendPasswordResetEmail } from "./email";
 import { sendAdminMFACode, isEmailServiceAvailable, isSMSServiceAvailable } from "./sendgrid";
@@ -689,6 +690,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sessionId = req.headers['x-session-id'] as string;
       if (sessionId) {
         voterType = 'admin';
+        // For admin votes, assign to the master admin by default
+        // This matches the data we corrected earlier
+        userId = '4d2c0db4-a62b-4849-a352-72f7164c5e78'; // Chris McNulty's user ID
       }
       
       // Check for user JWT token
@@ -716,6 +720,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Record comparison stats
       if (winnerPhotoId && loserPhotoId) {
         await storage.recordComparison(winnerPhotoId, loserPhotoId);
+      }
+      
+      // Track user vote statistics if userId is present
+      if (userId) {
+        await trackUserVote(userId);
       }
       
       res.json(vote);

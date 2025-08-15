@@ -15,6 +15,7 @@ Preferred communication style: Simple, everyday language.
 - **Voting History**: All admin votes belong to Chris McNulty starting from August 5, 2025
 - **Email Service**: SendGrid integration ready but API key pending due to SendGrid login issue (ticket open)
 - **Critical Mobile Fix**: Added missing authentication components (UserProfile, AuthenticationButtons) and announcements to mobile PWA interface
+- **Production Data Fix**: Corrected admin vote tracking - 388 admin votes now properly linked to Chris McNulty's user account with accurate last vote timestamps and personal statistics
 
 ## System Architecture
 

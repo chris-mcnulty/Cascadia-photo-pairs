@@ -233,11 +233,17 @@ export default function Home() {
                 <AuthenticationButtons />
               )}
               <UserProfile />
-              {/* Admin indicator */}
-              {localStorage.getItem('admin-session-id') && (
+              {/* Admin access - always show login link */}
+              {localStorage.getItem('admin-session-id') ? (
                 <Link href="/admin">
                   <Button variant="outline" size="sm" className="bg-green-50 border-green-300">
                     Admin Panel
+                  </Button>
+                </Link>
+              ) : (
+                <Link href="/admin-login">
+                  <Button variant="ghost" size="sm" className="text-gray-500 hover:text-gray-700">
+                    Admin
                   </Button>
                 </Link>
               )}
@@ -503,6 +509,14 @@ export default function Home() {
                   >
                     Purchase Prints
                   </a>
+                </li>
+                <li>
+                  <Link 
+                    href="/admin-login" 
+                    className="text-gray-400 hover:text-green-700 transition-colors duration-200 text-xs"
+                  >
+                    Admin Access
+                  </Link>
                 </li>
               </ul>
             </div>

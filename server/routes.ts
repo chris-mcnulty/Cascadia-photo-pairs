@@ -239,6 +239,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Email and password are required" });
       }
       
+      // Special handling for master admin - redirect to admin login
+      if (email === 'cmcnulty2000@yahoo.com') {
+        return res.status(302).json({ 
+          message: "Master admin detected - please use admin login",
+          redirectTo: "/admin-login"
+        });
+      }
+      
       const user = await authenticateUser(email, password);
       if (!user) {
         return res.status(401).json({ message: "Invalid email or password" });

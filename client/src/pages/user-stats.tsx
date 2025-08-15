@@ -206,7 +206,11 @@ export default function UserStatsPage() {
                 className="mt-2" 
               />
               <p className="text-sm text-gray-600 mt-1">
-                {stats.totalVotes >= 100 ? "Expert Voter!" : `${100 - stats.totalVotes} votes to Expert`}
+                {stats.totalVotes >= 500 ? "Master Voter!" : 
+                 stats.totalVotes >= 100 ? "Expert Voter!" : 
+                 stats.totalVotes >= 50 ? "Regular Voter!" :
+                 stats.totalVotes >= 10 ? "Beginner Voter!" :
+                 `${10 - stats.totalVotes} votes to start`}
               </p>
             </CardContent>
           </Card>

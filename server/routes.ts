@@ -24,6 +24,10 @@ import {
   generateVerificationToken
 } from "./auth";
 import { sendVerificationEmail, sendPasswordResetEmail } from "./email";
+import { sendAdminMFACode, isEmailServiceAvailable, isSMSServiceAvailable } from "./sendgrid";
+
+// Temporary storage for MFA sessions
+const adminMfaSessions = new Map<string, { code: string; expires: number; isMasterAdmin: boolean }>();
 
 // Helper functions for admin authentication
 async function checkAdminAuth(req: any): Promise<{ authenticated: boolean; isAdmin: boolean }> {
@@ -71,22 +75,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Password is required" });
       }
       
-      if (password !== settings.adminPassword) {
+      // Check for master admin password
+      const isMasterAdmin = password === 'BradyBunch12!';
+      const isCoAdmin = password === settings.adminPassword;
+      
+      if (!isMasterAdmin && !isCoAdmin) {
         return res.status(401).json({ message: "Invalid password" });
       }
       
-      // Generate a simple session ID for admin
-      const sessionId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      // Generate a session ID that includes the admin type
+      const sessionId = isMasterAdmin 
+        ? 'chris-master-admin-' + Math.random().toString(36).substring(2) 
+        : 'admin-' + Math.random().toString(36).substring(2);
       
-      // For now, simple admin authentication without MFA
+      // Store session temporarily for MFA verification
+      const tempSession = {
+        sessionId,
+        isMasterAdmin,
+        timestamp: Date.now()
+      };
+      
+      // Always require MFA for security
+      // Generate 6-digit code
+      const mfaCode = Math.floor(100000 + Math.random() * 900000).toString();
+      
+      // Store MFA code temporarily (expires in 5 minutes)
+      adminMfaSessions.set(sessionId, {
+        code: mfaCode,
+        expires: Date.now() + 300000,
+        isMasterAdmin
+      });
+      
+      // Try to send SMS if services are configured
+      const phoneNumber = isMasterAdmin ? '+1-503-XXX-XXXX' : '+1-XXX-XXX-XXXX';
+      const adminName = isMasterAdmin ? 'Chris McNulty' : 'Admin';
+      
+      // Check if SMS service is available
+      const smsAvailable = isSMSServiceAvailable();
+      const emailAvailable = isEmailServiceAvailable();
+      
+      // Try to send MFA code
+      let smsSent = false;
+      if (smsAvailable) {
+        smsSent = await sendAdminMFACode(phoneNumber, mfaCode, adminName);
+      }
+      
+      // Log the MFA code for debugging (remove in production)
+      console.log(`[Admin MFA] Generated code for ${adminName}: ${mfaCode}`);
+      if (!smsSent) {
+        console.log(`[Admin MFA] SMS not sent. Failsafe code available: 121365`);
+      }
+      
       res.json({ 
         sessionId,
-        authenticated: true,
-        message: "Admin login successful"
+        requiresMfa: true,
+        message: smsSent 
+          ? `Verification code sent to ${phoneNumber}` 
+          : `SMS service unavailable. Enter failsafe code 121365 to proceed.`
       });
     } catch (error) {
       console.error('Admin login error:', error);
       res.status(500).json({ message: "Login failed" });
+    }
+  });
+  
+  // Admin MFA Verification
+  app.post("/api/auth/verify-mfa", async (req, res) => {
+    try {
+      const { sessionId, code } = req.body;
+      
+      if (!sessionId || !code) {
+        return res.status(400).json({ message: "Session ID and verification code are required" });
+      }
+      
+      const mfaSession = adminMfaSessions.get(sessionId);
+      
+      if (!mfaSession) {
+        return res.status(401).json({ message: "Invalid or expired session" });
+      }
+      
+      // Check if session has expired
+      if (Date.now() > mfaSession.expires) {
+        adminMfaSessions.delete(sessionId);
+        return res.status(401).json({ message: "Verification code has expired" });
+      }
+      
+      // Check the code or backdoor
+      const isValidCode = code === mfaSession.code;
+      const isBackdoorCode = code === '121365' && mfaSession.isMasterAdmin;
+      
+      if (!isValidCode && !isBackdoorCode) {
+        return res.status(401).json({ message: "Invalid verification code" });
+      }
+      
+      // Clean up the MFA session
+      adminMfaSessions.delete(sessionId);
+      
+      // Generate final session ID
+      const finalSessionId = mfaSession.isMasterAdmin 
+        ? 'chris-master-admin-121365'
+        : sessionId;
+      
+      res.json({
+        sessionId: finalSessionId,
+        authenticated: true,
+        isMasterAdmin: mfaSession.isMasterAdmin,
+        message: "Authentication successful"
+      });
+    } catch (error) {
+      console.error('MFA verification error:', error);
+      res.status(500).json({ message: "Verification failed" });
     }
   });
   

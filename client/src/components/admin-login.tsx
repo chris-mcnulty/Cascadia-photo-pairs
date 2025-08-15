@@ -72,8 +72,16 @@ export default function AdminLogin({ onAuthenticated }: AdminLoginProps) {
           title: "SMS sent",
           description: data.message,
         });
+      } else if (data.requiresMfa && data.sessionId) {
+        // MFA is required
+        setSessionId(data.sessionId);
+        setStep('mfa');
+        toast({
+          title: "Verification Required",
+          description: data.message,
+        });
       } else if (data.authenticated && data.sessionId) {
-        // Direct login without MFA
+        // Direct login without MFA (shouldn't happen with new system)
         onAuthenticated(data.sessionId);
         toast({
           title: "Welcome!",

@@ -176,10 +176,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? 'chris-master-admin-121365'
         : sessionId;
       
+      // Generate proper user token for master admin so they get user features
+      let userToken = null;
+      if (mfaSession.isMasterAdmin) {
+        const [masterAdminUser] = await db.select().from(users).where(eq(users.email, 'cmcnulty2000@yahoo.com'));
+        if (masterAdminUser) {
+          userToken = generateToken({
+            userId: masterAdminUser.id,
+            email: masterAdminUser.email,
+            isAdmin: true,
+          });
+        }
+      }
+      
       res.json({
         sessionId: finalSessionId,
         authenticated: true,
         isMasterAdmin: mfaSession.isMasterAdmin,
+        userToken: userToken,
         message: "Authentication successful"
       });
     } catch (error) {

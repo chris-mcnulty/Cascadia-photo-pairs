@@ -133,10 +133,17 @@ export default function AdminLogin({ onAuthenticated }: AdminLoginProps) {
     onSuccess: (data) => {
       if (data.authenticated && sessionId) {
         console.log('MFA successful, calling onAuthenticated with session:', sessionId);
+        
+        // If master admin, also store user token for user features
+        if (data.userToken && data.isMasterAdmin) {
+          localStorage.setItem('auth-token', data.userToken);
+          console.log('Master admin user token stored for user features');
+        }
+        
         onAuthenticated(sessionId);
         toast({
           title: "Welcome!",
-          description: "Successfully logged in to admin panel.",
+          description: data.isMasterAdmin ? "Master admin logged in successfully." : "Admin logged in successfully.",
         });
       } else {
         console.error('MFA successful but missing session ID or authenticated flag:', { authenticated: data.authenticated, sessionId });

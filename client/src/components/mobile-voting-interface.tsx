@@ -312,6 +312,13 @@ export default function MobileVotingInterface({
               
               {/* Purchase button for Photo A */}
               <div className="mt-3 text-center">
+                {/* Debug info */}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="text-xs text-gray-500 mb-2">
+                    Purchase enabled: {settings?.purchaseEnabled ? 'Yes' : 'No'} | 
+                    Never for sale: {photoA.neverForSale ? 'Yes' : 'No'}
+                  </div>
+                )}
                 {settings?.purchaseEnabled && !photoA.neverForSale && (
                   <button
                     type="button"
@@ -371,6 +378,13 @@ export default function MobileVotingInterface({
               
               {/* Purchase button for Photo B */}
               <div className="mt-3 text-center">
+                {/* Debug info */}
+                {process.env.NODE_ENV === 'development' && (
+                  <div className="text-xs text-gray-500 mb-2">
+                    Purchase enabled: {settings?.purchaseEnabled ? 'Yes' : 'No'} | 
+                    Never for sale: {photoB.neverForSale ? 'Yes' : 'No'}
+                  </div>
+                )}
                 {settings?.purchaseEnabled && !photoB.neverForSale && (
                   <button
                     type="button"

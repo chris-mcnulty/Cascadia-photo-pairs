@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Photo, Settings } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Heart, ChevronLeft, ChevronRight, Zap, Menu, X, Smartphone, Plus, MousePointer, RefreshCw, Infinity, Globe, Mail, Share2, MessageSquare, ArrowLeft, Settings as SettingsIcon } from "lucide-react";
+import { Heart, ChevronLeft, ChevronRight, Zap, Menu, X, Smartphone, Plus, MousePointer, RefreshCw, Infinity, Globe, Mail, Share2, MessageSquare, ArrowLeft, Settings as SettingsIcon, ShoppingCart } from "lucide-react";
 import { FaInstagram, FaFacebookF, FaLinkedinIn } from "react-icons/fa6";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -309,6 +309,27 @@ export default function MobileVotingInterface({
               {photoA.description && (
                 <p className="text-sm text-gray-600 mt-2">{photoA.description}</p>
               )}
+              
+              {/* Purchase button for Photo A */}
+              <div className="mt-3 text-center">
+                {settings?.purchaseEnabled && !photoA.neverForSale && (
+                  <button
+                    type="button"
+                    className="inline-flex items-center px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const purchaseUrl = photoA.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
+                      const newWindow = window.open(purchaseUrl, '_blank');
+                      if (!newWindow) {
+                        window.location.href = purchaseUrl;
+                      }
+                    }}
+                  >
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    Purchase Print
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -347,6 +368,27 @@ export default function MobileVotingInterface({
               {photoB.description && (
                 <p className="text-sm text-gray-600 mt-2">{photoB.description}</p>
               )}
+              
+              {/* Purchase button for Photo B */}
+              <div className="mt-3 text-center">
+                {settings?.purchaseEnabled && !photoB.neverForSale && (
+                  <button
+                    type="button"
+                    className="inline-flex items-center px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const purchaseUrl = photoB.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
+                      const newWindow = window.open(purchaseUrl, '_blank');
+                      if (!newWindow) {
+                        window.location.href = purchaseUrl;
+                      }
+                    }}
+                  >
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    Purchase Print
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

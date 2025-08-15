@@ -37,7 +37,9 @@ export default function UserStatsPage() {
   // Check authentication
   useEffect(() => {
     const token = localStorage.getItem('auth-token');
-    if (!token) {
+    const adminSessionId = localStorage.getItem('admin-session-id');
+    
+    if (!token && !adminSessionId) {
       setLocation('/login');
     }
   }, [setLocation]);
@@ -47,12 +49,23 @@ export default function UserStatsPage() {
     queryKey: ["/api/user/stats"],
     queryFn: async () => {
       const token = localStorage.getItem('auth-token');
-      if (!token) throw new Error("Not authenticated");
+      const adminSessionId = localStorage.getItem('admin-session-id');
+      
+      // If no token and no admin session, throw error
+      if (!token && !adminSessionId) {
+        throw new Error("Not authenticated");
+      }
+      
+      const headers: Record<string, string> = {};
+      
+      if (adminSessionId) {
+        headers['x-session-id'] = 'admin-session';
+      } else if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
       
       const response = await fetch("/api/user/stats", {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers
       });
       
       if (!response.ok) {
@@ -61,7 +74,7 @@ export default function UserStatsPage() {
       
       return response.json();
     },
-    enabled: !!localStorage.getItem('auth-token')
+    enabled: !!(localStorage.getItem('auth-token') || localStorage.getItem('admin-session-id'))
   });
 
   // Fetch contest status

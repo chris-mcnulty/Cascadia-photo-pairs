@@ -20,6 +20,8 @@ Preferred communication style: Simple, everyday language.
 - **User Statistics Integration**: Connected voting system to track user stats in real-time, enabling proper achievement level calculations and personal leaderboards
 - **Admin Authentication Fix**: Updated user endpoints to recognize admin sessions automatically, enabling seamless profile editing and statistics access for master admins without requiring separate login flows
 - **PWA Purchase Integration**: Added purchase buttons to mobile voting interface, displaying "Purchase Print" buttons under photos that are available for sale, matching desktop functionality
+- **Achievement System Fix**: Corrected user achievement calculation to properly display Expert level for users with 100+ votes (fixed from incorrectly showing Beginner for high vote counts)
+- **Leaderboard Label Fix**: Fixed swapped labels in photo leaderboard where "Total Votes" was showing win rate percentages and vice versa - now correctly displays statistics with proper labels
 
 ## System Architecture
 

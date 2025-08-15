@@ -18,6 +18,8 @@ Preferred communication style: Simple, everyday language.
 - **Production Data Fix**: Corrected admin vote tracking - 388 admin votes now properly linked to Chris McNulty's user account with accurate last vote timestamps and personal statistics
 - **Profile Security Enhancement**: Added URL validation to prevent malicious code injection via profile image URLs, restricting to HTTP/HTTPS protocols only
 - **User Statistics Integration**: Connected voting system to track user stats in real-time, enabling proper achievement level calculations and personal leaderboards
+- **Admin Authentication Fix**: Updated user endpoints to recognize admin sessions automatically, enabling seamless profile editing and statistics access for master admins without requiring separate login flows
+- **PWA Purchase Integration**: Added purchase buttons to mobile voting interface, displaying "Purchase Print" buttons under photos that are available for sale, matching desktop functionality
 
 ## System Architecture
 

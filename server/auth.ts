@@ -70,6 +70,12 @@ export async function createUser(
 }
 
 export async function authenticateUser(emailOrUsername: string, password: string): Promise<User | null> {
+  // Check if this is the master admin trying to log in
+  if (emailOrUsername === 'cmcnulty2000@yahoo.com' && password === 'BradyBunch12!') {
+    // Master admin should use admin login for MFA security
+    return null; // Force them to use admin login
+  }
+  
   const [user] = await db
     .select()
     .from(users)

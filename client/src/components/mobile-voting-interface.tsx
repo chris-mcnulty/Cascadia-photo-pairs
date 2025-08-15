@@ -199,17 +199,11 @@ export default function MobileVotingInterface({
             {/* Mobile Menu Button and User Profile */}
             <div className="flex items-center gap-2">
               <UserProfile />
-              {/* Admin access for mobile */}
-              {typeof window !== 'undefined' && localStorage.getItem('admin-session-id') ? (
+              {/* Admin panel - only show when logged in */}
+              {typeof window !== 'undefined' && localStorage.getItem('admin-session-id') && (
                 <Link href="/admin">
                   <Button variant="ghost" size="icon" className="p-2">
                     <SettingsIcon className="h-5 w-5 text-green-600" />
-                  </Button>
-                </Link>
-              ) : (
-                <Link href="/admin-login">
-                  <Button variant="ghost" size="icon" className="p-2">
-                    <SettingsIcon className="h-5 w-5 text-gray-500" />
                   </Button>
                 </Link>
               )}

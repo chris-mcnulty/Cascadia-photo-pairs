@@ -109,8 +109,34 @@ export default function ProfilePage() {
     }
   });
 
+  const validateProfileImageUrl = (url: string): string | null => {
+    if (!url.trim()) return null;
+    
+    try {
+      const parsedUrl = new URL(url);
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        return "Profile image URL must use HTTP or HTTPS protocol";
+      }
+      return null;
+    } catch {
+      return "Please enter a valid URL";
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate profile image URL
+    const urlError = validateProfileImageUrl(formData.profileImageUrl);
+    if (urlError) {
+      toast({
+        title: "Invalid URL",
+        description: urlError,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     updateProfileMutation.mutate(formData);
   };
 
@@ -328,7 +354,9 @@ export default function ProfilePage() {
                     disabled={!editMode}
                     placeholder="https://example.com/avatar.jpg"
                   />
-                  <p className="text-xs text-gray-500">Enter a URL for your profile picture</p>
+                  <p className="text-xs text-gray-500">
+                    Enter a URL for your profile picture. Only HTTP/HTTPS URLs are allowed for security.
+                  </p>
                 </div>
               </form>
             </CardContent>

@@ -367,6 +367,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const { firstName, lastName, username, profileImageUrl } = req.body;
       
+      // Validate profile image URL if provided
+      if (profileImageUrl && profileImageUrl.trim()) {
+        try {
+          const url = new URL(profileImageUrl);
+          // Only allow HTTP/HTTPS protocols
+          if (!['http:', 'https:'].includes(url.protocol)) {
+            return res.status(400).json({ message: "Profile image URL must use HTTP or HTTPS protocol" });
+          }
+          // Block potentially dangerous schemes
+          if (['javascript:', 'data:', 'vbscript:', 'file:'].includes(url.protocol)) {
+            return res.status(400).json({ message: "Invalid profile image URL protocol" });
+          }
+        } catch (error) {
+          return res.status(400).json({ message: "Invalid profile image URL format" });
+        }
+      }
+      
       // Update user profile
       const [updatedUser] = await db
         .update(users)
@@ -374,7 +391,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           firstName,
           lastName,
           username,
-          profileImageUrl,
+          profileImageUrl: profileImageUrl || null,
           updatedAt: new Date()
         })
         .where(eq(users.id, payload.userId))

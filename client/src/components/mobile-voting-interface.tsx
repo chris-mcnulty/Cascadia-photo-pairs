@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Photo, Settings } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Heart, ChevronLeft, ChevronRight, Zap, Menu, X, Smartphone, Plus, MousePointer, RefreshCw, Infinity, Globe, Mail, Share2, MessageSquare, ArrowLeft } from "lucide-react";
 import { FaInstagram, FaFacebookF, FaLinkedinIn } from "react-icons/fa6";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Link } from "wouter";
+import UserProfile from "@/components/user-profile";
+import SimpleAnnouncements from "@/components/simple-announcements";
 import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
 
 interface MobileVotingInterfaceProps {
@@ -15,6 +18,91 @@ interface MobileVotingInterfaceProps {
   onToggleView?: () => void;
   onShowInstallGuide?: () => void;
   votesCount?: number;
+}
+
+
+
+// Authentication status hook (replicating from home.tsx)
+function useUserAuth() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const token = localStorage.getItem('auth-token');
+        if (!token) {
+          setIsAuthenticated(false);
+          setUser(null);
+          return;
+        }
+
+        const response = await fetch('/api/auth/user', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const userData = await response.json();
+          setIsAuthenticated(true);
+          setUser(userData);
+        } else {
+          localStorage.removeItem('auth-token');
+          setIsAuthenticated(false);
+          setUser(null);
+        }
+      } catch (error) {
+        localStorage.removeItem('auth-token');
+        setIsAuthenticated(false);
+        setUser(null);
+      }
+    };
+
+    checkAuth();
+  }, []);
+
+  const logout = () => {
+    localStorage.removeItem('auth-token');
+    setIsAuthenticated(false);
+    setUser(null);
+    window.location.href = '/';
+  };
+
+  return { isAuthenticated, user, logout };
+}
+
+// Dynamic authentication buttons component for mobile
+function AuthenticationButtons() {
+  const { isAuthenticated, user, logout } = useUserAuth();
+
+  if (isAuthenticated) {
+    return (
+      <div className="flex flex-col gap-3">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={logout}
+          className="w-full"
+        >
+          Sign Out
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <Link href="/login">
+        <Button variant="outline" size="sm" className="w-full">
+          Sign In
+        </Button>
+      </Link>
+      <Link href="/signup">
+        <Button size="sm" className="bg-cascadia-green hover:bg-green-700 w-full">
+          Sign Up
+        </Button>
+      </Link>
+    </div>
+  );
 }
 
 export default function MobileVotingInterface({ 
@@ -108,15 +196,18 @@ export default function MobileVotingInterface({
               </div>
             </div>
 
-            {/* Mobile Menu Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2"
-            >
-              {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </Button>
+            {/* Mobile Menu Button and User Profile */}
+            <div className="flex items-center gap-2">
+              <UserProfile />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2"
+              >
+                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+              </Button>
+            </div>
           </div>
 
           {/* Mobile Menu Dropdown */}
@@ -164,28 +255,38 @@ export default function MobileVotingInterface({
                   <FaInstagram className="w-4 h-4" />
                   Instagram
                 </a>
-                <a 
-                  href="/leaderboard"
-                  className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center"
-                >
-                  Leaderboard
-                </a>
-                <a 
-                  href="https://www.chrismcnulty.net/subscribe" 
-                  className="bg-cascadia-green text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium text-center"
-                >
-                  Subscribe
-                </a>
-                <a 
-                  href="/admin"
-                  className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center"
-                >
-                  Admin
-                </a>
+                <Link href="/leaderboard">
+                  <Button variant="ghost" size="sm" className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center w-full">
+                    Leaderboard
+                  </Button>
+                </Link>
+
+                {/* Authentication Buttons */}
+                {settings?.userLoginEnabledDev && (
+                  <AuthenticationButtons />
+                )}
+                
+                {!settings?.userLoginEnabledDev && (
+                  <a 
+                    href="https://www.chrismcnulty.net/subscribe" 
+                    className="bg-cascadia-green text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium text-center"
+                  >
+                    Subscribe
+                  </a>
+                )}
+                
+                <Link href="/admin">
+                  <Button variant="ghost" size="sm" className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center w-full">
+                    Admin
+                  </Button>
+                </Link>
               </div>
             </div>
           )}
         </header>
+
+        {/* Announcements */}
+        <SimpleAnnouncements />
 
         {/* Voting Header */}
         <div className="p-6 text-center bg-white border-b border-gray-200">

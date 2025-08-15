@@ -170,18 +170,7 @@ export default function MobileVotingInterface({
         {/* Mobile Header with Navigation */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
           <div className="flex items-center justify-between p-4">
-            {/* Back Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onToggleView?.()}
-              className="p-2 flex items-center gap-2"
-            >
-              <ArrowLeft className="h-5 w-5" />
-              <span className="text-sm">Back</span>
-            </Button>
-
-            {/* Logo */}
+            {/* Logo - centered with more space */}
             <div className="flex items-center space-x-3 flex-1 justify-center">
               <div className="w-8 h-8 rounded overflow-hidden">
                 <img 
@@ -226,18 +215,6 @@ export default function MobileVotingInterface({
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    onToggleView?.();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="flex items-center gap-2 justify-center"
-                >
-                  <Smartphone className="w-4 h-4" />
-                  Desktop View
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
                     onShowInstallGuide?.();
                     setMobileMenuOpen(false);
                   }}
@@ -246,28 +223,33 @@ export default function MobileVotingInterface({
                   <Plus className="w-4 h-4" />
                   Install App
                 </Button>
+                
+                <Link href="/leaderboard">
+                  <Button variant="ghost" size="sm" className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center w-full" onClick={() => setMobileMenuOpen(false)}>
+                    Leaderboard
+                  </Button>
+                </Link>
+
                 <a 
                   href="https://www.chrismcnulty.net/photography" 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center"
+                  onClick={() => setMobileMenuOpen(false)}
                 >
                   Visit Gallery
                 </a>
+                
                 <a 
                   href="https://www.instagram.com/cascadia.oceanic/" 
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium flex items-center gap-1 justify-center"
+                  onClick={() => setMobileMenuOpen(false)}
                 >
                   <FaInstagram className="w-4 h-4" />
                   Instagram
                 </a>
-                <Link href="/leaderboard">
-                  <Button variant="ghost" size="sm" className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center w-full">
-                    Leaderboard
-                  </Button>
-                </Link>
 
                 {/* Authentication Buttons */}
                 {settings?.userLoginEnabledDev && (
@@ -278,16 +260,11 @@ export default function MobileVotingInterface({
                   <a 
                     href="https://www.chrismcnulty.net/subscribe" 
                     className="bg-cascadia-green text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium text-center"
+                    onClick={() => setMobileMenuOpen(false)}
                   >
                     Subscribe
                   </a>
                 )}
-                
-                <Link href="/admin">
-                  <Button variant="ghost" size="sm" className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center w-full">
-                    Admin
-                  </Button>
-                </Link>
               </div>
             </div>
           )}

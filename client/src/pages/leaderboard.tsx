@@ -320,7 +320,7 @@ export default function Leaderboard() {
                               {activeTab === 'votes' ? photo.votes.toLocaleString() : `${winRate}%`}
                             </div>
                             <div className="text-xs text-gray-500 font-medium">
-                              {activeTab === 'votes' ? 'Win Rate' : 'Total Votes'}
+                              {activeTab === 'votes' ? 'Total Votes' : 'Win Rate'}
                             </div>
                           </div>
                           

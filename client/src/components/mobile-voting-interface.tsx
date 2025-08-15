@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Photo, Settings } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Heart, ChevronLeft, ChevronRight, Zap, Menu, X, Smartphone, Plus, MousePointer, RefreshCw, Infinity, Globe, Mail, Share2, MessageSquare, ArrowLeft } from "lucide-react";
+import { Heart, ChevronLeft, ChevronRight, Zap, Menu, X, Smartphone, Plus, MousePointer, RefreshCw, Infinity, Globe, Mail, Share2, MessageSquare, ArrowLeft, Settings as SettingsIcon } from "lucide-react";
 import { FaInstagram, FaFacebookF, FaLinkedinIn } from "react-icons/fa6";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -199,6 +199,14 @@ export default function MobileVotingInterface({
             {/* Mobile Menu Button and User Profile */}
             <div className="flex items-center gap-2">
               <UserProfile />
+              {/* Admin indicator for mobile */}
+              {typeof window !== 'undefined' && localStorage.getItem('admin-session-id') && (
+                <Link href="/admin">
+                  <Button variant="ghost" size="icon" className="p-2">
+                    <SettingsIcon className="h-5 w-5 text-green-600" />
+                  </Button>
+                </Link>
+              )}
               <Button
                 variant="ghost"
                 size="sm"

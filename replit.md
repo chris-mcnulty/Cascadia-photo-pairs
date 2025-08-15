@@ -61,6 +61,21 @@ Preferred communication style: Simple, everyday language.
 - **Communication**: Email notification system (welcome, verification, contest winners), customizable admin settings for contest text, support email, and privacy links.
 - **Mobile Experience**: Optimized mobile interface with touch/swipe gestures, consistent with PWA experience.
 
+## Backlog Features
+
+### Pairs Feature (Photo Comparison System)
+- **Feature Name**: Pairs - Special photo comparison system
+- **Purpose**: Allow configuration of photo pairs (twins) for direct comparison (e.g., black & white vs color versions)
+- **Frequency**: Show a pair every 10-15 voting rounds (configurable, default 5-15)
+- **Pair Selection**: Random selection when it's time, checking both photos are eligible
+- **Fallback**: If no eligible pairs, show regular photos
+- **Admin Requirements**:
+  - Interface to set up and manage pairs
+  - Alert system if half of a pair is missing/hidden
+  - Special pair comparison report for head-to-head analytics
+- **Database**: New table for photo_pairs with photo1_id, photo2_id, frequency settings
+- **Voting**: Track pair comparisons separately for detailed analytics
+
 ## External Dependencies
 
 ### Database & ORM

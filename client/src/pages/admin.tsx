@@ -73,7 +73,12 @@ function AdminDashboard() {
               </Link>
               <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-4">
+              {sessionId && (
+                <span className="text-sm text-gray-600">
+                  Logged in as: {sessionId === 'chris-master-admin-121365' ? 'Chris McNulty (Master Admin)' : 'Admin'}
+                </span>
+              )}
               <Button onClick={handleExportData} variant="outline" size="sm">
                 <Download className="w-4 h-4 mr-2" />
                 Export Data

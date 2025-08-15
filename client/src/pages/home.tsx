@@ -233,6 +233,14 @@ export default function Home() {
                 <AuthenticationButtons />
               )}
               <UserProfile />
+              {/* Admin indicator */}
+              {localStorage.getItem('admin-session-id') && (
+                <Link href="/admin">
+                  <Button variant="outline" size="sm" className="bg-green-50 border-green-300">
+                    Admin Panel
+                  </Button>
+                </Link>
+              )}
             </nav>
 
             {/* Mobile Menu Button */}

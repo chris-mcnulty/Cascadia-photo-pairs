@@ -111,6 +111,8 @@ export const photoPairs = pgTable("photo_pairs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   createdBy: varchar("created_by").references(() => users.id), // Admin who created the pair
   description: text("description"), // Optional description of the pair relationship
+  minFrequency: integer("min_frequency").default(5).notNull(), // Minimum rounds between pair appearances
+  maxFrequency: integer("max_frequency").default(15).notNull(), // Maximum rounds between pair appearances
 }, (table) => [
   index("idx_photo_pairs_photo1").on(table.photo1Id),
   index("idx_photo_pairs_photo2").on(table.photo2Id),

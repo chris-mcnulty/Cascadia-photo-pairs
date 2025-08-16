@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Trash2, Plus, Eye, Archive, AlertTriangle } from "lucide-react";
+import { Trash2, Plus, Eye, Archive, AlertTriangle, Activity } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,6 +27,8 @@ interface PhotoPair {
   photo1Id: string;
   photo2Id: string;
   description?: string;
+  minFrequency?: number;
+  maxFrequency?: number;
   createdAt: string;
   createdBy?: string;
 }
@@ -35,12 +37,18 @@ interface PairStats {
   photo1Wins: number;
   photo2Wins: number;
   totalVotes: number;
+  photo1WinRate: number;
+  photo2WinRate: number;
+  photo1VsOthers: { wins: number; total: number; winRate: number };
+  photo2VsOthers: { wins: number; total: number; winRate: number };
 }
 
 export function PairsManagement() {
   const [selectedPhoto1, setSelectedPhoto1] = useState<string>("");
   const [selectedPhoto2, setSelectedPhoto2] = useState<string>("");
   const [description, setDescription] = useState("");
+  const [minFrequency, setMinFrequency] = useState(5);
+  const [maxFrequency, setMaxFrequency] = useState(15);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showStatsDialog, setShowStatsDialog] = useState(false);
   const [selectedPairId, setSelectedPairId] = useState<string>("");
@@ -94,7 +102,7 @@ export function PairsManagement() {
 
   // Create pair mutation
   const createPairMutation = useMutation({
-    mutationFn: async (data: { photo1Id: string; photo2Id: string; description?: string }) => {
+    mutationFn: async (data: { photo1Id: string; photo2Id: string; description?: string; minFrequency?: number; maxFrequency?: number }) => {
       // Get the actual session ID from localStorage
       const sessionId = localStorage.getItem('admin-session-id');
       console.log('Creating pair with sessionId:', sessionId);
@@ -124,6 +132,8 @@ export function PairsManagement() {
       setSelectedPhoto1("");
       setSelectedPhoto2("");
       setDescription("");
+      setMinFrequency(5);
+      setMaxFrequency(15);
       toast({
         title: "Success",
         description: "Photo pair created successfully",
@@ -231,6 +241,8 @@ export function PairsManagement() {
       photo1Id: selectedPhoto1,
       photo2Id: selectedPhoto2,
       description: description || undefined,
+      minFrequency,
+      maxFrequency,
     });
   };
 
@@ -348,6 +360,35 @@ export function PairsManagement() {
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="minFrequency">Min Frequency (rounds)</Label>
+                  <Input
+                    id="minFrequency"
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={minFrequency}
+                    onChange={(e) => setMinFrequency(parseInt(e.target.value) || 5)}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Minimum rounds between pair appearances</p>
+                </div>
+                <div>
+                  <Label htmlFor="maxFrequency">Max Frequency (rounds)</Label>
+                  <Input
+                    id="maxFrequency"
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={maxFrequency}
+                    onChange={(e) => setMaxFrequency(parseInt(e.target.value) || 15)}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Maximum rounds between pair appearances</p>
+                </div>
+              </div>
             </div>
             
             <DialogFooter>
@@ -455,8 +496,12 @@ export function PairsManagement() {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-4 text-sm text-muted-foreground">
-                    Created: {new Date(pair.createdAt).toLocaleDateString()}
+                  <div className="mt-4 flex justify-between text-sm text-muted-foreground">
+                    <span>Created: {new Date(pair.createdAt).toLocaleDateString()}</span>
+                    <span>
+                      <Activity className="w-4 h-4 inline mr-1" />
+                      Frequency: {pair.minFrequency || 5}-{pair.maxFrequency || 15} rounds
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -509,9 +554,46 @@ export function PairsManagement() {
                         </CardContent>
                       </Card>
                     </div>
-                    <div className="text-center">
+                    <div className="text-center mb-4">
                       <div className="text-lg font-semibold">
                         Total Votes: {pairStats.totalVotes}
+                      </div>
+                    </div>
+                    
+                    {/* Detailed match breakdown */}
+                    <div className="border-t pt-4">
+                      <h4 className="font-semibold mb-3">Performance vs All Opponents</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <h5 className="font-medium text-green-600">{photo1?.title}</h5>
+                          <div className="text-sm space-y-1">
+                            <div className="flex justify-between">
+                              <span>In this pair:</span>
+                              <span>{pairStats.photo1Wins}/{pairStats.totalVotes} ({photo1Rate}%)</span>
+                            </div>
+                            {pairStats.photo1VsOthers && (
+                              <div className="flex justify-between">
+                                <span>vs Other photos:</span>
+                                <span>{pairStats.photo1VsOthers.wins}/{pairStats.photo1VsOthers.total} ({pairStats.photo1VsOthers.winRate.toFixed(1)}%)</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <h5 className="font-medium text-blue-600">{photo2?.title}</h5>
+                          <div className="text-sm space-y-1">
+                            <div className="flex justify-between">
+                              <span>In this pair:</span>
+                              <span>{pairStats.photo2Wins}/{pairStats.totalVotes} ({photo2Rate}%)</span>
+                            </div>
+                            {pairStats.photo2VsOthers && (
+                              <div className="flex justify-between">
+                                <span>vs Other photos:</span>
+                                <span>{pairStats.photo2VsOthers.wins}/{pairStats.photo2VsOthers.total} ({pairStats.photo2VsOthers.winRate.toFixed(1)}%)</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </>

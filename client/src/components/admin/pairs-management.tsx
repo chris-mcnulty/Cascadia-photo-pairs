@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -52,10 +52,24 @@ export function PairsManagement() {
   const [selectedPairId, setSelectedPairId] = useState<string>("");
   const [minInterval, setMinInterval] = useState(10);
   const [maxInterval, setMaxInterval] = useState(15);
+  const [minIntervalInput, setMinIntervalInput] = useState("10");
+  const [maxIntervalInput, setMaxIntervalInput] = useState("15");
   const [showOverviewDialog, setShowOverviewDialog] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Sync input states with loaded settings
+  useEffect(() => {
+    if (settings) {
+      const minValue = settings.pairsMinInterval || 10;
+      const maxValue = settings.pairsMaxInterval || 15;
+      setMinInterval(minValue);
+      setMaxInterval(maxValue);
+      setMinIntervalInput(minValue.toString());
+      setMaxIntervalInput(maxValue.toString());
+    }
+  }, [settings]);
 
   // Fetch settings for frequency configuration
   const { data: settings } = useQuery<any>({
@@ -487,8 +501,21 @@ export function PairsManagement() {
                   type="number"
                   min="1"
                   max="50"
-                  value={minInterval}
-                  onChange={(e) => setMinInterval(parseInt(e.target.value) || 1)}
+                  value={minIntervalInput}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setMinIntervalInput(value);
+                    const parsed = parseInt(value);
+                    if (!isNaN(parsed) && parsed >= 1 && parsed <= 50) {
+                      setMinInterval(parsed);
+                    }
+                  }}
+                  onBlur={() => {
+                    const parsed = parseInt(minIntervalInput);
+                    if (isNaN(parsed) || parsed < 1 || parsed > 50) {
+                      setMinIntervalInput(minInterval.toString());
+                    }
+                  }}
                   className="w-full"
                 />
                 <p className="text-xs text-gray-500 mt-1">Minimum rounds between pair appearances</p>
@@ -500,8 +527,21 @@ export function PairsManagement() {
                   type="number"
                   min="1"
                   max="100"
-                  value={maxInterval}
-                  onChange={(e) => setMaxInterval(parseInt(e.target.value) || 1)}
+                  value={maxIntervalInput}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setMaxIntervalInput(value);
+                    const parsed = parseInt(value);
+                    if (!isNaN(parsed) && parsed >= 1 && parsed <= 100) {
+                      setMaxInterval(parsed);
+                    }
+                  }}
+                  onBlur={() => {
+                    const parsed = parseInt(maxIntervalInput);
+                    if (isNaN(parsed) || parsed < 1 || parsed > 100) {
+                      setMaxIntervalInput(maxInterval.toString());
+                    }
+                  }}
                   className="w-full"
                 />
                 <p className="text-xs text-gray-500 mt-1">Maximum rounds between pair appearances</p>

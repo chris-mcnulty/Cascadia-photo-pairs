@@ -73,6 +73,14 @@ export const settings = pgTable("settings", {
   consentCopyLong: text("consent_copy_long").default("By registering, you agree to receive updates, tips, and offers from Christopher F. McNulty (Chris) and Cascadia Oceanic LLC. You can unsubscribe anytime via the link in our emails or by contacting privacy@chrismcnulty.net. We do not sell your information. See our Privacy Policy: https://www.chrismcnulty.net/privacy"),
   consentCopyShort: text("consent_copy_short").default("I agree to receive updates from Christopher F. McNulty (Chris) & Cascadia Oceanic LLC and accept the Privacy Policy."),
   // User login feature toggles - separate for dev/prod environments
+  
+  // News System Configuration
+  newsSource: text("news_source").default("internal").notNull(), // "internal" or "rss"
+  rssUrl: text("rss_url").default("https://www.chrismcnulty.net/feed"),
+  rssTag: text("rss_tag").default("photography"), // Filter by tag
+  rssDaysLimit: integer("rss_days_limit").default(90), // Only show posts from last N days
+  rssMaxItems: integer("rss_max_items").default(3), // Maximum number of items to show
+  rssEnabled: boolean("rss_enabled").default(false).notNull(), // Master toggle for RSS
   userLoginEnabledDev: boolean("user_login_enabled_dev").default(true).notNull(), // ON in development for testing
   userLoginEnabledProd: boolean("user_login_enabled_prod").default(false).notNull(), // OFF in production until ready
   // Contest management fields

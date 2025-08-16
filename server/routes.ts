@@ -26,6 +26,7 @@ import {
 } from "./auth";
 import { sendVerificationEmail, sendPasswordResetEmail } from "./email";
 import { sendAdminMFACode, isEmailServiceAvailable, isSMSServiceAvailable } from "./sendgrid";
+import { rssService } from "./rss-service";
 
 // Temporary storage for MFA sessions
 const adminMfaSessions = new Map<string, { code: string; expires: number; isMasterAdmin: boolean }>();
@@ -1155,6 +1156,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // News items endpoint (public)
   app.get("/api/news", async (req, res) => {
     try {
+      // Get current settings to determine news source
+      const [currentSettings] = await db.select().from(settingsTable).where(eq(settingsTable.id, "main"));
+      
+      if (!currentSettings) {
+        return res.json([]);
+      }
+
+      // Check if RSS is enabled and configured
+      if (currentSettings.newsSource === 'rss' && currentSettings.rssEnabled && currentSettings.rssUrl) {
+        try {
+          const rssItems = await rssService.fetchRSSFeed({
+            url: currentSettings.rssUrl,
+            tag: currentSettings.rssTag || undefined,
+            daysLimit: currentSettings.rssDaysLimit || 90,
+            maxItems: currentSettings.rssMaxItems || 3
+          });
+          
+          return res.json(rssItems);
+        } catch (rssError) {
+          console.error('RSS fetch failed, falling back to internal news:', rssError);
+          // Fall through to internal news on RSS failure
+        }
+      }
+
+      // Default to internal news system
       const now = new Date();
       const newsItems = await db
         .select()

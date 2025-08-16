@@ -22,6 +22,7 @@ Preferred communication style: Simple, everyday language.
 - **PWA Purchase Integration**: Added purchase buttons to mobile voting interface, displaying "Purchase Print" buttons under photos that are available for sale, matching desktop functionality
 - **Achievement System Fix**: Corrected user achievement calculation to properly display Expert level for users with 100+ votes (fixed from incorrectly showing Beginner for high vote counts)
 - **Leaderboard Label Fix**: Fixed swapped labels in photo leaderboard where "Total Votes" was showing win rate percentages and vice versa - now correctly displays statistics with proper labels
+- **RSS News Integration**: Added configurable RSS feed system for news section, allowing choice between internal news management or consuming from external RSS feeds (chrismcnulty.net photography posts), with enhanced styling for better visibility
 
 ## System Architecture
 
@@ -69,6 +70,21 @@ Preferred communication style: Simple, everyday language.
 - **Mobile Experience**: Optimized mobile interface with touch/swipe gestures, consistent with PWA experience.
 
 ## Backlog Features
+
+### RSS News System Configuration (Admin Panel)
+- **Feature Name**: RSS News Management Interface
+- **Purpose**: Admin interface to configure RSS feed settings and switch between internal/external news
+- **Configuration Options**:
+  - Toggle between internal news and RSS feed mode
+  - RSS feed URL configuration
+  - Tag filtering (default: photography)
+  - Days limit (default: 90 days)
+  - Maximum items to display (default: 3)
+  - Preview RSS feed before enabling
+- **Multi-tenant Support**: Configurable per tenant for future multi-photographer deployments
+- **Admin Interface**: Add to admin dashboard under "News Settings"
+- **Fallback**: Automatic fallback to internal news if RSS fails
+- **Testing**: Preview mode to test RSS feeds before going live
 
 ### Pairs Feature (Photo Comparison System)
 - **Feature Name**: Pairs - Special photo comparison system

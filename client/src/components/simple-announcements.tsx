@@ -133,7 +133,7 @@ export default function SimpleAnnouncements() {
           <div onClick={() => setNewsExpanded(!newsExpanded)}>
             <Button
               variant="outline"
-              className="w-full flex items-center justify-between p-4 h-auto border border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+              className="w-full flex items-center justify-between p-4 h-auto border border-gray-300 bg-white/80 backdrop-blur-sm shadow-sm hover:border-gray-400 hover:bg-white/90 hover:shadow-md transition-all"
             >
               <div className="flex items-center gap-2">
                 <Newspaper className="h-5 w-5 text-gray-600" />
@@ -159,7 +159,7 @@ export default function SimpleAnnouncements() {
           </div>
 
           {newsExpanded && (
-            <div className="space-y-6 mt-6 mb-12">
+            <div className="space-y-6 mt-6 mb-12 bg-white/70 backdrop-blur-sm rounded-lg border border-gray-200 p-6 shadow-sm">
             {/* Contest Alerts */}
             {announcement?.monthlyContestActive && (
               <Alert className="bg-green-50 border-green-200">

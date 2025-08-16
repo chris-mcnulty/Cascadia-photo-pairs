@@ -118,46 +118,54 @@ function AdminDashboard() {
           </div>
         )}
 
-        {/* Tabs - Reorganized into logical groups */}
-        <div className="flex space-x-1 mb-8">
+        {/* Tabs - Reorganized into logical groups with responsive design */}
+        <div className="flex flex-wrap gap-2 mb-8">
           <Button
             variant={activeTab === "analytics" ? "default" : "outline"}
             onClick={() => setActiveTab("analytics")}
-            className="flex items-center"
+            className="flex items-center text-sm"
+            size="sm"
           >
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Analytics
+            <BarChart3 className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Analytics</span>
+            <span className="sm:hidden">Data</span>
           </Button>
           <Button
             variant={activeTab === "photos" ? "default" : "outline"}
             onClick={() => setActiveTab("photos")}
-            className="flex items-center"
+            className="flex items-center text-sm"
+            size="sm"
           >
-            <ImageIcon className="w-4 h-4 mr-2" />
+            <ImageIcon className="w-4 h-4 mr-1 sm:mr-2" />
             Photos
           </Button>
           <Button
             variant={activeTab === "users" ? "default" : "outline"}
             onClick={() => setActiveTab("users")}
-            className="flex items-center"
+            className="flex items-center text-sm"
+            size="sm"
           >
-            <Users className="w-4 h-4 mr-2" />
-            User Management
+            <Users className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">User Management</span>
+            <span className="sm:hidden">Users</span>
           </Button>
           <Button
             variant={activeTab === "communication" ? "default" : "outline"}
             onClick={() => setActiveTab("communication")}
-            className="flex items-center"
+            className="flex items-center text-sm"
+            size="sm"
           >
-            <MessageSquare className="w-4 h-4 mr-2" />
-            Communication
+            <MessageSquare className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Communication</span>
+            <span className="sm:hidden">Comm</span>
           </Button>
           <Button
             variant={activeTab === "settings" ? "default" : "outline"}
             onClick={() => setActiveTab("settings")}
-            className="flex items-center"
+            className="flex items-center text-sm"
+            size="sm"
           >
-            <Settings className="w-4 h-4 mr-2" />
+            <Settings className="w-4 h-4 mr-1 sm:mr-2" />
             Settings
           </Button>
         </div>

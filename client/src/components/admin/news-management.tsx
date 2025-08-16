@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -12,7 +13,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
-import { CalendarIcon, Plus, Edit2, Trash2, ExternalLink, Newspaper } from "lucide-react";
+import { CalendarIcon, Plus, Edit2, Trash2, ExternalLink, Newspaper, Rss } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -52,6 +53,16 @@ export default function NewsManagement() {
     isActive: true,
   });
 
+  // RSS Configuration state
+  const [rssSettings, setRSSSettings] = useState({
+    newsSource: "internal",
+    rssEnabled: false,
+    rssUrl: "https://www.chrismcnulty.net/creative-writing?format=rss",
+    rssTag: "photography",
+    rssDaysLimit: 90,
+    rssMaxItems: 3,
+  });
+
   // Fetch news items
   const { data: newsItems = [], isLoading } = useQuery<NewsItem[]>({
     queryKey: ["/api/admin/news"],
@@ -69,6 +80,30 @@ export default function NewsManagement() {
       return response.json();
     }
   });
+
+  // Fetch RSS settings
+  const { data: settings } = useQuery({
+    queryKey: ["/api/settings"],
+    queryFn: async () => {
+      const response = await fetch("/api/settings");
+      if (!response.ok) throw new Error("Failed to fetch settings");
+      return response.json();
+    }
+  });
+
+  // Update RSS settings when settings load
+  useEffect(() => {
+    if (settings) {
+      setRSSSettings({
+        newsSource: (settings as any).newsSource || "internal",
+        rssEnabled: (settings as any).rssEnabled || false,
+        rssUrl: (settings as any).rssUrl || "https://www.chrismcnulty.net/creative-writing?format=rss",
+        rssTag: (settings as any).rssTag || "photography",
+        rssDaysLimit: (settings as any).rssDaysLimit || 90,
+        rssMaxItems: (settings as any).rssMaxItems || 3,
+      });
+    }
+  }, [settings]);
 
   // Create/Update news item
   const saveMutation = useMutation({
@@ -150,6 +185,30 @@ export default function NewsManagement() {
         variant: "destructive",
       });
     }
+  });
+
+  // Save RSS settings mutation
+  const saveRSSMutation = useMutation({
+    mutationFn: async () => {
+      const sessionId = localStorage.getItem('admin-session-id');
+      const response = await apiRequest("PUT", "/api/settings", rssSettings, sessionId ? { 'x-session-id': sessionId } : undefined);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/news"] });
+      toast({
+        title: "RSS settings updated",
+        description: "Your RSS configuration has been saved successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Update failed",
+        description: "There was an error updating the RSS settings.",
+        variant: "destructive",
+      });
+    },
   });
 
   const handleOpenDialog = (item?: NewsItem) => {
@@ -246,25 +305,148 @@ export default function NewsManagement() {
   }
 
   return (
-    <>
+    <div className="space-y-6">
+      {/* RSS Configuration */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Newspaper className="w-5 h-5 text-gray-600" />
-                News & Updates
-              </CardTitle>
-              <CardDescription>
-                Manage news items and blog post links
-              </CardDescription>
-            </div>
-            <Button onClick={() => handleOpenDialog()} className="bg-green-700 hover:bg-green-800">
-              <Plus className="w-4 h-4 mr-2" />
-              Add News Item
-            </Button>
-          </div>
+          <CardTitle className="flex items-center gap-2">
+            <Rss className="w-5 h-5" />
+            RSS Feed Configuration
+          </CardTitle>
+          <CardDescription>
+            Configure RSS feed settings for automatic news updates
+          </CardDescription>
         </CardHeader>
+        <CardContent className="space-y-4">
+          {/* RSS Mode Toggle */}
+          <div className="flex items-center justify-between p-4 border border-purple-300 bg-purple-50 rounded-lg">
+            <div className="space-y-0.5">
+              <Label className="text-base font-medium text-purple-900">RSS Feed Mode</Label>
+              <div className="text-sm text-purple-700">
+                Pull news from your blog's RSS feed instead of managing internally
+              </div>
+              <div className="text-xs text-purple-600 mt-1">
+                Automatically shows photography posts from your creative writing blog
+              </div>
+            </div>
+            <Switch
+              checked={rssSettings.newsSource === 'rss' && rssSettings.rssEnabled}
+              onCheckedChange={(checked) => 
+                setRSSSettings(prev => ({ 
+                  ...prev, 
+                  newsSource: checked ? 'rss' : 'internal',
+                  rssEnabled: checked 
+                }))
+              }
+              className="data-[state=checked]:bg-purple-600"
+            />
+          </div>
+
+          {/* RSS Configuration - Only show when RSS is enabled */}
+          {rssSettings.newsSource === 'rss' && rssSettings.rssEnabled && (
+            <div className="space-y-4 p-4 border border-gray-200 bg-gray-50 rounded-lg">
+              <div className="text-base font-medium text-gray-900">RSS Feed Settings</div>
+              
+              {/* RSS URL */}
+              <div className="space-y-2">
+                <Label htmlFor="rssUrl" className="text-sm font-medium">RSS Feed URL</Label>
+                <Input
+                  id="rssUrl"
+                  type="url"
+                  placeholder="https://www.chrismcnulty.net/creative-writing?format=rss"
+                  value={rssSettings.rssUrl}
+                  onChange={(e) => 
+                    setRSSSettings(prev => ({ ...prev, rssUrl: e.target.value }))
+                  }
+                  className="w-full"
+                />
+              </div>
+
+              {/* Tag Filter */}
+              <div className="space-y-2">
+                <Label htmlFor="rssTag" className="text-sm font-medium">Tag Filter</Label>
+                <Input
+                  id="rssTag"
+                  placeholder="photography"
+                  value={rssSettings.rssTag}
+                  onChange={(e) => 
+                    setRSSSettings(prev => ({ ...prev, rssTag: e.target.value }))
+                  }
+                  className="w-full"
+                />
+                <div className="text-xs text-gray-500">
+                  Only show posts tagged with this word (leave blank for all posts)
+                </div>
+              </div>
+
+              {/* Days Limit and Max Items */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="rssDaysLimit" className="text-sm font-medium">Days Limit</Label>
+                  <Input
+                    id="rssDaysLimit"
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={rssSettings.rssDaysLimit}
+                    onChange={(e) => 
+                      setRSSSettings(prev => ({ ...prev, rssDaysLimit: parseInt(e.target.value) || 90 }))
+                    }
+                    className="w-full"
+                  />
+                  <div className="text-xs text-gray-500">Posts from last N days</div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="rssMaxItems" className="text-sm font-medium">Max Items</Label>
+                  <Input
+                    id="rssMaxItems"
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={rssSettings.rssMaxItems}
+                    onChange={(e) => 
+                      setRSSSettings(prev => ({ ...prev, rssMaxItems: parseInt(e.target.value) || 3 }))
+                    }
+                    className="w-full"
+                  />
+                  <div className="text-xs text-gray-500">Maximum posts to show</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Save RSS Settings Button */}
+          <Button 
+            onClick={() => saveRSSMutation.mutate()}
+            disabled={saveRSSMutation.isPending}
+            className="w-full"
+          >
+            {saveRSSMutation.isPending ? "Saving..." : "Save RSS Settings"}
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Internal News Management - Only show when not using RSS */}
+      {rssSettings.newsSource === 'internal' && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Newspaper className="w-5 h-5 text-gray-600" />
+                  Internal News Management
+                </CardTitle>
+                <CardDescription>
+                  Manage internal news items and announcements
+                </CardDescription>
+              </div>
+              <Button onClick={() => handleOpenDialog()} className="bg-green-700 hover:bg-green-800">
+                <Plus className="w-4 h-4 mr-2" />
+                Add News Item
+              </Button>
+            </div>
+          </CardHeader>
         <CardContent>
           {newsItems.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
@@ -335,7 +517,8 @@ export default function NewsManagement() {
             </div>
           )}
         </CardContent>
-      </Card>
+        </Card>
+      )}
 
       {/* Add/Edit Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
@@ -477,6 +660,6 @@ export default function NewsManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

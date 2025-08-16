@@ -33,13 +33,7 @@ export default function AdminSettings() {
     userLoginEnabledProd: false,
     consentCopyLong: "",
     consentCopyShort: "",
-    // RSS Configuration
-    newsSource: "internal",
-    rssEnabled: false,
-    rssUrl: "https://www.chrismcnulty.net/creative-writing?format=rss",
-    rssTag: "photography",
-    rssDaysLimit: 90,
-    rssMaxItems: 3,
+
   });
 
   const updateSettingsMutation = useMutation({
@@ -125,13 +119,7 @@ export default function AdminSettings() {
         userLoginEnabledProd: settings.userLoginEnabledProd !== undefined ? settings.userLoginEnabledProd : false,
         consentCopyLong: settings.consentCopyLong || "By registering, you agree to receive updates, tips, and offers from Christopher F. McNulty (Chris) and Cascadia Oceanic LLC. You can unsubscribe anytime via the link in our emails or by contacting privacy@chrismcnulty.net. We do not sell your information. See our Privacy Policy: https://www.chrismcnulty.net/privacy",
         consentCopyShort: settings.consentCopyShort || "I agree to receive updates from Christopher F. McNulty (Chris) & Cascadia Oceanic LLC and accept the Privacy Policy.",
-        // RSS Configuration
-        newsSource: (settings as any).newsSource || "internal",
-        rssEnabled: (settings as any).rssEnabled || false,
-        rssUrl: (settings as any).rssUrl || "https://www.chrismcnulty.net/creative-writing?format=rss",
-        rssTag: (settings as any).rssTag || "photography",
-        rssDaysLimit: (settings as any).rssDaysLimit || 90,
-        rssMaxItems: (settings as any).rssMaxItems || 3,
+
       });
     }
   }, [settings]);
@@ -198,108 +186,7 @@ export default function AdminSettings() {
             </div>
           </div>
 
-          {/* RSS News Configuration */}
-          <div className="space-y-4">
-            <div className="text-lg font-semibold text-gray-900">News & Updates Configuration</div>
-            
-            {/* News Source Toggle */}
-            <div className="flex items-center justify-between p-4 border border-purple-300 bg-purple-50 rounded-lg">
-              <div className="space-y-0.5">
-                <Label className="text-base font-medium text-purple-900">RSS Feed Mode</Label>
-                <div className="text-sm text-purple-700">
-                  Pull news from your blog's RSS feed instead of managing internally
-                </div>
-                <div className="text-xs text-purple-600 mt-1">
-                  Automatically shows photography posts from your creative writing blog
-                </div>
-              </div>
-              <Switch
-                checked={formData.newsSource === 'rss' && formData.rssEnabled}
-                onCheckedChange={(checked) => 
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    newsSource: checked ? 'rss' : 'internal',
-                    rssEnabled: checked 
-                  }))
-                }
-                className="data-[state=checked]:bg-purple-600"
-              />
-            </div>
 
-            {/* RSS Configuration - Only show when RSS is enabled */}
-            {formData.newsSource === 'rss' && formData.rssEnabled && (
-              <div className="space-y-4 p-4 border border-gray-200 bg-gray-50 rounded-lg">
-                <div className="text-base font-medium text-gray-900">RSS Feed Settings</div>
-                
-                {/* RSS URL */}
-                <div className="space-y-2">
-                  <Label htmlFor="rssUrl" className="text-sm font-medium">RSS Feed URL</Label>
-                  <Input
-                    id="rssUrl"
-                    type="url"
-                    placeholder="https://www.chrismcnulty.net/creative-writing?format=rss"
-                    value={formData.rssUrl}
-                    onChange={(e) => 
-                      setFormData(prev => ({ ...prev, rssUrl: e.target.value }))
-                    }
-                    className="w-full"
-                  />
-                </div>
-
-                {/* Tag Filter */}
-                <div className="space-y-2">
-                  <Label htmlFor="rssTag" className="text-sm font-medium">Tag Filter</Label>
-                  <Input
-                    id="rssTag"
-                    placeholder="photography"
-                    value={formData.rssTag}
-                    onChange={(e) => 
-                      setFormData(prev => ({ ...prev, rssTag: e.target.value }))
-                    }
-                    className="w-full"
-                  />
-                  <div className="text-xs text-gray-500">
-                    Only show posts tagged with this word (leave blank for all posts)
-                  </div>
-                </div>
-
-                {/* Days Limit and Max Items */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="rssDaysLimit" className="text-sm font-medium">Days Limit</Label>
-                    <Input
-                      id="rssDaysLimit"
-                      type="number"
-                      min="1"
-                      max="365"
-                      value={formData.rssDaysLimit}
-                      onChange={(e) => 
-                        setFormData(prev => ({ ...prev, rssDaysLimit: parseInt(e.target.value) || 90 }))
-                      }
-                      className="w-full"
-                    />
-                    <div className="text-xs text-gray-500">Posts from last N days</div>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="rssMaxItems" className="text-sm font-medium">Max Items</Label>
-                    <Input
-                      id="rssMaxItems"
-                      type="number"
-                      min="1"
-                      max="10"
-                      value={formData.rssMaxItems}
-                      onChange={(e) => 
-                        setFormData(prev => ({ ...prev, rssMaxItems: parseInt(e.target.value) || 3 }))
-                      }
-                      className="w-full"
-                    />
-                    <div className="text-xs text-gray-500">Maximum posts to show</div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
 
           {/* Purchase Links Toggle */}
           <div className="flex items-center justify-between">

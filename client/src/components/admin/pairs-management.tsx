@@ -596,11 +596,23 @@ export function PairsManagement() {
                                   <div className="text-xs sm:text-sm text-gray-600">
                                     {opponent.winRateAgainstOpponent.toFixed(1)}% ({opponent.totalMatchups} total)
                                   </div>
-                                  {opponent.directPairVotes && opponent.directPairVotes.total > 0 && (
-                                    <div className="text-xs text-blue-600">
-                                      Direct: {opponent.directPairVotes.wins}-{opponent.directPairVotes.losses}
-                                    </div>
-                                  )}
+                                  <div className="text-xs space-y-1">
+                                    {opponent.regularVotes.total > 0 && (
+                                      <div className="text-gray-500">
+                                        Regular: {opponent.regularVotes.wins}-{opponent.regularVotes.losses}
+                                      </div>
+                                    )}
+                                    {opponent.directPairVotes.total > 0 && (
+                                      <div className="text-blue-600">
+                                        Direct: {opponent.directPairVotes.wins}-{opponent.directPairVotes.losses}
+                                      </div>
+                                    )}
+                                    {opponent.pairIds.length > 1 && (
+                                      <div className="text-purple-600 font-medium">
+                                        {opponent.pairIds.length} pairs
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             ))}

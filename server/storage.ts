@@ -1128,9 +1128,9 @@ export class DatabaseStorage implements IStorage {
       lossesToOpponent: number;
       totalMatchups: number;
       winRateAgainstOpponent: number;
-      isPaired: boolean;
-      pairId?: string;
-      directPairVotes?: { wins: number; losses: number; total: number };
+      regularVotes: { wins: number; losses: number; total: number };
+      directPairVotes: { wins: number; losses: number; total: number };
+      pairIds: string[];
     }>;
   }>> {
     try {
@@ -1163,34 +1163,46 @@ export class DatabaseStorage implements IStorage {
               eq(votes.loserPhotoId, photoId)
             ));
 
-          // Get performance against each opponent this photo is paired with
+          // Get all unique opponents this photo is paired with (may be in multiple pairs)
+          const uniqueOpponents = new Map<string, any[]>();
+          pairs
+            .filter((pair: any) => pair.photo1Id === photoId || pair.photo2Id === photoId)
+            .forEach((pair: any) => {
+              const opponentId = pair.photo1Id === photoId ? pair.photo2Id : pair.photo1Id;
+              if (!uniqueOpponents.has(opponentId)) {
+                uniqueOpponents.set(opponentId, []);
+              }
+              uniqueOpponents.get(opponentId)?.push(pair);
+            });
+
           const opponents = await Promise.all(
-            pairs
-              .filter((pair: any) => pair.photo1Id === photoId || pair.photo2Id === photoId)
-              .map(async (pair: any) => {
-                const opponentId = pair.photo1Id === photoId ? pair.photo2Id : pair.photo1Id;
-                const opponent = allPhotos.find(p => p.id === opponentId);
-                if (!opponent) return null;
-                
-                // Get regular voting head-to-head stats
-                const [winsAgainst] = await db
-                  .select({ count: sql<number>`count(*)` })
-                  .from(votes)
-                  .where(and(
-                    eq(votes.winnerPhotoId, photoId),
-                    eq(votes.loserPhotoId, opponentId)
-                  ));
+            Array.from(uniqueOpponents.entries()).map(async ([opponentId, relatedPairs]) => {
+              const opponent = allPhotos.find(p => p.id === opponentId);
+              if (!opponent) return null;
+              
+              // Get regular voting head-to-head stats (across all time)
+              const [winsAgainst] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(votes)
+                .where(and(
+                  eq(votes.winnerPhotoId, photoId),
+                  eq(votes.loserPhotoId, opponentId)
+                ));
 
-                const [lossesAgainst] = await db
-                  .select({ count: sql<number>`count(*)` })
-                  .from(votes)
-                  .where(and(
-                    eq(votes.winnerPhotoId, opponentId),
-                    eq(votes.loserPhotoId, photoId)
-                  ));
+              const [lossesAgainst] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(votes)
+                .where(and(
+                  eq(votes.winnerPhotoId, opponentId),
+                  eq(votes.loserPhotoId, photoId)
+                ));
 
-                // Get direct pair voting stats
-                const [directPairWins] = await db
+              // Get direct pair voting stats (across all pairs containing these two photos)
+              let totalDirectWins = 0;
+              let totalDirectLosses = 0;
+              
+              for (const pair of relatedPairs) {
+                const [pairWins] = await db
                   .select({ count: sql<number>`count(*)` })
                   .from(pairVotes)
                   .where(and(
@@ -1198,7 +1210,7 @@ export class DatabaseStorage implements IStorage {
                     eq(pairVotes.winnerPhotoId, photoId)
                   ));
 
-                const [directPairLosses] = await db
+                const [pairLosses] = await db
                   .select({ count: sql<number>`count(*)` })
                   .from(pairVotes)
                   .where(and(
@@ -1206,31 +1218,37 @@ export class DatabaseStorage implements IStorage {
                     eq(pairVotes.winnerPhotoId, opponentId)
                   ));
 
-                const regularWins = winsAgainst?.count || 0;
-                const regularLosses = lossesAgainst?.count || 0;
-                const directWins = directPairWins?.count || 0;
-                const directLosses = directPairLosses?.count || 0;
-                
-                const totalMatchups = regularWins + regularLosses + directWins + directLosses;
-                const totalWinsAgainstOpponent = regularWins + directWins;
+                totalDirectWins += pairWins?.count || 0;
+                totalDirectLosses += pairLosses?.count || 0;
+              }
 
-                return {
-                  opponentId,
-                  opponentTitle: opponent.title,
-                  opponentImageUrl: opponent.imageUrl,
-                  winsAgainstOpponent: totalWinsAgainstOpponent,
-                  lossesToOpponent: regularLosses + directLosses,
-                  totalMatchups,
-                  winRateAgainstOpponent: totalMatchups > 0 ? (totalWinsAgainstOpponent / totalMatchups) * 100 : 0,
-                  isPaired: true,
-                  pairId: pair.id,
-                  directPairVotes: {
-                    wins: directWins,
-                    losses: directLosses,
-                    total: directWins + directLosses
-                  }
-                };
-              })
+              const regularWins = winsAgainst?.count || 0;
+              const regularLosses = lossesAgainst?.count || 0;
+              
+              const totalMatchups = regularWins + regularLosses + totalDirectWins + totalDirectLosses;
+              const totalWinsAgainstOpponent = regularWins + totalDirectWins;
+
+              return {
+                opponentId,
+                opponentTitle: opponent.title,
+                opponentImageUrl: opponent.imageUrl,
+                winsAgainstOpponent: totalWinsAgainstOpponent,
+                lossesToOpponent: regularLosses + totalDirectLosses,
+                totalMatchups,
+                winRateAgainstOpponent: totalMatchups > 0 ? (totalWinsAgainstOpponent / totalMatchups) * 100 : 0,
+                regularVotes: {
+                  wins: regularWins,
+                  losses: regularLosses,
+                  total: regularWins + regularLosses
+                },
+                directPairVotes: {
+                  wins: totalDirectWins,
+                  losses: totalDirectLosses,
+                  total: totalDirectWins + totalDirectLosses
+                },
+                pairIds: relatedPairs.map(p => p.id)
+              };
+            })
           );
 
           const validOpponents = opponents.filter(opp => opp !== null);
@@ -1262,9 +1280,9 @@ export class DatabaseStorage implements IStorage {
           lossesToOpponent: number;
           totalMatchups: number;
           winRateAgainstOpponent: number;
-          isPaired: boolean;
-          pairId?: string;
-          directPairVotes?: { wins: number; losses: number; total: number };
+          regularVotes: { wins: number; losses: number; total: number };
+          directPairVotes: { wins: number; losses: number; total: number };
+          pairIds: string[];
         }>;
       }>;
     } catch (error) {

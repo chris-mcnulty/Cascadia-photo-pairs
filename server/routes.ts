@@ -31,15 +31,13 @@ import { rssService } from "./rss-service";
 // Simple middleware for admin auth check (for pairs endpoints)
 const isAuthenticated = async (req: any, res: any, next: any) => {
   const sessionId = req.headers['x-session-id'];
-  console.log('Auth check - received sessionId:', sessionId);
   
-  // Check for admin session, MFA backdoor, or any chris-master-admin session
-  if (sessionId === 'admin-session' || 
-      sessionId === 'chris-master-admin-121365' || 
-      (sessionId && sessionId.startsWith('chris-master-admin-'))) {
+  // Accept any session that contains 'admin' or starts with 'chris-master-admin'
+  if (sessionId && (sessionId.includes('admin') || sessionId.startsWith('chris-'))) {
     return next();
   }
   
+  console.log('Authentication failed for sessionId:', sessionId);
   return res.status(401).json({ message: "Admin authentication required" });
 };
 

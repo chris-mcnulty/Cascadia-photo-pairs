@@ -62,7 +62,11 @@ export function PairsManagement() {
   const { data: pairs = [], isLoading: pairsLoading } = useQuery<PhotoPair[]>({
     queryKey: ["/api/pairs"],
     queryFn: async () => {
-      const sessionId = localStorage.getItem('admin-session-id') || 'chris-master-admin-121365';
+      const sessionId = localStorage.getItem('admin-session-id');
+      if (!sessionId) {
+        throw new Error('No admin session found');
+      }
+      
       const response = await fetch("/api/pairs", {
         headers: {
           'x-session-id': sessionId,
@@ -91,9 +95,13 @@ export function PairsManagement() {
   // Create pair mutation
   const createPairMutation = useMutation({
     mutationFn: async (data: { photo1Id: string; photo2Id: string; description?: string }) => {
-      // Use the same session ID that works for admin dashboard
-      const sessionId = localStorage.getItem('admin-session-id') || 'chris-master-admin-121365';
+      // Get the actual session ID from localStorage
+      const sessionId = localStorage.getItem('admin-session-id');
       console.log('Creating pair with sessionId:', sessionId);
+      
+      if (!sessionId) {
+        throw new Error('No admin session found. Please refresh and log in again.');
+      }
       
       const response = await fetch("/api/pairs", {
         method: "POST",
@@ -134,10 +142,14 @@ export function PairsManagement() {
   const deletePairMutation = useMutation({
     mutationFn: async (pairId: string) => {
       const sessionId = localStorage.getItem('admin-session-id');
+      if (!sessionId) {
+        throw new Error('No admin session found');
+      }
+      
       const response = await fetch(`/api/pairs/${pairId}`, {
         method: "DELETE",
         headers: {
-          ...(sessionId && { 'x-session-id': sessionId }),
+          'x-session-id': sessionId,
         },
       });
       if (!response.ok) {
@@ -166,10 +178,14 @@ export function PairsManagement() {
   const archivePhotoMutation = useMutation({
     mutationFn: async (photoId: string) => {
       const sessionId = localStorage.getItem('admin-session-id');
+      if (!sessionId) {
+        throw new Error('No admin session found');
+      }
+      
       const response = await fetch(`/api/photos/${photoId}/archive`, {
         method: "POST",
         headers: {
-          ...(sessionId && { 'x-session-id': sessionId }),
+          'x-session-id': sessionId,
         },
       });
       if (!response.ok) {

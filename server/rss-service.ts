@@ -52,6 +52,12 @@ export class RSSService {
 
           return true;
         })
+        // Sort by publish date in reverse chronological order (newest first)
+        .sort((a, b) => {
+          const dateA = new Date(a.pubDate || a.isoDate || '');
+          const dateB = new Date(b.pubDate || b.isoDate || '');
+          return dateB.getTime() - dateA.getTime();
+        })
         .slice(0, config.maxItems)
         .map((item, index) => ({
           id: `rss-${item.guid || item.link || Date.now()}-${index}`,
@@ -59,7 +65,7 @@ export class RSSService {
           description: this.cleanDescription(item.contentSnippet || item.content || item.summary || ''),
           link: item.link || '',
           publishDate: item.pubDate || item.isoDate || new Date().toISOString(),
-          priority: index + 1, // RSS items get sequential priority
+          priority: index + 1, // RSS items get sequential priority based on sorted order
           imageUrl: this.extractImageUrl(item)
         }));
 

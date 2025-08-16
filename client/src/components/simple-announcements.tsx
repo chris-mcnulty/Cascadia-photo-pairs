@@ -95,12 +95,12 @@ export default function SimpleAnnouncements() {
     return diffDays > 0 ? diffDays : 0;
   };
 
-  // Sort news items by priority and date
+  // Sort news items by priority and date (reverse chronological order - newest first)
   const sortedNewsItems = newsItems.sort((a, b) => {
     if (a.priority !== b.priority) {
-      return b.priority - a.priority;
+      return b.priority - a.priority; // Higher priority first
     }
-    return new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime();
+    return new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime(); // Newer date first
   });
 
   return (

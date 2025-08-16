@@ -59,6 +59,11 @@ export function PairsManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Fetch settings for frequency configuration
+  const { data: settings } = useQuery<any>({
+    queryKey: ["/api/settings"],
+  });
+
   // Sync input states with loaded settings
   useEffect(() => {
     if (settings) {
@@ -70,11 +75,6 @@ export function PairsManagement() {
       setMaxIntervalInput(maxValue.toString());
     }
   }, [settings]);
-
-  // Fetch settings for frequency configuration
-  const { data: settings } = useQuery<any>({
-    queryKey: ["/api/settings"],
-  });
 
   // Fetch photo performance matrix for overview
   const { data: photoPerformances = [], isLoading: performanceLoading } = useQuery<any[]>({

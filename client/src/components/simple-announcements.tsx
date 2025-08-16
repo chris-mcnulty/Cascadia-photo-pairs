@@ -225,11 +225,18 @@ export default function SimpleAnnouncements() {
 
                         {/* Optional Image Thumbnail */}
                         {item.imageUrl && (
-                          <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                          <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200">
                             <img
                               src={item.imageUrl}
                               alt={item.title}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-cover transition-opacity hover:opacity-90"
+                              onError={(e) => {
+                                // Hide image container if image fails to load
+                                const target = e.target as HTMLImageElement;
+                                const container = target.parentElement;
+                                if (container) container.style.display = 'none';
+                              }}
+                              loading="lazy"
                             />
                           </div>
                         )}

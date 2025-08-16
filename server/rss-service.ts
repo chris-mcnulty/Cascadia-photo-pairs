@@ -23,7 +23,11 @@ export class RSSService {
   constructor() {
     this.parser = new Parser({
       customFields: {
-        item: ['category', 'categories', 'dc:subject', 'tags']
+        item: [
+          'category', 'categories', 'dc:subject', 'tags',
+          'media:content', 'media:thumbnail', 'media:group',
+          'itunes:image', 'image', 'enclosure'
+        ]
       }
     });
   }
@@ -112,23 +116,54 @@ export class RSSService {
   }
 
   private extractImageUrl(item: any): string | undefined {
-    // Try to extract image from various RSS fields
+    // 1. Try media enclosures (most common for thumbnails)
     if (item.enclosure?.url && item.enclosure.type?.startsWith('image/')) {
       return item.enclosure.url;
     }
     
-    if (item['media:content']?.url) {
-      return item['media:content'].url;
+    // 2. Try media:content namespace
+    if (item['media:content']) {
+      if (Array.isArray(item['media:content'])) {
+        // Find image type in array
+        const imageContent = item['media:content'].find((media: any) => 
+          media.type?.startsWith('image/') || media.medium === 'image'
+        );
+        if (imageContent?.url) return imageContent.url;
+      } else if (item['media:content'].url) {
+        return item['media:content'].url;
+      }
     }
     
+    // 3. Try media:thumbnail
     if (item['media:thumbnail']?.url) {
       return item['media:thumbnail'].url;
     }
 
-    // Try to extract from content
+    // 4. Try iTunes image (for podcast-style feeds)
+    if (item['itunes:image']?.href || item['itunes:image']?.url) {
+      return item['itunes:image'].href || item['itunes:image'].url;
+    }
+
+    // 5. Try direct image field
+    if (item.image?.url || typeof item.image === 'string') {
+      return item.image.url || item.image;
+    }
+
+    // 6. Extract from content/description HTML
     if (item.content) {
-      const imgMatch = item.content.match(/<img[^>]+src="([^"]+)"/);
+      const imgMatch = item.content.match(/<img[^>]+src=["']([^"']+)["']/i);
       if (imgMatch) return imgMatch[1];
+    }
+
+    if (item.description) {
+      const imgMatch = item.description.match(/<img[^>]+src=["']([^"']+)["']/i);
+      if (imgMatch) return imgMatch[1];
+    }
+
+    // 7. Try to find featured image or thumbnail in contentSnippet
+    if (item.contentSnippet) {
+      const imgMatch = item.contentSnippet.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp)/i);
+      if (imgMatch) return imgMatch[0];
     }
 
     return undefined;

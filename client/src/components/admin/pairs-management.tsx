@@ -515,10 +515,10 @@ export function PairsManagement() {
 
         {/* All Matchups Overview Dialog */}
         <Dialog open={showOverviewDialog} onOpenChange={setShowOverviewDialog}>
-          <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="max-w-7xl w-[95vw] max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>All Photo Matchups Overview</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-lg sm:text-xl">All Photo Matchups Overview</DialogTitle>
+              <DialogDescription className="text-sm">
                 View performance data for all photo pairs across all voting types
               </DialogDescription>
             </DialogHeader>
@@ -542,26 +542,26 @@ export function PairsManagement() {
                   {photoPerformances.map((photoPerf) => (
                     <Card key={photoPerf.photoId} className="overflow-hidden">
                       <CardHeader className="pb-3">
-                        <div className="flex items-start space-x-4">
+                        <div className="flex flex-col sm:flex-row sm:items-start space-y-3 sm:space-y-0 sm:space-x-4">
                           <img
                             src={photoPerf.photoImageUrl}
                             alt={photoPerf.photoTitle}
-                            className="w-20 h-20 object-cover rounded"
+                            className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded mx-auto sm:mx-0"
                           />
                           <div className="flex-1">
-                            <CardTitle className="text-xl mb-2">{photoPerf.photoTitle}</CardTitle>
-                            <div className="grid grid-cols-3 gap-4 text-sm">
-                              <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded">
-                                <div className="font-semibold text-green-700 dark:text-green-400">Overall Performance</div>
-                                <div>{photoPerf.totalWins} wins / {photoPerf.totalVotes} total</div>
+                            <CardTitle className="text-lg sm:text-xl mb-2 text-center sm:text-left">{photoPerf.photoTitle}</CardTitle>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-sm">
+                              <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded text-center">
+                                <div className="font-semibold text-green-700 dark:text-green-400 text-xs">Overall Performance</div>
+                                <div className="text-xs">{photoPerf.totalWins} wins / {photoPerf.totalVotes} total</div>
                                 <div className="text-lg font-bold text-green-600">{photoPerf.winRate.toFixed(1)}%</div>
                               </div>
-                              <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
-                                <div className="font-semibold text-blue-700 dark:text-blue-400">Paired Opponents</div>
-                                <div>{photoPerf.opponents.length} opponents</div>
+                              <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded text-center">
+                                <div className="font-semibold text-blue-700 dark:text-blue-400 text-xs">Paired Opponents</div>
+                                <div className="text-lg font-bold">{photoPerf.opponents.length}</div>
                               </div>
-                              <div className="bg-purple-50 dark:bg-purple-900/20 p-2 rounded">
-                                <div className="font-semibold text-purple-700 dark:text-purple-400">Avg vs Opponents</div>
+                              <div className="bg-purple-50 dark:bg-purple-900/20 p-2 rounded text-center">
+                                <div className="font-semibold text-purple-700 dark:text-purple-400 text-xs">Avg vs Opponents</div>
                                 <div className="text-lg font-bold text-purple-600">
                                   {photoPerf.opponents.length > 0 
                                     ? (photoPerf.opponents.reduce((sum, opp) => sum + opp.winRateAgainstOpponent, 0) / photoPerf.opponents.length).toFixed(1)
@@ -574,31 +574,31 @@ export function PairsManagement() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-3">
-                          <h5 className="font-semibold text-gray-700 dark:text-gray-300">Head-to-Head Performance:</h5>
-                          <div className="grid gap-3">
+                          <h5 className="font-semibold text-gray-700 dark:text-gray-300 text-sm sm:text-base">Head-to-Head Performance:</h5>
+                          <div className="space-y-2">
                             {photoPerf.opponents.map((opponent) => (
-                              <div key={opponent.opponentId} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded">
+                              <div key={opponent.opponentId} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded space-y-2 sm:space-y-0">
                                 <div className="flex items-center space-x-3">
                                   <img
                                     src={opponent.opponentImageUrl}
                                     alt={opponent.opponentTitle}
-                                    className="w-10 h-10 object-cover rounded"
+                                    className="w-8 h-8 sm:w-10 sm:h-10 object-cover rounded flex-shrink-0"
                                   />
-                                  <div>
-                                    <div className="font-medium">{opponent.opponentTitle}</div>
+                                  <div className="min-w-0 flex-1">
+                                    <div className="font-medium text-sm truncate">{opponent.opponentTitle}</div>
                                     <div className="text-xs text-gray-500">vs {photoPerf.photoTitle}</div>
                                   </div>
                                 </div>
-                                <div className="text-right">
-                                  <div className="font-semibold">
+                                <div className="text-left sm:text-right pl-11 sm:pl-0">
+                                  <div className="font-semibold text-sm">
                                     {opponent.winsAgainstOpponent} - {opponent.lossesToOpponent}
                                   </div>
-                                  <div className="text-sm text-gray-600">
+                                  <div className="text-xs sm:text-sm text-gray-600">
                                     {opponent.winRateAgainstOpponent.toFixed(1)}% ({opponent.totalMatchups} total)
                                   </div>
                                   {opponent.directPairVotes && opponent.directPairVotes.total > 0 && (
                                     <div className="text-xs text-blue-600">
-                                      Direct pair: {opponent.directPairVotes.wins}-{opponent.directPairVotes.losses}
+                                      Direct: {opponent.directPairVotes.wins}-{opponent.directPairVotes.losses}
                                     </div>
                                   )}
                                 </div>

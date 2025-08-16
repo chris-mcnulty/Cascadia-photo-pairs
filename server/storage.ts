@@ -1113,6 +1113,153 @@ export class DatabaseStorage implements IStorage {
     return newVote;
   }
 
+  async getAllPairMatchups(): Promise<Array<{
+    pairId: string;
+    photo1Id: string;
+    photo2Id: string;
+    photo1Title: string;
+    photo2Title: string;
+    photo1ImageUrl: string;
+    photo2ImageUrl: string;
+    description?: string;
+    createdAt: string;
+    directPairVotes: { photo1Wins: number; photo2Wins: number; total: number };
+    allTimeHeadToHead: { photo1Wins: number; photo2Wins: number; total: number };
+    photo1OverallStats: { wins: number; total: number; winRate: number };
+    photo2OverallStats: { wins: number; total: number; winRate: number };
+  }>> {
+    try {
+      const pairs = await this.getAllPhotoPairs();
+      const allPhotos = await this.getAllPhotos();
+      
+      const matchups = await Promise.all(pairs.map(async (pair: any) => {
+        const photo1 = allPhotos.find(p => p.id === pair.photo1Id);
+        const photo2 = allPhotos.find(p => p.id === pair.photo2Id);
+        
+        if (!photo1 || !photo2) {
+          return null;
+        }
+        
+        // Get direct pair voting stats
+        const [photo1DirectWins] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(pairVotes)
+          .where(and(
+            eq(pairVotes.pairId, pair.id),
+            eq(pairVotes.winnerPhotoId, pair.photo1Id)
+          ));
+
+        const [photo2DirectWins] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(pairVotes)
+          .where(and(
+            eq(pairVotes.pairId, pair.id),
+            eq(pairVotes.winnerPhotoId, pair.photo2Id)
+          ));
+
+        const [totalDirectVotes] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(pairVotes)
+          .where(eq(pairVotes.pairId, pair.id));
+
+        // Get all-time head-to-head stats from regular voting
+        const [allTimePhoto1Wins] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(votes)
+          .where(and(
+            eq(votes.winnerPhotoId, pair.photo1Id),
+            eq(votes.loserPhotoId, pair.photo2Id)
+          ));
+
+        const [allTimePhoto2Wins] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(votes)
+          .where(and(
+            eq(votes.winnerPhotoId, pair.photo2Id),
+            eq(votes.loserPhotoId, pair.photo1Id)
+          ));
+
+        // Get overall performance for each photo
+        const [photo1OverallWins] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(votes)
+          .where(eq(votes.winnerPhotoId, pair.photo1Id));
+
+        const [photo1OverallTotal] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(votes)
+          .where(or(
+            eq(votes.winnerPhotoId, pair.photo1Id),
+            eq(votes.loserPhotoId, pair.photo1Id)
+          ));
+
+        const [photo2OverallWins] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(votes)
+          .where(eq(votes.winnerPhotoId, pair.photo2Id));
+
+        const [photo2OverallTotal] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(votes)
+          .where(or(
+            eq(votes.winnerPhotoId, pair.photo2Id),
+            eq(votes.loserPhotoId, pair.photo2Id)
+          ));
+
+        return {
+          pairId: pair.id,
+          photo1Id: pair.photo1Id,
+          photo2Id: pair.photo2Id,
+          photo1Title: photo1.title,
+          photo2Title: photo2.title,
+          photo1ImageUrl: photo1.imageUrl,
+          photo2ImageUrl: photo2.imageUrl,
+          description: pair.description,
+          createdAt: pair.createdAt,
+          directPairVotes: {
+            photo1Wins: photo1DirectWins?.count || 0,
+            photo2Wins: photo2DirectWins?.count || 0,
+            total: totalDirectVotes?.count || 0
+          },
+          allTimeHeadToHead: {
+            photo1Wins: allTimePhoto1Wins?.count || 0,
+            photo2Wins: allTimePhoto2Wins?.count || 0,
+            total: (allTimePhoto1Wins?.count || 0) + (allTimePhoto2Wins?.count || 0)
+          },
+          photo1OverallStats: {
+            wins: photo1OverallWins?.count || 0,
+            total: photo1OverallTotal?.count || 0,
+            winRate: photo1OverallTotal?.count > 0 ? (photo1OverallWins.count / photo1OverallTotal.count) * 100 : 0
+          },
+          photo2OverallStats: {
+            wins: photo2OverallWins?.count || 0,
+            total: photo2OverallTotal?.count || 0,
+            winRate: photo2OverallTotal?.count > 0 ? (photo2OverallWins.count / photo2OverallTotal.count) * 100 : 0
+          }
+        };
+      }));
+
+      return matchups.filter((matchup: any) => matchup !== null) as Array<{
+        pairId: string;
+        photo1Id: string;
+        photo2Id: string;
+        photo1Title: string;
+        photo2Title: string;
+        photo1ImageUrl: string;
+        photo2ImageUrl: string;
+        description?: string;
+        createdAt: string;
+        directPairVotes: { photo1Wins: number; photo2Wins: number; total: number };
+        allTimeHeadToHead: { photo1Wins: number; photo2Wins: number; total: number };
+        photo1OverallStats: { wins: number; total: number; winRate: number };
+        photo2OverallStats: { wins: number; total: number; winRate: number };
+      }>;
+    } catch (error) {
+      console.error('Error fetching all pair matchups:', error);
+      return [];
+    }
+  }
+
   async getPairVoteStats(pairId: string): Promise<{ 
     photo1Wins: number; 
     photo2Wins: number; 

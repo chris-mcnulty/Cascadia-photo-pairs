@@ -52,6 +52,7 @@ export function PairsManagement() {
   const [selectedPairId, setSelectedPairId] = useState<string>("");
   const [minInterval, setMinInterval] = useState(10);
   const [maxInterval, setMaxInterval] = useState(15);
+  const [showOverviewDialog, setShowOverviewDialog] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -59,6 +60,12 @@ export function PairsManagement() {
   // Fetch settings for frequency configuration
   const { data: settings } = useQuery<any>({
     queryKey: ["/api/settings"],
+  });
+
+  // Fetch all matchups data for overview
+  const { data: matchups = [], isLoading: matchupsLoading } = useQuery<any[]>({
+    queryKey: ["/api/pairs/matchups"],
+    enabled: showOverviewDialog,
   });
 
   // Update frequency settings mutation
@@ -342,6 +349,10 @@ export function PairsManagement() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowOverviewDialog(true)}>
+            <Eye className="w-4 h-4 mr-2" />
+            View All Matchups
+          </Button>
           <Button variant="outline" onClick={() => setShowFrequencyDialog(true)}>
             <Activity className="w-4 h-4 mr-2" />
             Configure Frequency
@@ -497,6 +508,147 @@ export function PairsManagement() {
                 disabled={updateFrequencyMutation.isPending}
               >
                 {updateFrequencyMutation.isPending ? "Updating..." : "Update Settings"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* All Matchups Overview Dialog */}
+        <Dialog open={showOverviewDialog} onOpenChange={setShowOverviewDialog}>
+          <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>All Photo Matchups Overview</DialogTitle>
+              <DialogDescription>
+                View performance data for all photo pairs across all voting types
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-6">
+              {matchupsLoading ? (
+                <div className="text-center py-8">Loading matchup data...</div>
+              ) : matchups.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">No pairs created yet</p>
+              ) : (
+                <div className="space-y-4">
+                  {/* Summary Table Header */}
+                  <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 p-4 rounded-lg">
+                    <h4 className="text-lg font-semibold mb-2">Photo Matchups Summary</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Complete head-to-head performance data for all photo pairs including historical voting records
+                    </p>
+                  </div>
+
+                  {/* Matchups Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse border border-gray-200 dark:border-gray-700">
+                      <thead>
+                        <tr className="bg-gray-50 dark:bg-gray-900">
+                          <th className="border border-gray-200 dark:border-gray-700 p-3 text-left">Photos</th>
+                          <th className="border border-gray-200 dark:border-gray-700 p-3 text-center">All-Time Head-to-Head</th>
+                          <th className="border border-gray-200 dark:border-gray-700 p-3 text-center">Direct Pair Votes</th>
+                          <th className="border border-gray-200 dark:border-gray-700 p-3 text-center">Overall Win Rates</th>
+                          <th className="border border-gray-200 dark:border-gray-700 p-3 text-center">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {matchups.map((matchup) => {
+                          const allTimeTotal = matchup.allTimeHeadToHead.total;
+                          const allTimePhoto1Rate = allTimeTotal > 0 ? 
+                            ((matchup.allTimeHeadToHead.photo1Wins / allTimeTotal) * 100).toFixed(1) : '0';
+                          const allTimePhoto2Rate = allTimeTotal > 0 ? 
+                            ((matchup.allTimeHeadToHead.photo2Wins / allTimeTotal) * 100).toFixed(1) : '0';
+                          
+                          const directTotal = matchup.directPairVotes.total;
+                          const directPhoto1Rate = directTotal > 0 ? 
+                            ((matchup.directPairVotes.photo1Wins / directTotal) * 100).toFixed(1) : '0';
+                          const directPhoto2Rate = directTotal > 0 ? 
+                            ((matchup.directPairVotes.photo2Wins / directTotal) * 100).toFixed(1) : '0';
+
+                          return (
+                            <tr key={matchup.pairId} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                              <td className="border border-gray-200 dark:border-gray-700 p-3">
+                                <div className="flex items-center space-x-3">
+                                  <div className="flex space-x-2">
+                                    <img
+                                      src={matchup.photo1ImageUrl}
+                                      alt={matchup.photo1Title}
+                                      className="w-12 h-12 object-cover rounded"
+                                    />
+                                    <img
+                                      src={matchup.photo2ImageUrl}
+                                      alt={matchup.photo2Title}
+                                      className="w-12 h-12 object-cover rounded"
+                                    />
+                                  </div>
+                                  <div>
+                                    <div className="font-medium text-sm">
+                                      {matchup.photo1Title} vs {matchup.photo2Title}
+                                    </div>
+                                    {matchup.description && (
+                                      <div className="text-xs text-gray-500">{matchup.description}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="border border-gray-200 dark:border-gray-700 p-3 text-center">
+                                <div className="space-y-1">
+                                  <div className="text-sm font-medium">
+                                    {matchup.allTimeHeadToHead.photo1Wins} - {matchup.allTimeHeadToHead.photo2Wins}
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    ({allTimePhoto1Rate}% - {allTimePhoto2Rate}%)
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {allTimeTotal} total votes
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="border border-gray-200 dark:border-gray-700 p-3 text-center">
+                                <div className="space-y-1">
+                                  <div className="text-sm font-medium">
+                                    {matchup.directPairVotes.photo1Wins} - {matchup.directPairVotes.photo2Wins}
+                                  </div>
+                                  <div className="text-xs text-gray-600">
+                                    ({directPhoto1Rate}% - {directPhoto2Rate}%)
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {directTotal} direct votes
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="border border-gray-200 dark:border-gray-700 p-3 text-center">
+                                <div className="space-y-1">
+                                  <div className="text-xs">
+                                    <span className="text-green-600">{matchup.photo1Title}</span>: {matchup.photo1OverallStats.winRate.toFixed(1)}%
+                                  </div>
+                                  <div className="text-xs">
+                                    <span className="text-blue-600">{matchup.photo2Title}</span>: {matchup.photo2OverallStats.winRate.toFixed(1)}%
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="border border-gray-200 dark:border-gray-700 p-3 text-center">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleViewStats(matchup.pairId)}
+                                >
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  Details
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowOverviewDialog(false)}>
+                Close
               </Button>
             </DialogFooter>
           </DialogContent>

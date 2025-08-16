@@ -1729,6 +1729,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all head-to-head matchup data for pairs
+  app.get("/api/pairs/matchups", async (req, res) => {
+    try {
+      const matchups = await storage.getAllPairMatchups();
+      res.json(matchups);
+    } catch (error: any) {
+      console.error("Error fetching pair matchups:", error);
+      res.status(500).json({ message: "Failed to fetch pair matchups" });
+    }
+  });
+
   app.get("/api/photos/:photoId/pair-performance", async (req, res) => {
     try {
       const { photoId } = req.params;

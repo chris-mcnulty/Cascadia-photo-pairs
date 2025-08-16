@@ -341,19 +341,28 @@ export function PairsManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
         <div>
-          <h2 className="text-2xl font-bold">Pairs Management</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-xl sm:text-2xl font-bold">Pairs Management</h2>
+          <p className="text-sm text-muted-foreground">
             Create and manage photo pairs for direct comparison voting
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowOverviewDialog(true)}>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <Button 
+            variant="outline" 
+            onClick={() => setShowOverviewDialog(true)}
+            disabled={matchupsQuery.isLoading}
+            className="w-full sm:w-auto text-sm"
+          >
             <Eye className="w-4 h-4 mr-2" />
             View All Matchups
           </Button>
-          <Button variant="outline" onClick={() => setShowFrequencyDialog(true)}>
+          <Button 
+            variant="outline" 
+            onClick={() => setShowFrequencyDialog(true)}
+            className="w-full sm:w-auto text-sm"
+          >
             <Activity className="w-4 h-4 mr-2" />
             Configure Frequency
           </Button>
@@ -564,7 +573,7 @@ export function PairsManagement() {
                                 <div className="font-semibold text-purple-700 dark:text-purple-400 text-xs">Avg vs Opponents</div>
                                 <div className="text-lg font-bold text-purple-600">
                                   {photoPerf.opponents.length > 0 
-                                    ? (photoPerf.opponents.reduce((sum, opp) => sum + opp.winRateAgainstOpponent, 0) / photoPerf.opponents.length).toFixed(1)
+                                    ? (photoPerf.opponents.reduce((sum: number, opp: any) => sum + opp.winRateAgainstOpponent, 0) / photoPerf.opponents.length).toFixed(1)
                                     : '0'}%
                                 </div>
                               </div>
@@ -576,7 +585,7 @@ export function PairsManagement() {
                         <div className="space-y-3">
                           <h5 className="font-semibold text-gray-700 dark:text-gray-300 text-sm sm:text-base">Head-to-Head Performance:</h5>
                           <div className="space-y-2">
-                            {photoPerf.opponents.map((opponent) => (
+                            {photoPerf.opponents.map((opponent: any) => (
                               <div key={opponent.opponentId} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded space-y-2 sm:space-y-0">
                                 <div className="flex items-center space-x-3">
                                   <img
@@ -663,22 +672,23 @@ export function PairsManagement() {
             return (
               <Card key={pair.id}>
                 <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-lg">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start space-y-2 sm:space-y-0">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-base sm:text-lg truncate">
                         {photo1?.title} vs {photo2?.title}
                       </CardTitle>
                       {pair.description && (
-                        <CardDescription>{pair.description}</CardDescription>
+                        <CardDescription className="truncate">{pair.description}</CardDescription>
                       )}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-1 flex-shrink-0 w-full sm:w-auto">
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleViewStats(pair.id)}
+                        className="text-xs px-2 py-1 flex-1 sm:flex-none"
                       >
-                        <Eye className="w-4 h-4 mr-1" />
+                        <Eye className="w-3 h-3 mr-1" />
                         Stats
                       </Button>
                       <Button
@@ -686,25 +696,26 @@ export function PairsManagement() {
                         size="sm"
                         onClick={() => handleDeletePair(pair.id)}
                         disabled={deletePairMutation.isPending}
+                        className="text-xs px-2 py-1 flex-1 sm:flex-none"
                       >
-                        <Trash2 className="w-4 h-4 mr-1" />
+                        <Trash2 className="w-3 h-3 mr-1" />
                         Delete
                       </Button>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <img
                         src={photo1?.imageUrl}
                         alt={photo1?.title}
-                        className="w-full h-48 object-cover rounded"
+                        className="w-full h-32 sm:h-48 object-cover rounded"
                       />
                       <div className="flex justify-between items-center">
-                        <span className="font-medium">{photo1?.title}</span>
+                        <span className="font-medium text-sm truncate flex-1">{photo1?.title}</span>
                         {(photo1?.hidden || photo1?.archived) && (
-                          <Badge variant="destructive">
+                          <Badge variant="destructive" className="text-xs ml-2">
                             {photo1.archived ? "Archived" : "Hidden"}
                           </Badge>
                         )}
@@ -714,19 +725,19 @@ export function PairsManagement() {
                       <img
                         src={photo2?.imageUrl}
                         alt={photo2?.title}
-                        className="w-full h-48 object-cover rounded"
+                        className="w-full h-32 sm:h-48 object-cover rounded"
                       />
                       <div className="flex justify-between items-center">
-                        <span className="font-medium">{photo2?.title}</span>
+                        <span className="font-medium text-sm truncate flex-1">{photo2?.title}</span>
                         {(photo2?.hidden || photo2?.archived) && (
-                          <Badge variant="destructive">
+                          <Badge variant="destructive" className="text-xs ml-2">
                             {photo2.archived ? "Archived" : "Hidden"}
                           </Badge>
                         )}
                       </div>
                     </div>
                   </div>
-                  <div className="mt-4 text-sm text-muted-foreground">
+                  <div className="mt-4 text-xs sm:text-sm text-muted-foreground">
                     <span>Created: {new Date(pair.createdAt).toLocaleDateString()}</span>
                   </div>
                 </CardContent>

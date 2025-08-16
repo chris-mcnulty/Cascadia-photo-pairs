@@ -1113,6 +1113,166 @@ export class DatabaseStorage implements IStorage {
     return newVote;
   }
 
+  async getPhotoPerformanceMatrix(): Promise<Array<{
+    photoId: string;
+    photoTitle: string;
+    photoImageUrl: string;
+    totalWins: number;
+    totalVotes: number;
+    winRate: number;
+    opponents: Array<{
+      opponentId: string;
+      opponentTitle: string;
+      opponentImageUrl: string;
+      winsAgainstOpponent: number;
+      lossesToOpponent: number;
+      totalMatchups: number;
+      winRateAgainstOpponent: number;
+      isPaired: boolean;
+      pairId?: string;
+      directPairVotes?: { wins: number; losses: number; total: number };
+    }>;
+  }>> {
+    try {
+      const pairs = await this.getAllPhotoPairs();
+      const allPhotos = await this.getAllPhotos();
+      
+      // Get all photos that are in pairs
+      const photosInPairs = new Set<string>();
+      pairs.forEach((pair: any) => {
+        photosInPairs.add(pair.photo1Id);
+        photosInPairs.add(pair.photo2Id);
+      });
+      
+      const photoPerformances = await Promise.all(
+        Array.from(photosInPairs).map(async (photoId) => {
+          const photo = allPhotos.find(p => p.id === photoId);
+          if (!photo) return null;
+          
+          // Get overall stats for this photo
+          const [photoWins] = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(votes)
+            .where(eq(votes.winnerPhotoId, photoId));
+
+          const [photoTotal] = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(votes)
+            .where(or(
+              eq(votes.winnerPhotoId, photoId),
+              eq(votes.loserPhotoId, photoId)
+            ));
+
+          // Get performance against each opponent this photo is paired with
+          const opponents = await Promise.all(
+            pairs
+              .filter((pair: any) => pair.photo1Id === photoId || pair.photo2Id === photoId)
+              .map(async (pair: any) => {
+                const opponentId = pair.photo1Id === photoId ? pair.photo2Id : pair.photo1Id;
+                const opponent = allPhotos.find(p => p.id === opponentId);
+                if (!opponent) return null;
+                
+                // Get regular voting head-to-head stats
+                const [winsAgainst] = await db
+                  .select({ count: sql<number>`count(*)` })
+                  .from(votes)
+                  .where(and(
+                    eq(votes.winnerPhotoId, photoId),
+                    eq(votes.loserPhotoId, opponentId)
+                  ));
+
+                const [lossesAgainst] = await db
+                  .select({ count: sql<number>`count(*)` })
+                  .from(votes)
+                  .where(and(
+                    eq(votes.winnerPhotoId, opponentId),
+                    eq(votes.loserPhotoId, photoId)
+                  ));
+
+                // Get direct pair voting stats
+                const [directPairWins] = await db
+                  .select({ count: sql<number>`count(*)` })
+                  .from(pairVotes)
+                  .where(and(
+                    eq(pairVotes.pairId, pair.id),
+                    eq(pairVotes.winnerPhotoId, photoId)
+                  ));
+
+                const [directPairLosses] = await db
+                  .select({ count: sql<number>`count(*)` })
+                  .from(pairVotes)
+                  .where(and(
+                    eq(pairVotes.pairId, pair.id),
+                    eq(pairVotes.winnerPhotoId, opponentId)
+                  ));
+
+                const regularWins = winsAgainst?.count || 0;
+                const regularLosses = lossesAgainst?.count || 0;
+                const directWins = directPairWins?.count || 0;
+                const directLosses = directPairLosses?.count || 0;
+                
+                const totalMatchups = regularWins + regularLosses + directWins + directLosses;
+                const totalWinsAgainstOpponent = regularWins + directWins;
+
+                return {
+                  opponentId,
+                  opponentTitle: opponent.title,
+                  opponentImageUrl: opponent.imageUrl,
+                  winsAgainstOpponent: totalWinsAgainstOpponent,
+                  lossesToOpponent: regularLosses + directLosses,
+                  totalMatchups,
+                  winRateAgainstOpponent: totalMatchups > 0 ? (totalWinsAgainstOpponent / totalMatchups) * 100 : 0,
+                  isPaired: true,
+                  pairId: pair.id,
+                  directPairVotes: {
+                    wins: directWins,
+                    losses: directLosses,
+                    total: directWins + directLosses
+                  }
+                };
+              })
+          );
+
+          const validOpponents = opponents.filter(opp => opp !== null);
+
+          return {
+            photoId,
+            photoTitle: photo.title,
+            photoImageUrl: photo.imageUrl,
+            totalWins: photoWins?.count || 0,
+            totalVotes: photoTotal?.count || 0,
+            winRate: photoTotal?.count > 0 ? (photoWins.count / photoTotal.count) * 100 : 0,
+            opponents: validOpponents
+          };
+        })
+      );
+
+      return photoPerformances.filter(perf => perf !== null) as Array<{
+        photoId: string;
+        photoTitle: string;
+        photoImageUrl: string;
+        totalWins: number;
+        totalVotes: number;
+        winRate: number;
+        opponents: Array<{
+          opponentId: string;
+          opponentTitle: string;
+          opponentImageUrl: string;
+          winsAgainstOpponent: number;
+          lossesToOpponent: number;
+          totalMatchups: number;
+          winRateAgainstOpponent: number;
+          isPaired: boolean;
+          pairId?: string;
+          directPairVotes?: { wins: number; losses: number; total: number };
+        }>;
+      }>;
+    } catch (error) {
+      console.error('Error fetching photo performance matrix:', error);
+      return [];
+    }
+  }
+
   async getAllPairMatchups(): Promise<Array<{
     pairId: string;
     photo1Id: string;

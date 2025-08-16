@@ -62,9 +62,9 @@ export function PairsManagement() {
     queryKey: ["/api/settings"],
   });
 
-  // Fetch all matchups data for overview
-  const { data: matchups = [], isLoading: matchupsLoading } = useQuery<any[]>({
-    queryKey: ["/api/pairs/matchups"],
+  // Fetch photo performance matrix for overview
+  const { data: photoPerformances = [], isLoading: performanceLoading } = useQuery<any[]>({
+    queryKey: ["/api/photos/performance-matrix"],
     enabled: showOverviewDialog,
   });
 
@@ -524,124 +524,91 @@ export function PairsManagement() {
             </DialogHeader>
             
             <div className="space-y-6">
-              {matchupsLoading ? (
-                <div className="text-center py-8">Loading matchup data...</div>
-              ) : matchups.length === 0 ? (
+              {performanceLoading ? (
+                <div className="text-center py-8">Loading performance data...</div>
+              ) : photoPerformances.length === 0 ? (
                 <p className="text-center text-muted-foreground py-8">No pairs created yet</p>
               ) : (
-                <div className="space-y-4">
-                  {/* Summary Table Header */}
+                <div className="space-y-6">
+                  {/* Summary Header */}
                   <div className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20 p-4 rounded-lg">
-                    <h4 className="text-lg font-semibold mb-2">Photo Matchups Summary</h4>
+                    <h4 className="text-lg font-semibold mb-2">Individual Photo Performance</h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Complete head-to-head performance data for all photo pairs including historical voting records
+                      How each photo performs against all opponents across all voting types
                     </p>
                   </div>
 
-                  {/* Matchups Table */}
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse border border-gray-200 dark:border-gray-700">
-                      <thead>
-                        <tr className="bg-gray-50 dark:bg-gray-900">
-                          <th className="border border-gray-200 dark:border-gray-700 p-3 text-left">Photos</th>
-                          <th className="border border-gray-200 dark:border-gray-700 p-3 text-center">All-Time Head-to-Head</th>
-                          <th className="border border-gray-200 dark:border-gray-700 p-3 text-center">Direct Pair Votes</th>
-                          <th className="border border-gray-200 dark:border-gray-700 p-3 text-center">Overall Win Rates</th>
-                          <th className="border border-gray-200 dark:border-gray-700 p-3 text-center">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {matchups.map((matchup) => {
-                          const allTimeTotal = matchup.allTimeHeadToHead.total;
-                          const allTimePhoto1Rate = allTimeTotal > 0 ? 
-                            ((matchup.allTimeHeadToHead.photo1Wins / allTimeTotal) * 100).toFixed(1) : '0';
-                          const allTimePhoto2Rate = allTimeTotal > 0 ? 
-                            ((matchup.allTimeHeadToHead.photo2Wins / allTimeTotal) * 100).toFixed(1) : '0';
-                          
-                          const directTotal = matchup.directPairVotes.total;
-                          const directPhoto1Rate = directTotal > 0 ? 
-                            ((matchup.directPairVotes.photo1Wins / directTotal) * 100).toFixed(1) : '0';
-                          const directPhoto2Rate = directTotal > 0 ? 
-                            ((matchup.directPairVotes.photo2Wins / directTotal) * 100).toFixed(1) : '0';
-
-                          return (
-                            <tr key={matchup.pairId} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                              <td className="border border-gray-200 dark:border-gray-700 p-3">
+                  {/* Individual Photo Performance Cards */}
+                  {photoPerformances.map((photoPerf) => (
+                    <Card key={photoPerf.photoId} className="overflow-hidden">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start space-x-4">
+                          <img
+                            src={photoPerf.photoImageUrl}
+                            alt={photoPerf.photoTitle}
+                            className="w-20 h-20 object-cover rounded"
+                          />
+                          <div className="flex-1">
+                            <CardTitle className="text-xl mb-2">{photoPerf.photoTitle}</CardTitle>
+                            <div className="grid grid-cols-3 gap-4 text-sm">
+                              <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded">
+                                <div className="font-semibold text-green-700 dark:text-green-400">Overall Performance</div>
+                                <div>{photoPerf.totalWins} wins / {photoPerf.totalVotes} total</div>
+                                <div className="text-lg font-bold text-green-600">{photoPerf.winRate.toFixed(1)}%</div>
+                              </div>
+                              <div className="bg-blue-50 dark:bg-blue-900/20 p-2 rounded">
+                                <div className="font-semibold text-blue-700 dark:text-blue-400">Paired Opponents</div>
+                                <div>{photoPerf.opponents.length} opponents</div>
+                              </div>
+                              <div className="bg-purple-50 dark:bg-purple-900/20 p-2 rounded">
+                                <div className="font-semibold text-purple-700 dark:text-purple-400">Avg vs Opponents</div>
+                                <div className="text-lg font-bold text-purple-600">
+                                  {photoPerf.opponents.length > 0 
+                                    ? (photoPerf.opponents.reduce((sum, opp) => sum + opp.winRateAgainstOpponent, 0) / photoPerf.opponents.length).toFixed(1)
+                                    : '0'}%
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          <h5 className="font-semibold text-gray-700 dark:text-gray-300">Head-to-Head Performance:</h5>
+                          <div className="grid gap-3">
+                            {photoPerf.opponents.map((opponent) => (
+                              <div key={opponent.opponentId} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded">
                                 <div className="flex items-center space-x-3">
-                                  <div className="flex space-x-2">
-                                    <img
-                                      src={matchup.photo1ImageUrl}
-                                      alt={matchup.photo1Title}
-                                      className="w-12 h-12 object-cover rounded"
-                                    />
-                                    <img
-                                      src={matchup.photo2ImageUrl}
-                                      alt={matchup.photo2Title}
-                                      className="w-12 h-12 object-cover rounded"
-                                    />
-                                  </div>
+                                  <img
+                                    src={opponent.opponentImageUrl}
+                                    alt={opponent.opponentTitle}
+                                    className="w-10 h-10 object-cover rounded"
+                                  />
                                   <div>
-                                    <div className="font-medium text-sm">
-                                      {matchup.photo1Title} vs {matchup.photo2Title}
+                                    <div className="font-medium">{opponent.opponentTitle}</div>
+                                    <div className="text-xs text-gray-500">vs {photoPerf.photoTitle}</div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-semibold">
+                                    {opponent.winsAgainstOpponent} - {opponent.lossesToOpponent}
+                                  </div>
+                                  <div className="text-sm text-gray-600">
+                                    {opponent.winRateAgainstOpponent.toFixed(1)}% ({opponent.totalMatchups} total)
+                                  </div>
+                                  {opponent.directPairVotes && opponent.directPairVotes.total > 0 && (
+                                    <div className="text-xs text-blue-600">
+                                      Direct pair: {opponent.directPairVotes.wins}-{opponent.directPairVotes.losses}
                                     </div>
-                                    {matchup.description && (
-                                      <div className="text-xs text-gray-500">{matchup.description}</div>
-                                    )}
-                                  </div>
+                                  )}
                                 </div>
-                              </td>
-                              <td className="border border-gray-200 dark:border-gray-700 p-3 text-center">
-                                <div className="space-y-1">
-                                  <div className="text-sm font-medium">
-                                    {matchup.allTimeHeadToHead.photo1Wins} - {matchup.allTimeHeadToHead.photo2Wins}
-                                  </div>
-                                  <div className="text-xs text-gray-600">
-                                    ({allTimePhoto1Rate}% - {allTimePhoto2Rate}%)
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    {allTimeTotal} total votes
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="border border-gray-200 dark:border-gray-700 p-3 text-center">
-                                <div className="space-y-1">
-                                  <div className="text-sm font-medium">
-                                    {matchup.directPairVotes.photo1Wins} - {matchup.directPairVotes.photo2Wins}
-                                  </div>
-                                  <div className="text-xs text-gray-600">
-                                    ({directPhoto1Rate}% - {directPhoto2Rate}%)
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    {directTotal} direct votes
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="border border-gray-200 dark:border-gray-700 p-3 text-center">
-                                <div className="space-y-1">
-                                  <div className="text-xs">
-                                    <span className="text-green-600">{matchup.photo1Title}</span>: {matchup.photo1OverallStats.winRate.toFixed(1)}%
-                                  </div>
-                                  <div className="text-xs">
-                                    <span className="text-blue-600">{matchup.photo2Title}</span>: {matchup.photo2OverallStats.winRate.toFixed(1)}%
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="border border-gray-200 dark:border-gray-700 p-3 text-center">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleViewStats(matchup.pairId)}
-                                >
-                                  <Eye className="w-3 h-3 mr-1" />
-                                  Details
-                                </Button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
               )}
             </div>

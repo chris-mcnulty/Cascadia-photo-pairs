@@ -1740,6 +1740,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get photo performance matrix - how each photo performs against all opponents
+  app.get("/api/photos/performance-matrix", async (req, res) => {
+    try {
+      const matrix = await storage.getPhotoPerformanceMatrix();
+      res.json(matrix);
+    } catch (error: any) {
+      console.error("Error fetching photo performance matrix:", error);
+      res.status(500).json({ message: "Failed to fetch photo performance matrix" });
+    }
+  });
+
   app.get("/api/photos/:photoId/pair-performance", async (req, res) => {
     try {
       const { photoId } = req.params;

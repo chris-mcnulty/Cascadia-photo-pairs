@@ -22,7 +22,7 @@ Preferred communication style: Simple, everyday language.
 - **PWA Purchase Integration**: Added purchase buttons to mobile voting interface, displaying "Purchase Print" buttons under photos that are available for sale, matching desktop functionality
 - **Achievement System Fix**: Corrected user achievement calculation to properly display Expert level for users with 100+ votes (fixed from incorrectly showing Beginner for high vote counts)
 - **Leaderboard Label Fix**: Fixed swapped labels in photo leaderboard where "Total Votes" was showing win rate percentages and vice versa - now correctly displays statistics with proper labels
-- **RSS News Integration**: Added configurable RSS feed system for news section, allowing choice between internal news management or consuming from external RSS feeds (chrismcnulty.net photography posts), with enhanced styling for better visibility
+- **RSS News Integration**: Added configurable RSS feed system for news section, allowing choice between internal news management or consuming from external RSS feeds (chrismcnulty.net creative writing blog with photography posts), with enhanced styling for better visibility. Successfully integrated with https://www.chrismcnulty.net/creative-writing?format=rss
 
 ## System Architecture
 

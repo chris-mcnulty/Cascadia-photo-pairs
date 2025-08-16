@@ -1151,12 +1151,12 @@ export class DatabaseStorage implements IStorage {
           
           // Get overall stats for this photo
           const [photoWins] = await db
-            .select({ count: sql<number>`count(*)` })
+            .select({ count: sql<number>`CAST(count(*) AS INTEGER)` })
             .from(votes)
             .where(eq(votes.winnerPhotoId, photoId));
 
           const [photoTotal] = await db
-            .select({ count: sql<number>`count(*)` })
+            .select({ count: sql<number>`CAST(count(*) AS INTEGER)` })
             .from(votes)
             .where(or(
               eq(votes.winnerPhotoId, photoId),
@@ -1182,7 +1182,7 @@ export class DatabaseStorage implements IStorage {
               
               // Get regular voting head-to-head stats (across all time)
               const [winsAgainst] = await db
-                .select({ count: sql<number>`count(*)` })
+                .select({ count: sql<number>`CAST(count(*) AS INTEGER)` })
                 .from(votes)
                 .where(and(
                   eq(votes.winnerPhotoId, photoId),
@@ -1190,7 +1190,7 @@ export class DatabaseStorage implements IStorage {
                 ));
 
               const [lossesAgainst] = await db
-                .select({ count: sql<number>`count(*)` })
+                .select({ count: sql<number>`CAST(count(*) AS INTEGER)` })
                 .from(votes)
                 .where(and(
                   eq(votes.winnerPhotoId, opponentId),
@@ -1203,7 +1203,7 @@ export class DatabaseStorage implements IStorage {
               
               for (const pair of relatedPairs) {
                 const [pairWins] = await db
-                  .select({ count: sql<number>`count(*)` })
+                  .select({ count: sql<number>`CAST(count(*) AS INTEGER)` })
                   .from(pairVotes)
                   .where(and(
                     eq(pairVotes.pairId, pair.id),
@@ -1211,7 +1211,7 @@ export class DatabaseStorage implements IStorage {
                   ));
 
                 const [pairLosses] = await db
-                  .select({ count: sql<number>`count(*)` })
+                  .select({ count: sql<number>`CAST(count(*) AS INTEGER)` })
                   .from(pairVotes)
                   .where(and(
                     eq(pairVotes.pairId, pair.id),
@@ -1228,23 +1228,32 @@ export class DatabaseStorage implements IStorage {
               const totalMatchups = regularWins + regularLosses + totalDirectWins + totalDirectLosses;
               const totalWinsAgainstOpponent = regularWins + totalDirectWins;
 
+              // Debug logging for impossible results
+              if (totalMatchups > 1000 || totalWinsAgainstOpponent > 1000) {
+                console.log(`DEBUG: Impossible stats for ${photoId} vs ${opponentId}:`, {
+                  regularWins, regularLosses, totalDirectWins, totalDirectLosses,
+                  totalMatchups, totalWinsAgainstOpponent,
+                  winRate: totalMatchups > 0 ? (totalWinsAgainstOpponent / totalMatchups) * 100 : 0
+                });
+              }
+
               return {
                 opponentId,
                 opponentTitle: opponent.title,
                 opponentImageUrl: opponent.imageUrl,
-                winsAgainstOpponent: totalWinsAgainstOpponent,
-                lossesToOpponent: regularLosses + totalDirectLosses,
-                totalMatchups,
+                winsAgainstOpponent: Number(totalWinsAgainstOpponent),
+                lossesToOpponent: Number(regularLosses + totalDirectLosses),
+                totalMatchups: Number(totalMatchups),
                 winRateAgainstOpponent: totalMatchups > 0 ? (totalWinsAgainstOpponent / totalMatchups) * 100 : 0,
                 regularVotes: {
-                  wins: regularWins,
-                  losses: regularLosses,
-                  total: regularWins + regularLosses
+                  wins: Number(regularWins),
+                  losses: Number(regularLosses),
+                  total: Number(regularWins + regularLosses)
                 },
                 directPairVotes: {
-                  wins: totalDirectWins,
-                  losses: totalDirectLosses,
-                  total: totalDirectWins + totalDirectLosses
+                  wins: Number(totalDirectWins),
+                  losses: Number(totalDirectLosses),
+                  total: Number(totalDirectWins + totalDirectLosses)
                 },
                 pairIds: relatedPairs.map(p => p.id)
               };
@@ -1257,9 +1266,9 @@ export class DatabaseStorage implements IStorage {
             photoId,
             photoTitle: photo.title,
             photoImageUrl: photo.imageUrl,
-            totalWins: photoWins?.count || 0,
-            totalVotes: photoTotal?.count || 0,
-            winRate: photoTotal?.count > 0 ? (photoWins.count / photoTotal.count) * 100 : 0,
+            totalWins: Number(photoWins?.count || 0),
+            totalVotes: Number(photoTotal?.count || 0),
+            winRate: photoTotal?.count > 0 ? (Number(photoWins.count) / Number(photoTotal.count)) * 100 : 0,
             opponents: validOpponents
           };
         })

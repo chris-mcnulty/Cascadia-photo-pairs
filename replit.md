@@ -88,18 +88,138 @@ Preferred communication style: Simple, everyday language.
 - **Fallback**: Automatic fallback to internal news if RSS fails
 - **Mobile Responsive**: Displays 20x20 pixel thumbnails with error handling
 
-### Pairs Feature (Photo Comparison System)
+### Pairs Feature (Photo Comparison System) ✓ IMPLEMENTED
 - **Feature Name**: Pairs - Special photo comparison system
+- **Status**: Core functionality complete, ready for production use
 - **Purpose**: Allow configuration of photo pairs (twins) for direct comparison (e.g., black & white vs color versions)
 - **Frequency**: Show a pair every 10-15 voting rounds (configurable, default 5-15)
 - **Pair Selection**: Random selection when it's time, checking both photos are eligible
 - **Fallback**: If no eligible pairs, show regular photos
 - **Admin Requirements**:
-  - Interface to set up and manage pairs
-  - Alert system if half of a pair is missing/hidden
-  - Special pair comparison report for head-to-head analytics
-- **Database**: New table for photo_pairs with photo1_id, photo2_id, frequency settings
-- **Voting**: Track pair comparisons separately for detailed analytics
+  - Interface to set up and manage pairs ✓
+  - Alert system if half of a pair is missing/hidden ✓
+  - Special pair comparison report for head-to-head analytics ✓
+- **Database**: New table for photo_pairs with photo1_id, photo2_id, frequency settings ✓
+- **Voting**: Track pair comparisons separately for detailed analytics ✓
+
+### Rich Text Voting Mode (Multi-Purpose Comparison System) - PLANNED
+- **Feature Name**: Rich Text Voting Mode
+- **Target Launch**: Q2 2025 (after 2-month stability period)
+- **Business Model**: Paid subscription offering for business clients
+- **Purpose**: Enable voting/comparison of text-based content instead of photos
+- **Use Cases**:
+  - Conference session proposal evaluation
+  - Software development backlog prioritization
+  - Product feature voting
+  - Content curation and ranking
+  - Grant proposal evaluation
+  - Creative writing competitions
+
+#### Technical Architecture
+- **Mode Switching**: Global toggle between Photo Mode and Rich Text Mode
+- **Database Schema**:
+  - `content_items` table: id, title, description, full_text, category, metadata (JSON), created_by, status
+  - `content_votes` table: Similar to photo votes but for text content
+  - `content_pairs` table: For paired comparisons of related proposals
+  - `content_collections` table: Organize items into projects/conferences/sprints
+- **Content Types**:
+  - Short form: Title + brief description (280 chars)
+  - Medium form: Title + abstract (500 words)
+  - Long form: Full proposals with rich text formatting
+  - Structured: Template-based forms with custom fields
+
+#### User Interface Design
+- **Voting Interface**:
+  - Side-by-side card layout for comparisons
+  - Expandable sections for full text reading
+  - Quick preview vs detailed view toggle
+  - Markdown/rich text rendering support
+  - Metadata badges (category, author, word count)
+- **Admin Features**:
+  - Bulk import from CSV/JSON
+  - Template designer for structured content
+  - Custom evaluation criteria configuration
+  - Export results to various formats
+  - Multi-round voting support (qualifying rounds, finals)
+- **Mobile Experience**:
+  - Swipe gestures for voting
+  - Collapsible cards for space efficiency
+  - Reading mode with adjustable font size
+
+#### Multi-Tenancy Requirements
+- **Tenant Isolation**:
+  - Separate database schemas or tenant_id column strategy
+  - Independent admin panels per tenant
+  - Custom branding per tenant (logo, colors, domain)
+  - Isolated user bases with optional cross-tenant accounts
+- **Configuration per Tenant**:
+  - Custom categories and tags
+  - Voting rules (single elimination, round robin, weighted)
+  - Permission levels (public voting, member-only, invite-only)
+  - Custom fields and metadata structures
+- **Branding System**:
+  - White-label support with custom domains
+  - Tenant-specific CSS variables
+  - Custom email templates
+  - Branded PWA manifests
+
+#### Payment & Subscription System
+- **Pricing Tiers**:
+  - Starter: Up to 100 items, 500 voters/month
+  - Professional: Up to 1000 items, 5000 voters/month
+  - Enterprise: Unlimited items and voters, API access
+- **Payment Integration**:
+  - Stripe for subscription management
+  - Usage-based billing options
+  - Team/organization billing
+  - Annual discount offerings
+- **Feature Gates**:
+  - Advanced analytics (Professional+)
+  - API access (Enterprise)
+  - Custom branding (Professional+)
+  - Priority support (Enterprise)
+
+#### API & Integration Layer
+- **RESTful API Endpoints**:
+  - CRUD operations for content items
+  - Voting submission and retrieval
+  - Analytics and reporting
+  - Webhook notifications
+- **Third-Party Integrations**:
+  - Import from Google Forms, Typeform
+  - Export to Sheets, Airtable
+  - Slack/Teams notifications
+  - Calendar integration for deadlines
+- **Embeddable Widgets**:
+  - Voting widget for external sites
+  - Results display widget
+  - Submission form widget
+
+#### Analytics & Reporting
+- **Voting Analytics**:
+  - Consensus metrics (agreement scores)
+  - Demographic breakdowns (if collected)
+  - Time-based voting patterns
+  - Comparative analysis between items
+- **Export Formats**:
+  - PDF reports with visualizations
+  - Excel workbooks with raw data
+  - API endpoints for BI tools
+  - Real-time dashboards
+
+#### Implementation Phases
+1. **Phase 1 (Month 1-2)**: Core rich text voting with basic admin
+2. **Phase 2 (Month 3)**: Multi-tenancy and branding system
+3. **Phase 3 (Month 4)**: Payment integration and subscription management
+4. **Phase 4 (Month 5-6)**: Advanced analytics and API layer
+5. **Phase 5 (Ongoing)**: Third-party integrations and enhancements
+
+#### Technical Considerations
+- **Performance**: Pagination for large text content, caching strategies
+- **Security**: Rate limiting, CAPTCHA for public voting, data encryption
+- **Accessibility**: Screen reader support, keyboard navigation, WCAG compliance
+- **Scalability**: Database indexing, CDN for static content, queue system for batch operations
+- **Data Privacy**: GDPR compliance, data retention policies, export/delete capabilities
 
 ## External Dependencies
 

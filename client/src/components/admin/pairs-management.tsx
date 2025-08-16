@@ -91,7 +91,7 @@ export function PairsManagement() {
       }
       
       const response = await fetch('/api/settings', {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'x-session-id': sessionId,
@@ -341,13 +341,7 @@ export function PairsManagement() {
     });
   };
 
-  // Initialize frequency values when settings load
-  React.useEffect(() => {
-    if (settings) {
-      setMinInterval(settings.pairsMinInterval || 10);
-      setMaxInterval(settings.pairsMaxInterval || 15);
-    }
-  }, [settings]);
+
 
   if (photosLoading || pairsLoading) {
     return <div className="flex justify-center p-8">Loading pairs management...</div>;

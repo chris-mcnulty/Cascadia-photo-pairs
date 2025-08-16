@@ -1121,106 +1121,128 @@ export class DatabaseStorage implements IStorage {
     photo2WinRate: number;
     photo1VsOthers: { wins: number; total: number; winRate: number };
     photo2VsOthers: { wins: number; total: number; winRate: number };
+    headToHeadAllTime: { photo1Wins: number; photo2Wins: number; totalVotes: number };
   }> {
-    const pair = await this.getPhotoPair(pairId);
-    if (!pair) return { 
-      photo1Wins: 0, photo2Wins: 0, totalVotes: 0, photo1WinRate: 0, photo2WinRate: 0,
-      photo1VsOthers: { wins: 0, total: 0, winRate: 0 },
-      photo2VsOthers: { wins: 0, total: 0, winRate: 0 }
-    };
+    try {
+      const pair = await this.getPhotoPair(pairId);
+      if (!pair) return { 
+        photo1Wins: 0, photo2Wins: 0, totalVotes: 0, photo1WinRate: 0, photo2WinRate: 0,
+        photo1VsOthers: { wins: 0, total: 0, winRate: 0 },
+        photo2VsOthers: { wins: 0, total: 0, winRate: 0 },
+        headToHeadAllTime: { photo1Wins: 0, photo2Wins: 0, totalVotes: 0 }
+      };
 
-    // Get stats for this specific pair
-    const [photo1Wins] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(pairVotes)
-      .where(and(
-        eq(pairVotes.pairId, pairId),
-        eq(pairVotes.winnerPhotoId, pair.photo1Id)
-      ));
+      // Get stats for this specific pair (from pair voting only)
+      const [photo1Wins] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(pairVotes)
+        .where(and(
+          eq(pairVotes.pairId, pairId),
+          eq(pairVotes.winnerPhotoId, pair.photo1Id)
+        ));
 
-    const [photo2Wins] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(pairVotes)
-      .where(and(
-        eq(pairVotes.pairId, pairId),
-        eq(pairVotes.winnerPhotoId, pair.photo2Id)
-      ));
+      const [photo2Wins] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(pairVotes)
+        .where(and(
+          eq(pairVotes.pairId, pairId),
+          eq(pairVotes.winnerPhotoId, pair.photo2Id)
+        ));
 
-    const [totalVotes] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(pairVotes)
-      .where(eq(pairVotes.pairId, pairId));
+      const [totalPairVotes] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(pairVotes)
+        .where(eq(pairVotes.pairId, pairId));
 
-    // Calculate win rates for this pair
-    const pairPhoto1Wins = photo1Wins.count;
-    const pairPhoto2Wins = photo2Wins.count;
-    const pairTotalVotes = totalVotes.count;
-    const photo1WinRate = pairTotalVotes > 0 ? (pairPhoto1Wins / pairTotalVotes) * 100 : 0;
-    const photo2WinRate = pairTotalVotes > 0 ? (pairPhoto2Wins / pairTotalVotes) * 100 : 0;
+      // Get ALL TIME head-to-head data between these two photos (from regular votes table)
+      const [allTimePhoto1Wins] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(votes)
+        .where(and(
+          eq(votes.winnerPhotoId, pair.photo1Id),
+          eq(votes.loserPhotoId, pair.photo2Id)
+        ));
 
-    // Get overall performance for each photo across ALL pairs they're involved in
-    const [photo1OverallWins] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(pairVotes)
-      .where(eq(pairVotes.winnerPhotoId, pair.photo1Id));
+      const [allTimePhoto2Wins] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(votes)
+        .where(and(
+          eq(votes.winnerPhotoId, pair.photo2Id),
+          eq(votes.loserPhotoId, pair.photo1Id)
+        ));
 
-    // Get all pair votes where photo1 is involved (either as photo1Id or photo2Id in any pair)
-    const photo1AllPairs = await db
-      .select({ id: photoPairs.id })
-      .from(photoPairs)
-      .where(or(
-        eq(photoPairs.photo1Id, pair.photo1Id),
-        eq(photoPairs.photo2Id, pair.photo1Id)
-      ));
+      // Calculate win rates for this pair
+      const pairPhoto1Wins = photo1Wins?.count || 0;
+      const pairPhoto2Wins = photo2Wins?.count || 0;
+      const pairTotalVotes = totalPairVotes?.count || 0;
+      const photo1WinRate = pairTotalVotes > 0 ? (pairPhoto1Wins / pairTotalVotes) * 100 : 0;
+      const photo2WinRate = pairTotalVotes > 0 ? (pairPhoto2Wins / pairTotalVotes) * 100 : 0;
 
-    const photo1PairIds = photo1AllPairs.map(p => p.id);
-    const [photo1OverallTotal] = photo1PairIds.length > 0 ? await db
-      .select({ count: sql<number>`count(*)` })
-      .from(pairVotes)
-      .where(sql`${pairVotes.pairId} IN (${sql.join(photo1PairIds.map(id => sql`${id}`), sql`, `)})`) : [{ count: 0 }];
+      // Get overall performance for each photo across ALL their voting
+      const [photo1OverallWins] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(votes)
+        .where(eq(votes.winnerPhotoId, pair.photo1Id));
 
-    const [photo2OverallWins] = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(pairVotes)
-      .where(eq(pairVotes.winnerPhotoId, pair.photo2Id));
+      const [photo1OverallTotal] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(votes)
+        .where(or(
+          eq(votes.winnerPhotoId, pair.photo1Id),
+          eq(votes.loserPhotoId, pair.photo1Id)
+        ));
 
-    // Get all pair votes where photo2 is involved (either as photo1Id or photo2Id in any pair)
-    const photo2AllPairs = await db
-      .select({ id: photoPairs.id })
-      .from(photoPairs)
-      .where(or(
-        eq(photoPairs.photo1Id, pair.photo2Id),
-        eq(photoPairs.photo2Id, pair.photo2Id)
-      ));
+      const [photo2OverallWins] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(votes)
+        .where(eq(votes.winnerPhotoId, pair.photo2Id));
 
-    const photo2PairIds = photo2AllPairs.map(p => p.id);
-    const [photo2OverallTotal] = photo2PairIds.length > 0 ? await db
-      .select({ count: sql<number>`count(*)` })
-      .from(pairVotes)
-      .where(sql`${pairVotes.pairId} IN (${sql.join(photo2PairIds.map(id => sql`${id}`), sql`, `)})`) : [{ count: 0 }];
+      const [photo2OverallTotal] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(votes)
+        .where(or(
+          eq(votes.winnerPhotoId, pair.photo2Id),
+          eq(votes.loserPhotoId, pair.photo2Id)
+        ));
 
-    const photo1VsOthersWinRate = photo1OverallTotal.count > 0 ? 
-      (photo1OverallWins.count / photo1OverallTotal.count) * 100 : 0;
-    const photo2VsOthersWinRate = photo2OverallTotal.count > 0 ? 
-      (photo2OverallWins.count / photo2OverallTotal.count) * 100 : 0;
+      const photo1VsOthersWinRate = photo1OverallTotal?.count > 0 ? 
+        (photo1OverallWins.count / photo1OverallTotal.count) * 100 : 0;
+      const photo2VsOthersWinRate = photo2OverallTotal?.count > 0 ? 
+        (photo2OverallWins.count / photo2OverallTotal.count) * 100 : 0;
 
-    return {
-      photo1Wins: pairPhoto1Wins,
-      photo2Wins: pairPhoto2Wins,
-      totalVotes: pairTotalVotes,
-      photo1WinRate,
-      photo2WinRate,
-      photo1VsOthers: {
-        wins: photo1OverallWins.count,
-        total: photo1OverallTotal.count,
-        winRate: photo1VsOthersWinRate
-      },
-      photo2VsOthers: {
-        wins: photo2OverallWins.count,
-        total: photo2OverallTotal.count,
-        winRate: photo2VsOthersWinRate
-      }
-    };
+      const allTimeTotal = (allTimePhoto1Wins?.count || 0) + (allTimePhoto2Wins?.count || 0);
+
+      return {
+        photo1Wins: pairPhoto1Wins,
+        photo2Wins: pairPhoto2Wins,
+        totalVotes: pairTotalVotes,
+        photo1WinRate,
+        photo2WinRate,
+        photo1VsOthers: {
+          wins: photo1OverallWins?.count || 0,
+          total: photo1OverallTotal?.count || 0,
+          winRate: photo1VsOthersWinRate
+        },
+        photo2VsOthers: {
+          wins: photo2OverallWins?.count || 0,
+          total: photo2OverallTotal?.count || 0,
+          winRate: photo2VsOthersWinRate
+        },
+        headToHeadAllTime: {
+          photo1Wins: allTimePhoto1Wins?.count || 0,
+          photo2Wins: allTimePhoto2Wins?.count || 0,
+          totalVotes: allTimeTotal
+        }
+      };
+    } catch (error) {
+      console.error('Error fetching pair vote stats:', error);
+      return { 
+        photo1Wins: 0, photo2Wins: 0, totalVotes: 0, photo1WinRate: 0, photo2WinRate: 0,
+        photo1VsOthers: { wins: 0, total: 0, winRate: 0 },
+        photo2VsOthers: { wins: 0, total: 0, winRate: 0 },
+        headToHeadAllTime: { photo1Wins: 0, photo2Wins: 0, totalVotes: 0 }
+      };
+    }
   }
 
   async getPhotoPerformanceInPairs(photoId: string): Promise<{ wins: number; losses: number; winRate: number }> {

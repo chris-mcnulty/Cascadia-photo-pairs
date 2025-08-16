@@ -27,8 +27,6 @@ interface PhotoPair {
   photo1Id: string;
   photo2Id: string;
   description?: string;
-  minFrequency?: number;
-  maxFrequency?: number;
   createdAt: string;
   createdBy?: string;
 }
@@ -41,20 +39,67 @@ interface PairStats {
   photo2WinRate: number;
   photo1VsOthers: { wins: number; total: number; winRate: number };
   photo2VsOthers: { wins: number; total: number; winRate: number };
+  headToHeadAllTime: { photo1Wins: number; photo2Wins: number; totalVotes: number };
 }
 
 export function PairsManagement() {
   const [selectedPhoto1, setSelectedPhoto1] = useState<string>("");
   const [selectedPhoto2, setSelectedPhoto2] = useState<string>("");
   const [description, setDescription] = useState("");
-  const [minFrequency, setMinFrequency] = useState(5);
-  const [maxFrequency, setMaxFrequency] = useState(15);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showStatsDialog, setShowStatsDialog] = useState(false);
+  const [showFrequencyDialog, setShowFrequencyDialog] = useState(false);
   const [selectedPairId, setSelectedPairId] = useState<string>("");
+  const [minInterval, setMinInterval] = useState(10);
+  const [maxInterval, setMaxInterval] = useState(15);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch settings for frequency configuration
+  const { data: settings } = useQuery<any>({
+    queryKey: ["/api/settings"],
+  });
+
+  // Update frequency settings mutation
+  const updateFrequencyMutation = useMutation({
+    mutationFn: async (data: { pairsMinInterval: number; pairsMaxInterval: number }) => {
+      const sessionId = localStorage.getItem('admin-session-id');
+      if (!sessionId) {
+        throw new Error('No admin session found');
+      }
+      
+      const response = await fetch('/api/settings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-session-id': sessionId,
+        },
+        body: JSON.stringify(data),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update frequency settings');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      setShowFrequencyDialog(false);
+      toast({
+        title: "Success",
+        description: "Pairs frequency settings updated successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update frequency settings",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Fetch all photos (sorted by title for easier selection)
   const { data: allPhotos = [], isLoading: photosLoading } = useQuery<Photo[]>({
@@ -102,7 +147,7 @@ export function PairsManagement() {
 
   // Create pair mutation
   const createPairMutation = useMutation({
-    mutationFn: async (data: { photo1Id: string; photo2Id: string; description?: string; minFrequency?: number; maxFrequency?: number }) => {
+    mutationFn: async (data: { photo1Id: string; photo2Id: string; description?: string }) => {
       // Get the actual session ID from localStorage
       const sessionId = localStorage.getItem('admin-session-id');
       console.log('Creating pair with sessionId:', sessionId);
@@ -132,8 +177,6 @@ export function PairsManagement() {
       setSelectedPhoto1("");
       setSelectedPhoto2("");
       setDescription("");
-      setMinFrequency(5);
-      setMaxFrequency(15);
       toast({
         title: "Success",
         description: "Photo pair created successfully",
@@ -241,8 +284,6 @@ export function PairsManagement() {
       photo1Id: selectedPhoto1,
       photo2Id: selectedPhoto2,
       description: description || undefined,
-      minFrequency,
-      maxFrequency,
     });
   };
 
@@ -263,6 +304,30 @@ export function PairsManagement() {
     setShowStatsDialog(true);
   };
 
+  const handleUpdateFrequency = () => {
+    if (minInterval >= maxInterval) {
+      toast({
+        title: "Error",
+        description: "Minimum interval must be less than maximum interval",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    updateFrequencyMutation.mutate({
+      pairsMinInterval: minInterval,
+      pairsMaxInterval: maxInterval,
+    });
+  };
+
+  // Initialize frequency values when settings load
+  React.useEffect(() => {
+    if (settings) {
+      setMinInterval(settings.pairsMinInterval || 10);
+      setMaxInterval(settings.pairsMaxInterval || 15);
+    }
+  }, [settings]);
+
   if (photosLoading || pairsLoading) {
     return <div className="flex justify-center p-8">Loading pairs management...</div>;
   }
@@ -275,6 +340,12 @@ export function PairsManagement() {
           <p className="text-muted-foreground">
             Create and manage photo pairs for direct comparison voting
           </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowFrequencyDialog(true)}>
+            <Activity className="w-4 h-4 mr-2" />
+            Configure Frequency
+          </Button>
         </div>
         
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
@@ -361,34 +432,7 @@ export function PairsManagement() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="minFrequency">Min Frequency (rounds)</Label>
-                  <Input
-                    id="minFrequency"
-                    type="number"
-                    min="1"
-                    max="50"
-                    value={minFrequency}
-                    onChange={(e) => setMinFrequency(parseInt(e.target.value) || 5)}
-                    className="w-full"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Minimum rounds between pair appearances</p>
-                </div>
-                <div>
-                  <Label htmlFor="maxFrequency">Max Frequency (rounds)</Label>
-                  <Input
-                    id="maxFrequency"
-                    type="number"
-                    min="1"
-                    max="100"
-                    value={maxFrequency}
-                    onChange={(e) => setMaxFrequency(parseInt(e.target.value) || 15)}
-                    className="w-full"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Maximum rounds between pair appearances</p>
-                </div>
-              </div>
+
             </div>
             
             <DialogFooter>
@@ -404,6 +448,59 @@ export function PairsManagement() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Frequency Configuration Dialog */}
+        <Dialog open={showFrequencyDialog} onOpenChange={setShowFrequencyDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Configure Pairs Frequency</DialogTitle>
+              <DialogDescription>
+                Set how often pairs appear between regular voting rounds
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="minInterval">Minimum Interval (rounds)</Label>
+                <Input
+                  id="minInterval"
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={minInterval}
+                  onChange={(e) => setMinInterval(parseInt(e.target.value) || 1)}
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500 mt-1">Minimum rounds between pair appearances</p>
+              </div>
+              <div>
+                <Label htmlFor="maxInterval">Maximum Interval (rounds)</Label>
+                <Input
+                  id="maxInterval"
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={maxInterval}
+                  onChange={(e) => setMaxInterval(parseInt(e.target.value) || 1)}
+                  className="w-full"
+                />
+                <p className="text-xs text-gray-500 mt-1">Maximum rounds between pair appearances</p>
+              </div>
+            </div>
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowFrequencyDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleUpdateFrequency}
+                disabled={updateFrequencyMutation.isPending}
+              >
+                {updateFrequencyMutation.isPending ? "Updating..." : "Update Settings"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Alert>
@@ -411,6 +508,8 @@ export function PairsManagement() {
         <AlertDescription>
           Pairs allow direct photo comparisons. Each pair shows two specific photos for head-to-head voting.
           Ensure both photos are visible and not archived before creating pairs.
+          <br />
+          <strong>Frequency:</strong> Pairs appear every {settings?.pairsMinInterval || 10}-{settings?.pairsMaxInterval || 15} regular voting rounds.
         </AlertDescription>
       </Alert>
 
@@ -496,12 +595,8 @@ export function PairsManagement() {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-4 flex justify-between text-sm text-muted-foreground">
+                  <div className="mt-4 text-sm text-muted-foreground">
                     <span>Created: {new Date(pair.createdAt).toLocaleDateString()}</span>
-                    <span>
-                      <Activity className="w-4 h-4 inline mr-1" />
-                      Frequency: {pair.minFrequency || 5}-{pair.maxFrequency || 15} rounds
-                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -554,9 +649,36 @@ export function PairsManagement() {
                         </CardContent>
                       </Card>
                     </div>
+                    {/* Head-to-Head All Time Statistics */}
+                    <div className="text-center mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <h4 className="font-semibold text-blue-700 dark:text-blue-300 mb-2">
+                        All-Time Head-to-Head Record
+                      </h4>
+                      <div className="text-lg font-semibold">
+                        Total Historic Votes: {pairStats.headToHeadAllTime.totalVotes}
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 mt-2">
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-green-600">
+                            {pairStats.headToHeadAllTime.photo1Wins}
+                          </div>
+                          <div className="text-sm text-gray-600">{photo1?.title} wins</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-2xl font-bold text-blue-600">
+                            {pairStats.headToHeadAllTime.photo2Wins}
+                          </div>
+                          <div className="text-sm text-gray-600">{photo2?.title} wins</div>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Includes all votes between these photos from regular voting and pair comparisons
+                      </p>
+                    </div>
+
                     <div className="text-center mb-4">
                       <div className="text-lg font-semibold">
-                        Total Votes: {pairStats.totalVotes}
+                        Direct Pair Votes: {pairStats.totalVotes}
                       </div>
                     </div>
                     
@@ -573,7 +695,7 @@ export function PairsManagement() {
                             </div>
                             {pairStats.photo1VsOthers && (
                               <div className="flex justify-between">
-                                <span>vs Other photos:</span>
+                                <span>vs All photos:</span>
                                 <span>{pairStats.photo1VsOthers.wins}/{pairStats.photo1VsOthers.total} ({pairStats.photo1VsOthers.winRate.toFixed(1)}%)</span>
                               </div>
                             )}
@@ -588,7 +710,7 @@ export function PairsManagement() {
                             </div>
                             {pairStats.photo2VsOthers && (
                               <div className="flex justify-between">
-                                <span>vs Other photos:</span>
+                                <span>vs All photos:</span>
                                 <span>{pairStats.photo2VsOthers.wins}/{pairStats.photo2VsOthers.total} ({pairStats.photo2VsOthers.winRate.toFixed(1)}%)</span>
                               </div>
                             )}

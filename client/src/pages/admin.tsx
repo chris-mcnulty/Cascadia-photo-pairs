@@ -10,13 +10,14 @@ import UserManagement from "@/components/admin/user-management";
 import ContestSettings from "@/components/admin/contest-settings";
 import AnnouncementSettings from "@/components/admin/announcement-settings";
 import NewsManagement from "@/components/admin/news-management";
-import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell, MessageSquare } from "lucide-react";
+import { PairsManagement } from "@/components/admin/pairs-management";
+import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell, MessageSquare, Link2 } from "lucide-react";
 import { Link } from "wouter";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
 
 function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"analytics" | "photos" | "users" | "communication" | "settings">("analytics");
+  const [activeTab, setActiveTab] = useState<"analytics" | "photos" | "pairs" | "users" | "communication" | "settings">("analytics");
   const { logout, isAuthenticated, sessionId } = useAuth();
 
   const { data: stats } = useQuery<{
@@ -140,6 +141,15 @@ function AdminDashboard() {
             Photos
           </Button>
           <Button
+            variant={activeTab === "pairs" ? "default" : "outline"}
+            onClick={() => setActiveTab("pairs")}
+            className="flex items-center text-sm"
+            size="sm"
+          >
+            <Link2 className="w-4 h-4 mr-1 sm:mr-2" />
+            Pairs
+          </Button>
+          <Button
             variant={activeTab === "users" ? "default" : "outline"}
             onClick={() => setActiveTab("users")}
             className="flex items-center text-sm"
@@ -173,6 +183,7 @@ function AdminDashboard() {
         {/* Tab Content */}
         {activeTab === "analytics" && <AdminAnalytics />}
         {activeTab === "photos" && <PhotoManager />}
+        {activeTab === "pairs" && <PairsManagement />}
         {activeTab === "users" && <UserManagement />}
         {activeTab === "communication" && (
           <div className="space-y-6">

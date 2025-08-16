@@ -23,6 +23,7 @@ export const photos = pgTable("photos", {
   wins: integer("wins").default(0).notNull(),
   comparisons: integer("comparisons").default(0).notNull(),
   hidden: boolean("hidden").default(false).notNull(),
+  archived: boolean("archived").default(false).notNull(), // Archive instead of delete - hides from reports/admin unless specifically enabled
   customPurchaseUrl: text("custom_purchase_url"),
   neverForSale: boolean("never_for_sale").default(true).notNull(), // Changed default to true
 });
@@ -95,8 +96,39 @@ export const settings = pgTable("settings", {
   // Master announcement settings
   announcementEnabled: boolean("announcement_enabled").default(false).notNull(),
   announcementText: text("announcement_text"),
-  announcementType: varchar("announcement_type").default("info") // info, warning, success, contest
+  announcementType: varchar("announcement_type").default("info"), // info, warning, success, contest
+  // Pairs Feature Configuration
+  pairsEnabled: boolean("pairs_enabled").default(false).notNull(),
+  pairsMinInterval: integer("pairs_min_interval").default(10).notNull(), // Minimum votes between pairs
+  pairsMaxInterval: integer("pairs_max_interval").default(15).notNull() // Maximum votes between pairs
 });
+
+// Photo pairs table for direct comparisons  
+export const photoPairs = pgTable("photo_pairs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  photo1Id: varchar("photo1_id").notNull().references(() => photos.id),
+  photo2Id: varchar("photo2_id").notNull().references(() => photos.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  createdBy: varchar("created_by").references(() => users.id), // Admin who created the pair
+  description: text("description"), // Optional description of the pair relationship
+}, (table) => [
+  index("idx_photo_pairs_photo1").on(table.photo1Id),
+  index("idx_photo_pairs_photo2").on(table.photo2Id),
+]);
+
+// Pair votes table - tracks votes specifically between paired photos
+export const pairVotes = pgTable("pair_votes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  pairId: varchar("pair_id").notNull().references(() => photoPairs.id),
+  winnerPhotoId: varchar("winner_photo_id").notNull().references(() => photos.id),
+  loserPhotoId: varchar("loser_photo_id").notNull().references(() => photos.id),
+  voterType: text("voter_type").default("user").notNull(), // "admin" or "user"
+  userId: varchar("user_id").references(() => users.id),
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+}, (table) => [
+  index("idx_pair_votes_pair").on(table.pairId),
+  index("idx_pair_votes_winner").on(table.winnerPhotoId),
+]);
 
 export const sessions = pgTable("sessions", {
   id: varchar("id").primaryKey(),
@@ -141,6 +173,16 @@ export const insertSessionSchema = createInsertSchema(sessions).omit({
   lastActiveAt: true,
 });
 
+export const insertPhotoPairSchema = createInsertSchema(photoPairs).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPairVoteSchema = createInsertSchema(pairVotes).omit({
+  id: true,
+  timestamp: true,
+});
+
 export type InsertCollection = z.infer<typeof insertCollectionSchema>;
 export type Collection = typeof collections.$inferSelect;
 export type InsertPhoto = z.infer<typeof insertPhotoSchema>;
@@ -151,6 +193,10 @@ export type InsertSettings = z.infer<typeof insertSettingsSchema>;
 export type Settings = typeof settings.$inferSelect;
 export type InsertSession = z.infer<typeof insertSessionSchema>;
 export type Session = typeof sessions.$inferSelect;
+export type InsertPhotoPair = z.infer<typeof insertPhotoPairSchema>;
+export type PhotoPair = typeof photoPairs.$inferSelect;
+export type InsertPairVote = z.infer<typeof insertPairVoteSchema>;
+export type PairVote = typeof pairVotes.$inferSelect;
 
 // User statistics table
 export const userStats = pgTable("user_stats", {

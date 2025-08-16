@@ -28,6 +28,15 @@ import { sendVerificationEmail, sendPasswordResetEmail } from "./email";
 import { sendAdminMFACode, isEmailServiceAvailable, isSMSServiceAvailable } from "./sendgrid";
 import { rssService } from "./rss-service";
 
+// Simple middleware for admin auth check (for pairs endpoints)
+const isAuthenticated = async (req: any, res: any, next: any) => {
+  const sessionId = req.headers['x-session-id'];
+  if (sessionId === 'admin-session') {
+    return next();
+  }
+  return res.status(401).json({ message: "Admin authentication required" });
+};
+
 // Temporary storage for MFA sessions
 const adminMfaSessions = new Map<string, { code: string; expires: number; isMasterAdmin: boolean }>();
 
@@ -1639,6 +1648,159 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error generating CSV export:', error);
       res.status(500).json({ message: "Failed to generate CSV export" });
+    }
+  });
+
+  // Pairs API endpoints
+  app.get("/api/pairs", isAuthenticated, async (req, res) => {
+    try {
+      const pairs = await storage.getAllPhotoPairs();
+      res.json(pairs);
+    } catch (error) {
+      console.error("Error fetching pairs:", error);
+      res.status(500).json({ message: "Failed to fetch pairs" });
+    }
+  });
+
+  app.post("/api/pairs", isAuthenticated, async (req, res) => {
+    try {
+      const { photo1Id, photo2Id, description, createdBy } = req.body;
+      
+      if (!photo1Id || !photo2Id) {
+        return res.status(400).json({ message: "Both photo1Id and photo2Id are required" });
+      }
+
+      if (photo1Id === photo2Id) {
+        return res.status(400).json({ message: "Cannot pair a photo with itself" });
+      }
+
+      // Check if pair already exists (bidirectional)
+      const existingPairs = await storage.getPhotoPartnerships(photo1Id);
+      const existingPair = existingPairs.find(pair => 
+        pair.photo2Id === photo2Id || pair.photo1Id === photo2Id
+      );
+
+      if (existingPair) {
+        return res.status(400).json({ message: "Photos are already paired" });
+      }
+
+      const newPair = await storage.createPhotoPair({
+        photo1Id,
+        photo2Id,
+        description,
+        createdBy
+      });
+
+      res.json(newPair);
+    } catch (error) {
+      console.error("Error creating pair:", error);
+      res.status(500).json({ message: "Failed to create pair" });
+    }
+  });
+
+  app.delete("/api/pairs/:pairId", isAuthenticated, async (req, res) => {
+    try {
+      const { pairId } = req.params;
+      const success = await storage.deletePhotoPair(pairId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Pair not found" });
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting pair:", error);
+      res.status(500).json({ message: "Failed to delete pair" });
+    }
+  });
+
+  app.get("/api/pairs/:pairId/stats", async (req, res) => {
+    try {
+      const { pairId } = req.params;
+      const stats = await storage.getPairVoteStats(pairId);
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching pair stats:", error);
+      res.status(500).json({ message: "Failed to fetch pair stats" });
+    }
+  });
+
+  app.get("/api/photos/:photoId/pair-performance", async (req, res) => {
+    try {
+      const { photoId } = req.params;
+      const performance = await storage.getPhotoPerformanceInPairs(photoId);
+      res.json(performance);
+    } catch (error) {
+      console.error("Error fetching photo pair performance:", error);
+      res.status(500).json({ message: "Failed to fetch photo pair performance" });
+    }
+  });
+
+  app.get("/api/photos/:photoId/partnerships", async (req, res) => {
+    try {
+      const { photoId } = req.params;
+      const partnerships = await storage.getPhotoPartnerships(photoId);
+      res.json(partnerships);
+    } catch (error) {
+      console.error("Error fetching photo partnerships:", error);
+      res.status(500).json({ message: "Failed to fetch photo partnerships" });
+    }
+  });
+
+  app.post("/api/photos/:photoId/archive", isAuthenticated, async (req, res) => {
+    try {
+      const { photoId } = req.params;
+      
+      // Check if photo has pairs - warn user
+      const partnerships = await storage.getPhotoPartnerships(photoId);
+      if (partnerships.length > 0) {
+        return res.status(400).json({ 
+          message: "Photo is part of pairs", 
+          partnerships: partnerships.length,
+          warning: "Archiving this photo will affect pair voting data"
+        });
+      }
+
+      const success = await storage.archivePhoto(photoId);
+      if (!success) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+      
+      res.json({ success: true, archived: true });
+    } catch (error) {
+      console.error("Error archiving photo:", error);
+      res.status(500).json({ message: "Failed to archive photo" });
+    }
+  });
+
+  app.post("/api/pairs/:pairId/vote", async (req, res) => {
+    try {
+      const { pairId } = req.params;
+      const { winnerPhotoId, voterType = "user", userId } = req.body;
+
+      if (!winnerPhotoId) {
+        return res.status(400).json({ message: "Winner photo ID is required" });
+      }
+
+      const pair = await storage.getPhotoPair(pairId);
+      if (!pair) {
+        return res.status(404).json({ message: "Pair not found" });
+      }
+
+      const loserPhotoId = pair.photo1Id === winnerPhotoId ? pair.photo2Id : pair.photo1Id;
+
+      const pairVote = await storage.createPairVote({
+        pairId,
+        winnerPhotoId,
+        loserPhotoId,
+        voterType,
+        userId
+      });
+
+      res.json(pairVote);
+    } catch (error) {
+      console.error("Error creating pair vote:", error);
+      res.status(500).json({ message: "Failed to create pair vote" });
     }
   });
 

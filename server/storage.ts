@@ -1,7 +1,7 @@
-import { type Photo, type InsertPhoto, type Vote, type InsertVote, type Settings, type InsertSettings, type Collection, type InsertCollection } from "@shared/schema";
+import { type Photo, type InsertPhoto, type Vote, type InsertVote, type Settings, type InsertSettings, type Collection, type InsertCollection, type PhotoPair, type InsertPhotoPair, type PairVote, type InsertPairVote } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { photos, votes, settings, collections } from "@shared/schema";
+import { photos, votes, settings, collections, photoPairs, pairVotes } from "@shared/schema";
 import { eq, sql, inArray, and, or, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
@@ -49,6 +49,18 @@ export interface IStorage {
   getTopPhotosByVotes(limit?: number): Promise<Photo[]>;
   getTopPhotosByWins(limit?: number): Promise<Photo[]>;
   getUserVotedPhotos(userId: string, limit: number, sortBy: 'votes' | 'wins'): Promise<Photo[]>;
+  
+  // Pairs functionality
+  createPhotoPair(pair: InsertPhotoPair): Promise<PhotoPair>;
+  getAllPhotoPairs(): Promise<PhotoPair[]>;
+  getPhotoPair(id: string): Promise<PhotoPair | undefined>;
+  deletePhotoPair(id: string): Promise<boolean>;
+  getPhotoPartnerships(photoId: string): Promise<PhotoPair[]>;
+  createPairVote(vote: InsertPairVote): Promise<PairVote>;
+  getPairVoteStats(pairId: string): Promise<{ photo1Wins: number; photo2Wins: number; totalVotes: number }>;
+  getPhotoPerformanceInPairs(photoId: string): Promise<{ wins: number; losses: number; winRate: number }>;
+  checkForPairDisplay(): Promise<[Photo, Photo] | null>;
+  archivePhoto(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -71,8 +83,30 @@ export class MemStorage implements IStorage {
       supportEmail: "support@cascadiaoceanic.com",
       privacyPolicyUrl: "/privacy",
       termsOfServiceUrl: "/terms",
+      consentCopyLong: "By registering, you agree to receive updates, tips, and offers from Christopher F. McNulty (Chris) and Cascadia Oceanic LLC. You can unsubscribe anytime via the link in our emails or by contacting privacy@chrismcnulty.net. We do not sell your information. See our Privacy Policy: https://www.chrismcnulty.net/privacy",
+      consentCopyShort: "I agree to receive updates from Christopher F. McNulty (Chris) & Cascadia Oceanic LLC and accept the Privacy Policy.",
+      newsSource: "internal",
+      rssUrl: "https://www.chrismcnulty.net/feed",
+      rssTag: "photography",
+      rssDaysLimit: 90,
+      rssMaxItems: 3,
+      rssEnabled: false,
       userLoginEnabledDev: true, // ON in development for testing
       userLoginEnabledProd: false, // OFF in production until ready
+      monthlyContestText: "Enter our monthly photo contest! Top voters win prizes.",
+      quarterlyContestText: "Join our quarterly championship for bigger rewards!",
+      monthlyContestEnabled: false,
+      monthlyContestStartDate: null,
+      monthlyContestEndDate: null,
+      quarterlyContestEnabled: false,
+      quarterlyContestStartDate: null,
+      quarterlyContestEndDate: null,
+      announcementEnabled: false,
+      announcementText: null,
+      announcementType: "info",
+      pairsEnabled: false,
+      pairsMinInterval: 10,
+      pairsMaxInterval: 15
     };
     
     // Initialize with sample photos (using stock photo URLs)
@@ -175,6 +209,7 @@ export class MemStorage implements IStorage {
         wins: 0,
         comparisons: 0,
         hidden: false,
+        archived: false,
         neverForSale: false,
         customPurchaseUrl: null,
       };
@@ -202,6 +237,7 @@ export class MemStorage implements IStorage {
       wins: 0,
       comparisons: 0,
       hidden: false,
+      archived: false,
       neverForSale: false,
       description: insertPhoto.description || null,
       customPurchaseUrl: insertPhoto.customPurchaseUrl || null,
@@ -230,6 +266,7 @@ export class MemStorage implements IStorage {
       winnerPhotoId: insertVote.winnerPhotoId || insertVote.photoId,
       loserPhotoId: insertVote.loserPhotoId || insertVote.photoId,
       voterType: insertVote.voterType || "user",
+      userId: insertVote.userId || null,
       timestamp: new Date().toISOString(),
     };
     this.votes.set(id, vote);
@@ -498,6 +535,50 @@ export class MemStorage implements IStorage {
     } else {
       return this.getTopPhotosByVotes(limit);
     }
+  }
+
+  // Stub implementations for pairs functionality in MemStorage
+  async createPhotoPair(pair: InsertPhotoPair): Promise<PhotoPair> {
+    throw new Error("Pairs functionality not implemented in MemStorage");
+  }
+
+  async getAllPhotoPairs(): Promise<PhotoPair[]> {
+    return [];
+  }
+
+  async getPhotoPair(id: string): Promise<PhotoPair | undefined> {
+    return undefined;
+  }
+
+  async deletePhotoPair(id: string): Promise<boolean> {
+    return false;
+  }
+
+  async getPhotoPartnerships(photoId: string): Promise<PhotoPair[]> {
+    return [];
+  }
+
+  async createPairVote(vote: InsertPairVote): Promise<PairVote> {
+    throw new Error("Pairs functionality not implemented in MemStorage");
+  }
+
+  async getPairVoteStats(pairId: string): Promise<{ photo1Wins: number; photo2Wins: number; totalVotes: number }> {
+    return { photo1Wins: 0, photo2Wins: 0, totalVotes: 0 };
+  }
+
+  async getPhotoPerformanceInPairs(photoId: string): Promise<{ wins: number; losses: number; winRate: number }> {
+    return { wins: 0, losses: 0, winRate: 0 };
+  }
+
+  async checkForPairDisplay(): Promise<[Photo, Photo] | null> {
+    return null;
+  }
+
+  async archivePhoto(id: string): Promise<boolean> {
+    const photo = this.photos.get(id);
+    if (!photo) return false;
+    photo.archived = true;
+    return true;
   }
 }
 
@@ -823,12 +904,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllPhotosWithStats(category?: string): Promise<Photo[]> {
-    let query = db.select().from(photos);
     if (category) {
-      const result = await query.where(eq(photos.category, category));
-      return result;
+      return await db.select().from(photos).where(eq(photos.category, category));
     }
-    return await query;
+    return await db.select().from(photos);
   }
 
   async getTotalVotes(startDate?: string, endDate?: string, voterType?: string): Promise<number> {
@@ -998,6 +1077,133 @@ export class DatabaseStorage implements IStorage {
     } else {
       return userPhotos.sort((a, b) => b.votes - a.votes).slice(0, limit);
     }
+  }
+
+  // Pairs functionality implementation
+  async createPhotoPair(pair: InsertPhotoPair): Promise<PhotoPair> {
+    const [newPair] = await db.insert(photoPairs).values(pair).returning();
+    return newPair;
+  }
+
+  async getAllPhotoPairs(): Promise<PhotoPair[]> {
+    return await db.select().from(photoPairs);
+  }
+
+  async getPhotoPair(id: string): Promise<PhotoPair | undefined> {
+    const [pair] = await db.select().from(photoPairs).where(eq(photoPairs.id, id));
+    return pair;
+  }
+
+  async deletePhotoPair(id: string): Promise<boolean> {
+    const result = await db.delete(photoPairs).where(eq(photoPairs.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async getPhotoPartnerships(photoId: string): Promise<PhotoPair[]> {
+    return await db.select().from(photoPairs).where(
+      or(
+        eq(photoPairs.photo1Id, photoId),
+        eq(photoPairs.photo2Id, photoId)
+      )
+    );
+  }
+
+  async createPairVote(vote: InsertPairVote): Promise<PairVote> {
+    const [newVote] = await db.insert(pairVotes).values(vote).returning();
+    return newVote;
+  }
+
+  async getPairVoteStats(pairId: string): Promise<{ photo1Wins: number; photo2Wins: number; totalVotes: number }> {
+    const pair = await this.getPhotoPair(pairId);
+    if (!pair) return { photo1Wins: 0, photo2Wins: 0, totalVotes: 0 };
+
+    const [photo1Wins] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(pairVotes)
+      .where(and(
+        eq(pairVotes.pairId, pairId),
+        eq(pairVotes.winnerPhotoId, pair.photo1Id)
+      ));
+
+    const [photo2Wins] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(pairVotes)
+      .where(and(
+        eq(pairVotes.pairId, pairId),
+        eq(pairVotes.winnerPhotoId, pair.photo2Id)
+      ));
+
+    const [totalVotes] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(pairVotes)
+      .where(eq(pairVotes.pairId, pairId));
+
+    return {
+      photo1Wins: photo1Wins.count,
+      photo2Wins: photo2Wins.count,
+      totalVotes: totalVotes.count
+    };
+  }
+
+  async getPhotoPerformanceInPairs(photoId: string): Promise<{ wins: number; losses: number; winRate: number }> {
+    const [wins] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(pairVotes)
+      .where(eq(pairVotes.winnerPhotoId, photoId));
+
+    const [losses] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(pairVotes)
+      .where(eq(pairVotes.loserPhotoId, photoId));
+
+    const totalPairVotes = wins.count + losses.count;
+    const winRate = totalPairVotes > 0 ? wins.count / totalPairVotes : 0;
+
+    return {
+      wins: wins.count,
+      losses: losses.count,
+      winRate
+    };
+  }
+
+  async checkForPairDisplay(): Promise<[Photo, Photo] | null> {
+    const settings = await this.getSettings();
+    if (!settings.pairsEnabled) return null;
+
+    // Get all available pairs where both photos are visible and not archived
+    const availablePairs = await db
+      .select({
+        id: photoPairs.id,
+        photo1Id: photoPairs.photo1Id,
+        photo2Id: photoPairs.photo2Id
+      })
+      .from(photoPairs)
+      .innerJoin(photos, eq(photoPairs.photo1Id, photos.id))
+      .innerJoin(sql`photos as p2`, sql`${photoPairs.photo2Id} = p2.id`)
+      .where(and(
+        eq(photos.hidden, false),
+        eq(photos.archived, false),
+        sql`p2.hidden = false`,
+        sql`p2.archived = false`
+      ));
+
+    if (availablePairs.length === 0) return null;
+
+    // Randomly select one pair and get the full photo objects
+    const randomPair = availablePairs[Math.floor(Math.random() * availablePairs.length)];
+    const photo1 = await this.getPhoto(randomPair.photo1Id);
+    const photo2 = await this.getPhoto(randomPair.photo2Id);
+    
+    if (!photo1 || !photo2) return null;
+    return [photo1, photo2];
+  }
+
+  async archivePhoto(id: string): Promise<boolean> {
+    const result = await db
+      .update(photos)
+      .set({ archived: true })
+      .where(eq(photos.id, id));
+    return (result.rowCount || 0) > 0;
   }
 }
 

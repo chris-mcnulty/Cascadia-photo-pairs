@@ -31,7 +31,7 @@ export default function ContestReport() {
 
   // Fetch contest data
   const { data: contestData, isLoading, refetch } = useQuery<ContestStats>({
-    queryKey: ["/api/admin/contest-report", contestType, selectedPeriod],
+    queryKey: [`/api/admin/contest-report?contestType=${contestType}&contestPeriod=${selectedPeriod}`],
   });
 
   const handleMarkWinner = async (userId: string) => {

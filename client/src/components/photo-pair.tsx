@@ -82,7 +82,7 @@ export default function PhotoPair({ photo, onVote, isVoting, settings }: PhotoPa
         {settings?.purchaseEnabled && !photo.neverForSale && (
           <button
             type="button"
-            className="inline-flex items-center px-4 py-2 text-white bg-green-600 hover:bg-green-700 rounded-md transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg"
+            className="inline-flex items-center px-4 py-2 text-white bg-cascadia-green hover:bg-cascadia-green/90 rounded-md transition-all duration-200 text-sm font-medium shadow-md hover:shadow-lg"
             onClick={handlePurchaseClick}
           >
             <ShoppingCart className="w-4 h-4 mr-2" />

@@ -251,11 +251,7 @@ export default function MobileVotingInterface({
             Help me curate the photos for my next exhibition. I've added some of my classic and newest images to discover here. 
             Click on your preferred photo to vote, then continue with the next pair. Vote as many times as you like!
           </p>
-          {votesCount > 0 && (
-            <div className="mt-3 text-xs text-green-600 font-medium">
-              {votesCount} votes cast - Thanks for helping!
-            </div>
-          )}
+
         </div>
 
         {/* Photo Cards - Stacked Mobile Layout */}
@@ -296,7 +292,6 @@ export default function MobileVotingInterface({
                 {settings?.purchaseEnabled && !photoA.neverForSale && (
                   <div className="mt-3">
                     <Button
-                      variant="outline"
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -306,7 +301,7 @@ export default function MobileVotingInterface({
                           window.location.href = purchaseUrl;
                         }
                       }}
-                      className="w-full"
+                      className="w-full bg-cascadia-green hover:bg-cascadia-green/90 text-white border-none"
                     >
                       <ShoppingCart className="w-4 h-4 mr-2" />
                       Purchase
@@ -360,7 +355,6 @@ export default function MobileVotingInterface({
                 {settings?.purchaseEnabled && !photoB.neverForSale && (
                   <div className="mt-3">
                     <Button
-                      variant="outline"
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -370,7 +364,7 @@ export default function MobileVotingInterface({
                           window.location.href = purchaseUrl;
                         }
                       }}
-                      className="w-full"
+                      className="w-full bg-cascadia-green hover:bg-cascadia-green/90 text-white border-none"
                     >
                       <ShoppingCart className="w-4 h-4 mr-2" />
                       Purchase

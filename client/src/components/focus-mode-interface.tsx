@@ -187,7 +187,7 @@ export default function FocusModeInterface({
                 {settings?.purchaseEnabled && !photoA.neverForSale && (
                   <button
                     type="button"
-                    className="inline-flex items-center px-4 py-2 text-white bg-green-600/90 hover:bg-green-600 rounded-lg transition-all duration-200 text-base font-medium backdrop-blur-sm"
+                    className="inline-flex items-center px-4 py-2 text-white bg-cascadia-green hover:bg-cascadia-green/90 rounded-lg transition-all duration-200 text-base font-medium backdrop-blur-sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       const purchaseUrl = photoA.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
@@ -232,7 +232,7 @@ export default function FocusModeInterface({
                 {settings?.purchaseEnabled && !photoB.neverForSale && (
                   <button
                     type="button"
-                    className="inline-flex items-center px-4 py-2 text-white bg-green-600/90 hover:bg-green-600 rounded-lg transition-all duration-200 text-base font-medium backdrop-blur-sm"
+                    className="inline-flex items-center px-4 py-2 text-white bg-cascadia-green hover:bg-cascadia-green/90 rounded-lg transition-all duration-200 text-base font-medium backdrop-blur-sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       const purchaseUrl = photoB.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";

@@ -6,12 +6,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import VotingInterface from "@/components/voting-interface";
 import MobileVotingInterface from "@/components/mobile-voting-interface";
+import FocusModeInterface from "@/components/focus-mode-interface";
 
 import { IOSInstallGuide } from "@/components/ios-install-guide";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Menu, X, Globe, Mail, Heart, MousePointer, RefreshCw, Infinity, Smartphone, Share2, MessageSquare, Facebook, Linkedin, Twitter, Plus } from "lucide-react";
+import { Menu, X, Globe, Mail, Heart, MousePointer, RefreshCw, Infinity, Smartphone, Monitor, Share2, MessageSquare, Facebook, Linkedin, Twitter, Plus } from "lucide-react";
 import { FaInstagram, FaThreads, FaBluesky } from "react-icons/fa6";
 import { FaFacebookF, FaLinkedinIn, FaXTwitter } from "react-icons/fa6";
 import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
@@ -105,6 +106,7 @@ function AuthenticationButtons({ isMobile = false }: { isMobile?: boolean }) {
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [useMobileInterface, setUseMobileInterface] = useState(false);
+  const [useFocusMode, setUseFocusMode] = useState(false);
   const [votesCount, setVotesCount] = useState(0);
   const [hasVoted, setHasVoted] = useState(false);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
@@ -112,7 +114,7 @@ export default function Home() {
 
   useTitle(); // Uses default title
 
-  // Detect if user is on mobile and auto-enable mobile interface
+  // Detect if user is on mobile
   useEffect(() => {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) 
       || (window.innerWidth <= 768);
@@ -326,7 +328,7 @@ export default function Home() {
       </header>
       )}
 
-      {/* Mobile Interface - Full Screen */}
+      {/* Mobile Interface - Rich Mobile Experience */}
       {useMobileInterface && photoPair ? (
         <MobileVotingInterface 
           photoPair={photoPair}
@@ -334,6 +336,17 @@ export default function Home() {
           isVoting={voteMutation.isPending}
           settings={settings}
           onToggleView={() => setUseMobileInterface(false)}
+          onShowInstallGuide={() => setShowInstallGuide(true)}
+          votesCount={votesCount}
+        />
+      ) : useFocusMode && photoPair ? (
+        /* Focus Mode - Desktop Only */
+        <FocusModeInterface 
+          photoPair={photoPair}
+          onVote={handleVote}
+          isVoting={voteMutation.isPending}
+          settings={settings}
+          onToggleView={() => setUseFocusMode(false)}
           onShowInstallGuide={() => setShowInstallGuide(true)}
           votesCount={votesCount}
         />
@@ -382,18 +395,18 @@ export default function Home() {
               </div>
             </div>
             
-            {/* Desktop Mobile Mode Toggle Button */}
+            {/* Desktop Focus Mode Toggle Button */}
             <div className="mt-6">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setUseMobileInterface(true)}
+                onClick={() => setUseFocusMode(true)}
                 className="text-gray-600 hover:text-gray-900"
               >
-                <Smartphone className="w-4 h-4 mr-2" />
+                <Monitor className="w-4 h-4 mr-2" />
                 Switch to Focus Mode
               </Button>
-              <p className="text-xs text-gray-500 mt-2">A distraction-free voting experience</p>
+              <p className="text-xs text-gray-500 mt-2">A distraction-free voting experience with side-by-side photos</p>
             </div>
           </div>
 

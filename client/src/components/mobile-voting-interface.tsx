@@ -121,41 +121,33 @@ export default function MobileVotingInterface({
   };
 
   return (
-    <div className="w-full">
-      {/* Minimal Header with Return Button */}
+    <div className="min-h-screen bg-gray-50">
+      {/* Rich Mobile Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
-        <div className="flex items-center justify-between p-2">
-          {/* Return Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => window.history.back()}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-
-          {/* Minimal Logo */}
-          <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 rounded overflow-hidden">
+        <div className="flex items-center justify-between p-4">
+          {/* Logo and Title */}
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 rounded overflow-hidden">
               <img 
                 src={cascadiaLogoPath} 
                 alt="Cascadia Oceanic" 
                 className="w-full h-full object-cover"
               />
             </div>
-            <span className="text-sm font-medium text-gray-700">Focus Mode</span>
+            <div>
+              <h1 className="font-bold text-lg text-gray-900">Cascadia Oceanic</h1>
+              <p className="text-xs text-gray-600">Choose Your Favorite</p>
+            </div>
           </div>
 
-          {/* User Profile - compact */}
-          <div className="flex items-center gap-1">
+          {/* Mobile Actions */}
+          <div className="flex items-center gap-2">
             <UserProfile />
-            {/* Admin panel - compact */}
+            {/* Admin panel */}
             {typeof window !== 'undefined' && localStorage.getItem('admin-session-id') && (
               <Link href="/admin">
-                <Button variant="ghost" size="icon" className="p-1">
-                  <SettingsIcon className="h-4 w-4 text-green-600" />
+                <Button variant="ghost" size="icon" className="p-2">
+                  <SettingsIcon className="h-5 w-5 text-green-600" />
                 </Button>
               </Link>
             )}
@@ -165,15 +157,15 @@ export default function MobileVotingInterface({
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="p-2"
             >
-              {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+              {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
           </div>
         </div>
 
-        {/* Mobile Menu Dropdown */}
+        {/* Rich Mobile Menu Dropdown */}
         {mobileMenuOpen && (
           <div className="absolute top-full left-0 right-0 bg-white border-b border-gray-200 shadow-lg z-50">
-            <div className="flex flex-col space-y-3 p-4">
+            <div className="grid grid-cols-2 gap-3 p-4">
               <Button
                 variant="outline"
                 size="sm"
@@ -188,24 +180,24 @@ export default function MobileVotingInterface({
               </Button>
               
               <Link href="/leaderboard">
-                <Button variant="ghost" size="sm" className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center w-full" onClick={() => setMobileMenuOpen(false)}>
+                <Button variant="outline" size="sm" className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center w-full" onClick={() => setMobileMenuOpen(false)}>
                   Leaderboard
                 </Button>
               </Link>
 
-              {/* Exit Focus Mode */}
+              {/* Switch to Desktop Mode */}
               {onToggleView && (
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   onClick={() => {
                     onToggleView();
                     setMobileMenuOpen(false);
                   }}
-                  className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center w-full"
+                  className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center col-span-2"
                 >
                   <Monitor className="w-4 h-4 mr-2" />
-                  Exit Focus Mode
+                  Switch to Desktop Mode
                 </Button>
               )}
 
@@ -213,7 +205,7 @@ export default function MobileVotingInterface({
                 href="https://www.chrismcnulty.net/photography" 
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center"
+                className="bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center text-sm"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Visit Gallery
@@ -223,7 +215,7 @@ export default function MobileVotingInterface({
                 href="https://www.instagram.com/cascadia.oceanic/" 
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium flex items-center gap-1 justify-center"
+                className="bg-gray-100 hover:bg-gray-200 px-3 py-2 rounded-lg text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium flex items-center gap-1 justify-center text-sm"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <FaInstagram className="w-4 h-4" />
@@ -232,13 +224,13 @@ export default function MobileVotingInterface({
 
               {/* Authentication Buttons */}
               {settings?.userLoginEnabledDev && (
-                <div className="text-center">
+                <div className="col-span-2">
                   <a 
                     href="/api/login"
                     className="bg-cascadia-green text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium text-center block"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    Login
+                    Login with Replit
                   </a>
                 </div>
               )}
@@ -250,25 +242,35 @@ export default function MobileVotingInterface({
       {/* Announcements */}
       <SimpleAnnouncements />
 
-      {/* Photo Pair - Side by Side Layout for Focus Mode */}
-      <div className="bg-black min-h-screen flex items-center justify-center p-2">
-        <div className="w-full h-full max-w-7xl mx-auto">
-          {/* Side-by-side layout for larger screens, stacked for mobile */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 h-full">
-            {/* Photo A */}
+      {/* Rich Mobile Photo Voting Interface */}
+      <div className="px-4 pb-20">
+        {/* Voting Instructions */}
+        <div className="text-center py-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Which photo do you prefer?</h2>
+          <p className="text-gray-600 text-sm">Tap your favorite to vote • Swipe left/right to vote • Vote unlimited times</p>
+          {votesCount > 0 && (
+            <div className="mt-2 text-xs text-green-600 font-medium">
+              {votesCount} votes cast - Thanks for helping!
+            </div>
+          )}
+        </div>
+
+        {/* Photo Cards - Stacked Mobile Layout */}
+        <div className="space-y-4">
+          {/* Photo A Card */}
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div 
-              className="relative bg-black rounded-lg overflow-hidden cursor-pointer transform transition-all duration-200 active:scale-98 flex items-center justify-center"
+              className="relative cursor-pointer transform transition-all duration-200 active:scale-98"
               onClick={() => handlePhotoSelect(photoA)}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
-              style={{ minHeight: 'calc(100vh - 120px)' }}
             >
-              <div className="relative w-full h-full flex items-center justify-center">
+              <div className="aspect-video bg-gray-100 relative overflow-hidden">
                 <img 
                   src={photoA.imageUrl} 
                   alt={photoA.title}
-                  className="max-w-full max-h-full object-contain"
+                  className="w-full h-full object-cover"
                   loading="lazy"
                 />
                 {selectedPhoto?.id === photoA.id && (
@@ -280,43 +282,67 @@ export default function MobileVotingInterface({
                 )}
               </div>
               
-              {/* Minimal overlay with title */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                <h3 className="font-semibold text-white text-lg font-epilogue">{photoA.title}</h3>
-                {settings?.purchaseEnabled && !photoA.neverForSale && (
-                  <button
-                    type="button"
-                    className="mt-2 inline-flex items-center px-3 py-1 text-white bg-green-600/80 hover:bg-green-600 rounded-md transition-all duration-200 text-sm font-medium backdrop-blur-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const purchaseUrl = photoA.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
-                      const newWindow = window.open(purchaseUrl, '_blank');
-                      if (!newWindow) {
-                        window.location.href = purchaseUrl;
-                      }
-                    }}
-                  >
-                    <ShoppingCart className="w-3 h-3 mr-1" />
-                    Print
-                  </button>
+              {/* Photo Details */}
+              <div className="p-4">
+                <h3 className="font-bold text-lg text-gray-900 mb-2">{photoA.title}</h3>
+                {photoA.description && (
+                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">{photoA.description}</p>
                 )}
+                
+                {/* Action Buttons */}
+                <div className="flex items-center justify-between">
+                  <Button
+                    onClick={() => handlePhotoSelect(photoA)}
+                    className="bg-cascadia-green hover:bg-green-700 text-white flex-1 mr-2"
+                    disabled={isVoting}
+                  >
+                    <Heart className="w-4 h-4 mr-2" />
+                    Choose This One
+                  </Button>
+                  
+                  {settings?.purchaseEnabled && !photoA.neverForSale && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const purchaseUrl = photoA.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
+                        const newWindow = window.open(purchaseUrl, '_blank');
+                        if (!newWindow) {
+                          window.location.href = purchaseUrl;
+                        }
+                      }}
+                      className="ml-2"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Photo B */}
+          {/* VS Divider */}
+          <div className="text-center py-2">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-200 rounded-full">
+              <span className="text-gray-600 font-bold text-lg">VS</span>
+            </div>
+          </div>
+
+          {/* Photo B Card */}
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div 
-              className="relative bg-black rounded-lg overflow-hidden cursor-pointer transform transition-all duration-200 active:scale-98 flex items-center justify-center"
+              className="relative cursor-pointer transform transition-all duration-200 active:scale-98"
               onClick={() => handlePhotoSelect(photoB)}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
-              style={{ minHeight: 'calc(100vh - 120px)' }}
             >
-              <div className="relative w-full h-full flex items-center justify-center">
+              <div className="aspect-video bg-gray-100 relative overflow-hidden">
                 <img 
                   src={photoB.imageUrl} 
                   alt={photoB.title}
-                  className="max-w-full max-h-full object-contain"
+                  className="w-full h-full object-cover"
                   loading="lazy"
                 />
                 {selectedPhoto?.id === photoB.id && (
@@ -328,27 +354,69 @@ export default function MobileVotingInterface({
                 )}
               </div>
               
-              {/* Minimal overlay with title */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                <h3 className="font-semibold text-white text-lg font-epilogue">{photoB.title}</h3>
-                {settings?.purchaseEnabled && !photoB.neverForSale && (
-                  <button
-                    type="button"
-                    className="mt-2 inline-flex items-center px-3 py-1 text-white bg-green-600/80 hover:bg-green-600 rounded-md transition-all duration-200 text-sm font-medium backdrop-blur-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const purchaseUrl = photoB.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
-                      const newWindow = window.open(purchaseUrl, '_blank');
-                      if (!newWindow) {
-                        window.location.href = purchaseUrl;
-                      }
-                    }}
-                  >
-                    <ShoppingCart className="w-3 h-3 mr-1" />
-                    Print
-                  </button>
+              {/* Photo Details */}
+              <div className="p-4">
+                <h3 className="font-bold text-lg text-gray-900 mb-2">{photoB.title}</h3>
+                {photoB.description && (
+                  <p className="text-gray-600 text-sm mb-3 line-clamp-2">{photoB.description}</p>
                 )}
+                
+                {/* Action Buttons */}
+                <div className="flex items-center justify-between">
+                  <Button
+                    onClick={() => handlePhotoSelect(photoB)}
+                    className="bg-cascadia-green hover:bg-green-700 text-white flex-1 mr-2"
+                    disabled={isVoting}
+                  >
+                    <Heart className="w-4 h-4 mr-2" />
+                    Choose This One
+                  </Button>
+                  
+                  {settings?.purchaseEnabled && !photoB.neverForSale && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const purchaseUrl = photoB.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
+                        const newWindow = window.open(purchaseUrl, '_blank');
+                        if (!newWindow) {
+                          window.location.href = purchaseUrl;
+                        }
+                      }}
+                      className="ml-2"
+                    >
+                      <ShoppingCart className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Call to Action */}
+        <div className="mt-8 mb-6">
+          <div className="bg-gradient-to-r from-green-700 to-green-600 rounded-xl p-6 text-white text-center">
+            <h3 className="text-lg font-bold mb-2">Explore More Photography</h3>
+            <p className="text-sm mb-4 opacity-90">
+              Discover the complete collection of landscape and nature photography.
+            </p>
+            <div className="flex flex-col gap-3">
+              <a 
+                href="https://www.chrismcnulty.net/photography" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-white text-green-700 px-6 py-3 rounded-lg font-semibold hover:bg-opacity-90 transition-all duration-200 text-center"
+              >
+                View Full Gallery
+              </a>
+              <a 
+                href="https://www.chrismcnulty.net/subscribe" 
+                className="border-2 border-white text-white px-6 py-3 rounded-lg font-semibold hover:bg-white hover:text-green-700 transition-all duration-200 text-center"
+              >
+                Subscribe for Updates
+              </a>
             </div>
           </div>
         </div>

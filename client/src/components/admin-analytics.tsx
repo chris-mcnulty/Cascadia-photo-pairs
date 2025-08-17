@@ -7,8 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Calendar, Trash2, TrendingUp, BarChart3, AlertTriangle, Download, ArrowUpDown, FilterIcon, ChevronDown, ChevronRight } from "lucide-react";
+import { Calendar, Trash2, TrendingUp, BarChart3, AlertTriangle, Download, ArrowUpDown, FilterIcon, ChevronDown, ChevronRight, Edit, Eye, EyeOff, Archive, ArchiveRestore } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 
 interface StatsData {
   totalVotes: number;
@@ -37,6 +40,10 @@ export default function AdminAnalytics() {
   const [selectedVoterType, setSelectedVoterType] = useState<string>("all");
   const [rankingLimit, setRankingLimit] = useState<number>(20);
   const [isPurgeSectionOpen, setIsPurgeSectionOpen] = useState(false);
+  const [reverseSort, setReverseSort] = useState(false);
+  const [viewAll, setViewAll] = useState(false);
+  const [editingPhoto, setEditingPhoto] = useState<any>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
 
   const { data: stats, isLoading } = useQuery<StatsData>({
     queryKey: ["/api/stats", startDate, endDate, selectedCategory, selectedVoterType],
@@ -88,6 +95,31 @@ export default function AdminAnalytics() {
       toast({
         title: "Failed to purge test data",
         description: "There was an error purging the test data.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Photo edit mutation
+  const editPhotoMutation = useMutation({
+    mutationFn: async (photoData: { id: string; hidden?: boolean; archived?: boolean; description?: string }) => {
+      const sessionId = localStorage.getItem('admin-session-id');
+      const response = await apiRequest("PUT", `/api/photos/${photoData.id}`, photoData, sessionId ? { 'x-session-id': sessionId } : undefined);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      setShowEditDialog(false);
+      setEditingPhoto(null);
+      toast({
+        title: "Photo updated",
+        description: "Photo settings have been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to update photo",
+        description: "There was an error updating the photo.",
         variant: "destructive",
       });
     },
@@ -195,15 +227,39 @@ export default function AdminAnalytics() {
     purgeTestDataMutation.mutate(purgeDate);
   };
 
+  const handleEditPhoto = (photo: any) => {
+    setEditingPhoto({
+      ...photo,
+      newDescription: photo.description || "",
+      newHidden: photo.hidden || false,
+      newArchived: photo.archived || false,
+    });
+    setShowEditDialog(true);
+  };
+
+  const handleSavePhotoEdit = () => {
+    if (!editingPhoto) return;
+    
+    editPhotoMutation.mutate({
+      id: editingPhoto.id,
+      hidden: editingPhoto.newHidden,
+      archived: editingPhoto.newArchived,
+      description: editingPhoto.newDescription,
+    });
+  };
+
   // Sort photos based on selected criteria - use the filtered data from stats
   const sortedPhotos = stats?.topPhotos ? [...stats.topPhotos].sort((a, b) => {
+    let comparison = 0;
     if (sortBy === "winRate") {
       const aWinRate = a.comparisons > 0 ? (a.wins / a.comparisons) : 0;
       const bWinRate = b.comparisons > 0 ? (b.wins / b.comparisons) : 0;
-      return bWinRate - aWinRate; // Higher win rate first
+      comparison = bWinRate - aWinRate; // Higher win rate first
     } else {
-      return b.votes - a.votes; // Higher votes first (default)
+      comparison = b.votes - a.votes; // Higher votes first (default)
     }
+    // Apply reverse sort if enabled
+    return reverseSort ? -comparison : comparison;
   }) : [];
 
   if (isLoading) {
@@ -366,18 +422,29 @@ export default function AdminAnalytics() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Top {rankingLimit} Photo Rankings</CardTitle>
+              <CardTitle>
+                {viewAll ? "All Photo Rankings" : `Top ${rankingLimit} Photo Rankings`}
+                {reverseSort && " (Underperforming First)"}
+              </CardTitle>
               <p className="text-sm text-gray-600">
                 {stats?.dateRange ? "Rankings for selected date range" : "All-time rankings"}
                 {selectedVoterType !== "all" && ` • ${selectedVoterType === "admin" ? "Admin" : "User"} votes only`}
                 {selectedCategory !== "all" && ` • ${selectedCategory} category`}
+                {reverseSort && " • Sorted reverse to show underperforming photos first"}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1">
                 <span className="text-sm text-gray-600">Show:</span>
-                <Select value={rankingLimit.toString()} onValueChange={(value) => setRankingLimit(Number(value))}>
-                  <SelectTrigger className="w-16">
+                <Select value={viewAll ? "all" : rankingLimit.toString()} onValueChange={(value) => {
+                  if (value === "all") {
+                    setViewAll(true);
+                  } else {
+                    setViewAll(false);
+                    setRankingLimit(Number(value));
+                  }
+                }}>
+                  <SelectTrigger className="w-20">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -385,20 +452,33 @@ export default function AdminAnalytics() {
                     <SelectItem value="20">20</SelectItem>
                     <SelectItem value="25">25</SelectItem>
                     <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="all">All</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-center gap-1">
-                <ArrowUpDown className="w-4 h-4" />
-                <Select value={sortBy} onValueChange={(value: "votes" | "winRate") => setSortBy(value)}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="votes">Sort by Votes</SelectItem>
-                    <SelectItem value="winRate">Sort by Win Rate</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <ArrowUpDown className="w-4 h-4" />
+                  <Select value={sortBy} onValueChange={(value: "votes" | "winRate") => setSortBy(value)}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="votes">Sort by Votes</SelectItem>
+                      <SelectItem value="winRate">Sort by Win Rate</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="reverse-sort"
+                    checked={reverseSort}
+                    onCheckedChange={setReverseSort}
+                  />
+                  <Label htmlFor="reverse-sort" className="text-sm text-gray-600">
+                    Reverse
+                  </Label>
+                </div>
               </div>
             </div>
           </div>
@@ -406,7 +486,7 @@ export default function AdminAnalytics() {
         <CardContent>
           {sortedPhotos && sortedPhotos.length > 0 ? (
             <div className="space-y-2">
-              {sortedPhotos.slice(0, rankingLimit).map((photo, index) => {
+              {(viewAll ? sortedPhotos : sortedPhotos.slice(0, rankingLimit)).map((photo, index) => {
                 const winRate = photo.comparisons > 0 ? Math.round((photo.wins / photo.comparisons) * 100) : 0;
                 return (
                   <div key={photo.id} className="flex items-center gap-4 p-3 border rounded-lg">
@@ -441,15 +521,26 @@ export default function AdminAnalytics() {
                         )}
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      {sortBy === "winRate" ? (
-                        <div className="text-lg font-bold text-blue-600">{winRate}%</div>
-                      ) : (
-                        <div className="text-lg font-bold text-green-600">{photo.votes}</div>
-                      )}
-                      <div className="text-xs text-gray-500">
-                        {sortBy === "winRate" ? "win rate" : "votes"}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="text-right">
+                        {sortBy === "winRate" ? (
+                          <div className="text-lg font-bold text-blue-600">{winRate}%</div>
+                        ) : (
+                          <div className="text-lg font-bold text-green-600">{photo.votes}</div>
+                        )}
+                        <div className="text-xs text-gray-500">
+                          {sortBy === "winRate" ? "win rate" : "votes"}
+                        </div>
                       </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditPhoto(photo)}
+                        className="text-xs px-2 py-1"
+                      >
+                        <Edit className="w-3 h-3 mr-1" />
+                        Edit
+                      </Button>
                     </div>
                   </div>
                 );
@@ -591,6 +682,101 @@ export default function AdminAnalytics() {
           </CollapsibleContent>
         </Collapsible>
       </Card>
+
+      {/* Photo Edit Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Photo Settings</DialogTitle>
+            <DialogDescription>
+              Manage photo visibility and settings for voting
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingPhoto && (
+            <div className="space-y-6">
+              {/* Photo Preview */}
+              <div className="flex items-center gap-4">
+                <img
+                  src={editingPhoto.imageUrl?.includes?.('[base64-truncated]') ? 
+                    'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNTYiIHZpZXdCb3g9IjAgMCA4MCA1NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yOCAyOEwzNiAyMEw0NCAyOEw0MCAzMkgzMlYzNkwyOCAzMloiIGZpbGw9IiM5Q0EzQUYiLz4KPHN2Zz4K' 
+                    : editingPhoto.imageUrl || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNTYiIHZpZXdCb3g9IjAgMCA4MCA1NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yOCAyOEwzNiAyMEw0NCAyOEw0MCAzMkgzMlYzNkwyOCAzMloiIGZpbGw9IiM5Q0EzQUYiLz4KPHN2Zz4K'}
+                  alt={editingPhoto.title}
+                  className="w-16 h-12 object-cover rounded bg-gray-100"
+                />
+                <div>
+                  <h4 className="font-medium">{editingPhoto.title}</h4>
+                  <p className="text-sm text-gray-600">
+                    {editingPhoto.votes} votes • {editingPhoto.comparisons > 0 ? Math.round((editingPhoto.wins / editingPhoto.comparisons) * 100) : 0}% win rate
+                  </p>
+                </div>
+              </div>
+
+              {/* Edit Controls */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <EyeOff className="w-4 h-4 text-gray-500" />
+                    <Label htmlFor="hidden-toggle">Hide from voting</Label>
+                  </div>
+                  <Switch
+                    id="hidden-toggle"
+                    checked={editingPhoto.newHidden}
+                    onCheckedChange={(checked) => 
+                      setEditingPhoto(prev => ({ ...prev, newHidden: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Archive className="w-4 h-4 text-gray-500" />
+                    <Label htmlFor="archived-toggle">Archive photo</Label>
+                  </div>
+                  <Switch
+                    id="archived-toggle"
+                    checked={editingPhoto.newArchived}
+                    onCheckedChange={(checked) => 
+                      setEditingPhoto(prev => ({ ...prev, newArchived: checked }))
+                    }
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="description">Description (optional)</Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Add notes about this photo..."
+                    value={editingPhoto.newDescription}
+                    onChange={(e) => 
+                      setEditingPhoto(prev => ({ ...prev, newDescription: e.target.value }))
+                    }
+                    rows={3}
+                  />
+                </div>
+              </div>
+
+              {/* Status Explanation */}
+              <div className="text-xs text-gray-600 space-y-1">
+                <p><strong>Hidden:</strong> Photo will not appear in voting but stays in database</p>
+                <p><strong>Archived:</strong> Photo is marked as archived but kept for analytics</p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSavePhotoEdit}
+              disabled={editPhotoMutation.isPending}
+            >
+              {editPhotoMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

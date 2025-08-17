@@ -243,9 +243,9 @@ export default function MobileVotingInterface({
       <SimpleAnnouncements />
 
       {/* Rich Mobile Photo Voting Interface */}
-      <div className="px-4 pb-20">
+      <div className="px-2 pb-20">
         {/* Voting Instructions */}
-        <div className="text-center py-6 px-4">
+        <div className="text-center py-4 px-2">
           <h2 className="text-xl font-bold text-gray-900 mb-3">Choose Your Favorite</h2>
           <p className="text-gray-600 text-sm leading-relaxed">
             Help me curate the photos for my next exhibition. I've added some of my classic and newest images to discover here. 
@@ -255,7 +255,7 @@ export default function MobileVotingInterface({
         </div>
 
         {/* Photo Cards - Stacked Mobile Layout */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Photo A Card */}
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div 
@@ -265,11 +265,12 @@ export default function MobileVotingInterface({
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
             >
-              <div className="aspect-video bg-gray-100 relative overflow-hidden">
+              <div className="relative bg-gray-100 overflow-hidden" style={{ minHeight: '350px' }}>
                 <img 
                   src={photoA.imageUrl} 
                   alt={photoA.title}
                   className="w-full h-full object-contain"
+                  style={{ minHeight: '350px' }}
                   loading="lazy"
                 />
                 {selectedPhoto?.id === photoA.id && (
@@ -313,7 +314,7 @@ export default function MobileVotingInterface({
           </div>
 
           {/* VS Divider */}
-          <div className="text-center py-2">
+          <div className="text-center py-1">
             <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-200 rounded-full">
               <span className="text-gray-600 font-bold text-lg">VS</span>
             </div>
@@ -328,11 +329,12 @@ export default function MobileVotingInterface({
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
             >
-              <div className="aspect-video bg-gray-100 relative overflow-hidden">
+              <div className="relative bg-gray-100 overflow-hidden" style={{ minHeight: '350px' }}>
                 <img 
                   src={photoB.imageUrl} 
                   alt={photoB.title}
                   className="w-full h-full object-contain"
+                  style={{ minHeight: '350px' }}
                   loading="lazy"
                 />
                 {selectedPhoto?.id === photoB.id && (

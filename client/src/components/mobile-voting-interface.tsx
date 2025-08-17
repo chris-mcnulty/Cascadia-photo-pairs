@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
 import { Photo, Settings } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Heart, ArrowLeft, Settings as SettingsIcon, ShoppingCart, Menu, X, Plus, Monitor } from "lucide-react";
+import { Heart, ArrowLeft, Settings as SettingsIcon, ShoppingCart, Menu, X, Plus, Monitor, Globe } from "lucide-react";
 import { FaInstagram } from "react-icons/fa6";
 import { Link } from "wouter";
 import UserProfile from "@/components/user-profile";
 import SimpleAnnouncements from "@/components/simple-announcements";
+import SimpleNews from "@/components/simple-news";
 // import AuthenticationButtons from "@/components/authentication-buttons";
 import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
 
@@ -230,7 +231,7 @@ export default function MobileVotingInterface({
                     className="bg-cascadia-green text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium text-center block"
                     onClick={() => setMobileMenuOpen(false)}
                   >
-                    Login with Replit
+                    Login
                   </a>
                 </div>
               )}
@@ -241,6 +242,11 @@ export default function MobileVotingInterface({
 
       {/* Announcements */}
       <SimpleAnnouncements />
+
+      {/* News Updates */}
+      <div className="px-4 py-4">
+        <SimpleNews />
+      </div>
 
       {/* Rich Mobile Photo Voting Interface */}
       <div className="px-4 pb-20">
@@ -292,7 +298,10 @@ export default function MobileVotingInterface({
                 {/* Action Buttons */}
                 <div className="flex items-center justify-between">
                   <Button
-                    onClick={() => handlePhotoSelect(photoA)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePhotoSelect(photoA);
+                    }}
                     className="bg-cascadia-green hover:bg-green-700 text-white flex-1 mr-2"
                     disabled={isVoting}
                   >
@@ -364,7 +373,10 @@ export default function MobileVotingInterface({
                 {/* Action Buttons */}
                 <div className="flex items-center justify-between">
                   <Button
-                    onClick={() => handlePhotoSelect(photoB)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePhotoSelect(photoB);
+                    }}
                     className="bg-cascadia-green hover:bg-green-700 text-white flex-1 mr-2"
                     disabled={isVoting}
                   >
@@ -440,47 +452,102 @@ export default function MobileVotingInterface({
           </div>
         </div>
 
-        {/* Mobile Footer */}
+        {/* Enhanced Mobile Footer */}
         <footer className="mt-12 py-8 border-t border-gray-200 bg-white">
-          <div className="text-center space-y-4">
-            <div className="flex items-center justify-center space-x-2">
-              <div className="w-8 h-8 rounded overflow-hidden">
-                <img 
-                  src={cascadiaLogoPath} 
-                  alt="Cascadia Oceanic" 
-                  className="w-full h-full object-cover"
-                />
+          <div className="px-4 space-y-6">
+            {/* Logo and Branding */}
+            <div className="text-center space-y-2">
+              <div className="flex items-center justify-center space-x-2">
+                <div className="w-10 h-10 rounded overflow-hidden">
+                  <img 
+                    src={cascadiaLogoPath} 
+                    alt="Cascadia Oceanic" 
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <span className="font-bold text-xl text-gray-900">Cascadia Oceanic</span>
               </div>
-              <span className="font-bold text-lg text-gray-900">Cascadia Oceanic</span>
+              <p className="text-gray-600 text-sm max-w-sm mx-auto">
+                Landscape photography showcasing the natural beauty of the Pacific Northwest and beyond.
+              </p>
             </div>
-            
-            <p className="text-gray-600 text-sm max-w-sm mx-auto">
-              Landscape photography showcasing the natural beauty of the Pacific Northwest and beyond.
-            </p>
-            
-            {/* Social Links */}
-            <div className="flex justify-center space-x-6">
+
+            {/* Purchase Call-to-Action */}
+            <div className="bg-green-50 rounded-lg p-4 text-center">
+              <h3 className="font-semibold text-gray-900 mb-2">Own a Piece of Nature</h3>
+              <p className="text-sm text-gray-600 mb-3">
+                Museum-quality prints available in various sizes. Each purchase supports conservation efforts.
+              </p>
               <a 
-                href="https://www.instagram.com/cascadia.oceanic/" 
+                href="https://www.chrismcnulty.net/store" 
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-400 hover:text-green-600 transition-colors duration-200"
+                className="inline-block bg-cascadia-green text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
               >
-                <FaInstagram className="w-6 h-6" />
+                Browse Print Store
               </a>
+            </div>
+
+            {/* Quick Links */}
+            <div className="grid grid-cols-2 gap-3 text-center">
               <a 
                 href="https://www.chrismcnulty.net/photography" 
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-gray-400 hover:text-green-600 transition-colors duration-200"
+                className="bg-gray-100 py-3 px-4 rounded-lg text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium"
               >
-                <span className="text-sm font-medium">Gallery</span>
+                Full Gallery
+              </a>
+              <a 
+                href="https://www.chrismcnulty.net/about" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-gray-100 py-3 px-4 rounded-lg text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium"
+              >
+                About the Artist
+              </a>
+              <a 
+                href="https://www.chrismcnulty.net/contact" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-gray-100 py-3 px-4 rounded-lg text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium"
+              >
+                Contact
+              </a>
+              <a 
+                href="https://www.chrismcnulty.net/subscribe" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-gray-100 py-3 px-4 rounded-lg text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium"
+              >
+                Newsletter
               </a>
             </div>
             
-            <div className="text-xs text-gray-500 space-y-1">
-              <p>© 2024 Chris McNulty Photography</p>
-              <p>Help curate the next exhibition by voting</p>
+            {/* Social Links */}
+            <div className="flex justify-center space-x-8 py-4">
+              <a 
+                href="https://www.instagram.com/cascadia.oceanic/" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-500 hover:text-green-600 transition-colors duration-200"
+              >
+                <FaInstagram className="w-7 h-7" />
+              </a>
+              <a 
+                href="https://www.chrismcnulty.net" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-500 hover:text-green-600 transition-colors duration-200"
+              >
+                <Globe className="w-7 h-7" />
+              </a>
+            </div>
+            
+            {/* Copyright and Exhibition Message */}
+            <div className="text-center border-t pt-4">
+              <p className="text-xs text-gray-500">© 2024 Chris McNulty Photography</p>
+              <p className="text-xs text-gray-500 mt-1">Your votes help curate the next exhibition</p>
             </div>
           </div>
         </footer>

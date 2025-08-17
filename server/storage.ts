@@ -738,18 +738,21 @@ export class DatabaseStorage implements IStorage {
       const interval = minInterval + (Math.floor(totalVotes / 10) % (maxInterval - minInterval + 1));
       const shouldShow = totalVotes > 0 && (totalVotes % interval) === 0;
       
-      // For immediate testing, also show on next vote if no pairs have been shown yet
-      const [pairVoteCount] = await db
+      // For immediate testing, also show on next vote if we have very few pair votes
+      const [pairVoteCountResult] = await db
         .select({ count: sql<number>`count(*)` })
         .from(pairVotes);
-      const noPairsYet = (pairVoteCount?.count || 0) === 0;
+      const pairVoteCount = pairVoteCountResult?.count || 0;
+      const needMorePairVotes = pairVoteCount < 3; // Show pairs more frequently until we have some data
       
-      const finalShouldShow = shouldShow || noPairsYet;
+      const finalShouldShow = shouldShow || needMorePairVotes;
+      
+      console.log(`Pair decision: totalVotes=${totalVotes}, interval=${interval}, shouldShow=${shouldShow}, pairVotes=${pairVoteCount}, needMore=${needMorePairVotes}, final=${finalShouldShow}`);
       
       if (finalShouldShow) {
         const pairResult = await this.checkForPairDisplay();
         if (pairResult) {
-          console.log(`Showing predefined photo pair! (vote #${totalVotes}, first pair: ${noPairsYet})`);
+          console.log(`Showing predefined photo pair! (vote #${totalVotes}, pairVotes: ${pairVoteCount})`);
           return pairResult;
         } else {
           console.log(`Pairs enabled but no valid pairs found to display`);
@@ -1677,6 +1680,7 @@ export class DatabaseStorage implements IStorage {
 
   async checkForPairDisplay(): Promise<[Photo, Photo] | null> {
     const settings = await this.getSettings();
+    console.log(`checkForPairDisplay: pairsEnabled = ${settings.pairsEnabled}`);
     if (!settings.pairsEnabled) return null;
 
     // Get all available pairs where both photos are visible and not archived
@@ -1696,14 +1700,22 @@ export class DatabaseStorage implements IStorage {
         sql`p2.archived = false`
       ));
 
+    console.log(`checkForPairDisplay: Found ${availablePairs.length} available pairs`);
     if (availablePairs.length === 0) return null;
 
     // Randomly select one pair and get the full photo objects
     const randomPair = availablePairs[Math.floor(Math.random() * availablePairs.length)];
+    console.log(`checkForPairDisplay: Selected pair ${randomPair.id} with photos ${randomPair.photo1Id} and ${randomPair.photo2Id}`);
+    
     const photo1 = await this.getPhoto(randomPair.photo1Id);
     const photo2 = await this.getPhoto(randomPair.photo2Id);
     
-    if (!photo1 || !photo2) return null;
+    if (!photo1 || !photo2) {
+      console.log(`checkForPairDisplay: Failed to get photos - photo1: ${!!photo1}, photo2: ${!!photo2}`);
+      return null;
+    }
+    
+    console.log(`checkForPairDisplay: Returning pair with ${photo1.title} vs ${photo2.title}`);
     return [photo1, photo2];
   }
 

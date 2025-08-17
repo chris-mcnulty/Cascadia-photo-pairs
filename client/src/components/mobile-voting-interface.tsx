@@ -230,8 +230,8 @@ export default function MobileVotingInterface({
                   </Button>
                 </Link>
 
-                {/* Exit Focus Mode for Desktop Users */}
-                {onToggleView && !(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) && (
+                {/* Exit Focus Mode - Available for all users */}
+                {onToggleView && (
                   <Button
                     variant="ghost"
                     size="sm"

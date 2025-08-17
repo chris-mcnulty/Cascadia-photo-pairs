@@ -719,6 +719,19 @@ export class DatabaseStorage implements IStorage {
 
 
   async getRandomPhotoPair(collectionId?: string): Promise<[Photo, Photo] | null> {
+    // First check if we should show a predefined pair vs regular random photos
+    const settings = await this.getSettings();
+    const shouldShowPair = await this.shouldShowPair();
+    
+    if (shouldShowPair && settings.pairsEnabled) {
+      const pairResult = await this.checkForPairDisplay();
+      if (pairResult) {
+        console.log('Showing predefined photo pair');
+        return pairResult;
+      }
+    }
+
+    // Fall back to regular random photo selection
     const availablePhotos = await db
       .select()
       .from(photos)
@@ -792,6 +805,32 @@ export class DatabaseStorage implements IStorage {
     }
     
     return null;
+  }
+
+  // New method to determine if a pair should be shown based on frequency settings
+  async shouldShowPair(): Promise<boolean> {
+    const settings = await this.getSettings();
+    if (!settings.pairsEnabled) return false;
+
+    // Count recent votes to determine position in frequency cycle
+    const recentVotes = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(votes)
+      .where(sql`${votes.timestamp} > NOW() - INTERVAL '1 hour'`);
+
+    const votesInLastHour = recentVotes[0]?.count || 0;
+    const minInterval = settings.pairsMinInterval || 5;
+    const maxInterval = settings.pairsMaxInterval || 15;
+
+    // Simple frequency logic: show pairs every minInterval to maxInterval votes
+    const randomInterval = Math.floor(Math.random() * (maxInterval - minInterval + 1)) + minInterval;
+    const shouldShow = votesInLastHour % randomInterval === 0;
+    
+    if (shouldShow) {
+      console.log(`Pair frequency triggered: ${votesInLastHour} votes, interval ${randomInterval}`);
+    }
+    
+    return shouldShow;
   }
 
   async getVotesByDateRange(startDate?: string, endDate?: string): Promise<Vote[]> {

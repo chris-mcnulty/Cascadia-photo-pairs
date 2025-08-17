@@ -165,8 +165,8 @@ export default function MobileVotingInterface({
 
   return (
     <div className="w-full">
-      {/* Mobile Interface */}
-      <div className="md:hidden">
+      {/* Focus Mode Interface - always show when this component is used */}
+      <div>
         {/* Mobile Header with Navigation */}
         <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
           <div className="flex items-center justify-between p-4">

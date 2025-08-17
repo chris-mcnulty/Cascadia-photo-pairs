@@ -146,11 +146,27 @@ export default function Home() {
       }, headers);
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       setVotesCount(prev => prev + 1);
       if (!hasVoted) {
         setHasVoted(true);
       }
+      
+      // Track voted photos in localStorage for personal leaderboard
+      try {
+        const votedPhotos = JSON.parse(localStorage.getItem('votedPhotos') || '[]');
+        // Add both winner and loser to the voted photos
+        if (!votedPhotos.includes(variables.winnerPhotoId)) {
+          votedPhotos.push(variables.winnerPhotoId);
+        }
+        if (!votedPhotos.includes(variables.loserPhotoId)) {
+          votedPhotos.push(variables.loserPhotoId);
+        }
+        localStorage.setItem('votedPhotos', JSON.stringify(votedPhotos));
+      } catch (e) {
+        console.error('Failed to track voted photos:', e);
+      }
+      
       refetchPair();
       toast({
         title: "Thanks. Here's your next pair.",

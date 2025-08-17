@@ -16,6 +16,7 @@ export default function Leaderboard() {
   const [showUserOnly, setShowUserOnly] = useState(false);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userVotedPhotoIds, setUserVotedPhotoIds] = useState<Set<string>>(new Set());
 
   // Fetch settings first
   const { data: settings } = useQuery<Settings>({
@@ -25,8 +26,9 @@ export default function Leaderboard() {
   // Check if user is logged in and if login features are enabled
   useEffect(() => {
     const checkAuth = async () => {
-      // Only check auth if login features are enabled
-      if (!settings?.userLoginEnabled) {
+      // Only check auth if login features are enabled (check both dev and prod settings)
+      const loginEnabled = settings?.userLoginEnabledDev || settings?.userLoginEnabledProd;
+      if (!loginEnabled) {
         setIsLoggedIn(false);
         return;
       }
@@ -49,28 +51,50 @@ export default function Leaderboard() {
     checkAuth();
   }, [settings]);
 
+  // Load user's voted photos from localStorage for anonymous users
+  useEffect(() => {
+    const votedPhotos = localStorage.getItem('votedPhotos');
+    if (votedPhotos) {
+      try {
+        const photoIds = JSON.parse(votedPhotos);
+        setUserVotedPhotoIds(new Set(photoIds));
+      } catch (e) {
+        console.error('Failed to parse voted photos:', e);
+      }
+    }
+  }, []);
+
   const { data: topByVotes, isLoading: loadingVotes } = useQuery<Photo[]>({
-    queryKey: showUserOnly ? ['/api/leaderboard/user/votes'] : ['/api/leaderboard/votes'],
+    queryKey: showUserOnly && isLoggedIn ? ['/api/leaderboard/user/votes'] : ['/api/leaderboard/votes'],
     enabled: true,
   });
 
   const { data: topByWins, isLoading: loadingWins } = useQuery<Photo[]>({
-    queryKey: showUserOnly ? ['/api/leaderboard/user/wins'] : ['/api/leaderboard/wins'],
+    queryKey: showUserOnly && isLoggedIn ? ['/api/leaderboard/user/wins'] : ['/api/leaderboard/wins'],
     enabled: true,
   });
 
   // Sort by win rate when in winrate mode
   const getSortedData = () => {
+    let data: Photo[] | undefined;
+    
     if (activeTab === 'votes') {
-      return topByVotes;
+      data = topByVotes;
     } else {
       // Sort by win rate
-      return topByWins?.slice().sort((a, b) => {
+      data = topByWins?.slice().sort((a, b) => {
         const aWinRate = a.comparisons > 0 ? (a.wins / a.comparisons) : 0;
         const bWinRate = b.comparisons > 0 ? (b.wins / b.comparisons) : 0;
         return bWinRate - aWinRate;
       });
     }
+    
+    // Filter for user's voted photos if not logged in but showUserOnly is enabled
+    if (showUserOnly && !isLoggedIn && userVotedPhotoIds.size > 0) {
+      return data?.filter(photo => userVotedPhotoIds.has(photo.id));
+    }
+    
+    return data;
   };
 
   const currentData = getSortedData();
@@ -179,23 +203,26 @@ export default function Leaderboard() {
               </button>
             </div>
             
-            {/* User-specific toggle (only shown when logged in) */}
-            {isLoggedIn && (
-              <div className="flex items-center space-x-2 mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <User className="w-4 h-4 text-blue-600" />
-                <Label htmlFor="user-photos" className="text-sm font-medium text-blue-900">
-                  Show only my voted photos
-                </Label>
-                <Switch
-                  id="user-photos"
-                  checked={showUserOnly}
-                  onCheckedChange={setShowUserOnly}
-                  className="data-[state=checked]:bg-cascadia-green"
-                />
-              </div>
-            )}
+            {/* User-specific toggle (shown for all users) */}
+            <div className="flex items-center space-x-2 mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+              <User className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <Label htmlFor="user-photos" className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                Show only my voted photos
+              </Label>
+              <Switch
+                id="user-photos"
+                checked={showUserOnly}
+                onCheckedChange={setShowUserOnly}
+                className="data-[state=checked]:bg-cascadia-green"
+              />
+              {showUserOnly && !isLoggedIn && userVotedPhotoIds.size === 0 && (
+                <span className="text-xs text-blue-600 dark:text-blue-400 ml-2">
+                  (No votes yet)
+                </span>
+              )}
+            </div>
             
-            <p className="text-sm text-gray-600 mt-3 text-center px-4">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-3 text-center px-4">
               <span className="font-medium">Currently viewing:</span>{' '}
               <span className="text-cascadia-green font-semibold">
                 {showUserOnly ? 'Your Voted Photos - ' : ''}
@@ -207,6 +234,16 @@ export default function Leaderboard() {
                   ? 'Photos ranked by total number of votes received'
                   : 'Photos ranked by win percentage (wins ÷ comparisons)'}
               </span>
+              {showUserOnly && !isLoggedIn && (
+                <>
+                  <br />
+                  <span className="text-xs text-blue-600 dark:text-blue-400">
+                    {userVotedPhotoIds.size > 0 
+                      ? `(Showing ${userVotedPhotoIds.size} photos you've voted on)`
+                      : '(Start voting to build your personal collection)'}
+                  </span>
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -343,7 +380,7 @@ export default function Leaderboard() {
                           {showPurchaseButton && (
                             <div className="text-center sm:text-right mt-3">
                               <a
-                                href={photo.customPurchaseUrl}
+                                href={photo.customPurchaseUrl || ''}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1 px-3 py-1.5 bg-cascadia-green text-white text-xs rounded-md hover:bg-green-700 transition-colors"

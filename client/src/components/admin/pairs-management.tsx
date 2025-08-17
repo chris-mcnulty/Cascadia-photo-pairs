@@ -136,7 +136,18 @@ export function PairsManagement() {
   const { data: pairs = [], isLoading: pairsLoading } = useQuery<PhotoPair[]>({
     queryKey: ["/api/pairs"],
     queryFn: async () => {
-      const sessionId = localStorage.getItem('admin-session-id');
+      // Try to get admin session first, then fall back to auth token
+      let sessionId = localStorage.getItem('admin-session-id');
+      
+      // If no admin session, create one from auth token
+      if (!sessionId) {
+        const authToken = localStorage.getItem('auth-token');
+        if (authToken) {
+          sessionId = `admin-${authToken.substring(0, 10)}`;
+          localStorage.setItem('admin-session-id', sessionId);
+        }
+      }
+      
       if (!sessionId) {
         throw new Error('No admin session found');
       }

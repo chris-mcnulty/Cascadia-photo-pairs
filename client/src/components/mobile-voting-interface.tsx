@@ -305,7 +305,7 @@ export default function MobileVotingInterface({
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            <div className="aspect-[4/3] relative bg-gray-100 mx-4 mt-4 rounded-lg overflow-hidden">
+            <div className="relative bg-gray-100 mx-4 mt-4 rounded-lg overflow-hidden" style={{ height: '40vh' }}>
               <img 
                 src={photoA.imageUrl} 
                 alt={photoA.title}
@@ -364,7 +364,7 @@ export default function MobileVotingInterface({
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            <div className="aspect-[4/3] relative bg-gray-100 mx-4 mt-4 rounded-lg overflow-hidden">
+            <div className="relative bg-gray-100 mx-4 mt-4 rounded-lg overflow-hidden" style={{ height: '40vh' }}>
               <img 
                 src={photoB.imageUrl} 
                 alt={photoB.title}

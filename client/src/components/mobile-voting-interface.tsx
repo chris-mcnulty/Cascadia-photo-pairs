@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Photo, Settings } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Heart, ArrowLeft, Settings as SettingsIcon, ShoppingCart, Menu, X, Plus, Monitor, Globe } from "lucide-react";
-import { FaInstagram } from "react-icons/fa6";
+import { Heart, ArrowLeft, Settings as SettingsIcon, ShoppingCart, Menu, X, Plus, Monitor, Globe, Share2, MessageSquare, Facebook } from "lucide-react";
+import { FaInstagram, FaThreads, FaBluesky, FaXTwitter, FaFacebookF, FaLinkedinIn } from "react-icons/fa6";
 import { Link } from "wouter";
 import UserProfile from "@/components/user-profile";
 import SimpleAnnouncements from "@/components/simple-announcements";
@@ -442,7 +442,10 @@ export default function MobileVotingInterface({
                 </div>
                 <span className="font-bold text-xl text-gray-900">Cascadia Oceanic</span>
               </div>
-              <p className="text-gray-600 text-sm max-w-sm mx-auto">
+              <p className="text-gray-700 text-sm font-medium">
+                Images of the Pacific & Atlantic coasts, and the lands in between.
+              </p>
+              <p className="text-gray-600 text-xs max-w-sm mx-auto">
                 Landscape photography showcasing the natural beauty of the Pacific Northwest and beyond.
               </p>
             </div>
@@ -523,6 +526,70 @@ export default function MobileVotingInterface({
             <div className="text-center border-t pt-4">
               <p className="text-xs text-gray-500">© 2025 Christopher F. McNulty</p>
               <p className="text-xs text-gray-500 mt-1">Your votes help curate the next exhibition</p>
+              
+              {/* Share Icons */}
+              <div className="flex justify-center items-center gap-4 mt-4 pt-4">
+                <button
+                  onClick={() => {
+                    const shareUrl = `https://www.instagram.com/cascadia.oceanic/`;
+                    window.open(shareUrl, '_blank');
+                  }}
+                  className="text-gray-400 hover:text-pink-600 transition-colors"
+                  title="Instagram"
+                >
+                  <FaInstagram className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => {
+                    const shareUrl = `https://www.threads.net/intent/post?text=${encodeURIComponent('Check out these amazing landscape photos! Vote for your favorites at ' + window.location.href)}`;
+                    window.open(shareUrl, '_blank');
+                  }}
+                  className="text-gray-400 hover:text-gray-700 transition-colors"
+                  title="Threads"
+                >
+                  <FaThreads className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => {
+                    const shareUrl = `https://bsky.app/intent/compose?text=${encodeURIComponent('Check out these amazing landscape photos! Vote for your favorites at ' + window.location.href)}`;
+                    window.open(shareUrl, '_blank');
+                  }}
+                  className="text-gray-400 hover:text-blue-500 transition-colors"
+                  title="Bluesky"
+                >
+                  <FaBluesky className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => {
+                    const shareUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent('Check out these amazing landscape photos! Vote for your favorites at ' + window.location.href)}`;
+                    window.open(shareUrl, '_blank');
+                  }}
+                  className="text-gray-400 hover:text-gray-900 transition-colors"
+                  title="X"
+                >
+                  <FaXTwitter className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => {
+                    const shareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`;
+                    window.open(shareUrl, '_blank');
+                  }}
+                  className="text-gray-400 hover:text-blue-600 transition-colors"
+                  title="Facebook"
+                >
+                  <FaFacebookF className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => {
+                    const shareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`;
+                    window.open(shareUrl, '_blank');
+                  }}
+                  className="text-gray-400 hover:text-blue-700 transition-colors"
+                  title="LinkedIn"
+                >
+                  <FaLinkedinIn className="h-5 w-5" />
+                </button>
+              </div>
             </div>
           </div>
         </footer>

@@ -6,7 +6,6 @@ import { FaInstagram } from "react-icons/fa6";
 import { Link } from "wouter";
 import UserProfile from "@/components/user-profile";
 import SimpleAnnouncements from "@/components/simple-announcements";
-import SimpleNews from "@/components/simple-news";
 // import AuthenticationButtons from "@/components/authentication-buttons";
 import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
 
@@ -243,19 +242,17 @@ export default function MobileVotingInterface({
       {/* Announcements */}
       <SimpleAnnouncements />
 
-      {/* News Updates */}
-      <div className="px-4 py-4">
-        <SimpleNews />
-      </div>
-
       {/* Rich Mobile Photo Voting Interface */}
       <div className="px-4 pb-20">
         {/* Voting Instructions */}
-        <div className="text-center py-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Which photo do you prefer?</h2>
-          <p className="text-gray-600 text-sm">Tap your favorite to vote • Swipe left/right to vote • Vote unlimited times</p>
+        <div className="text-center py-6 px-4">
+          <h2 className="text-xl font-bold text-gray-900 mb-3">Choose Your Favorite</h2>
+          <p className="text-gray-600 text-sm leading-relaxed">
+            Help me curate the photos for my next exhibition. I've added some of my classic and newest images to discover here. 
+            Click on your preferred photo to vote, then continue with the next pair. Vote as many times as you like!
+          </p>
           {votesCount > 0 && (
-            <div className="mt-2 text-xs text-green-600 font-medium">
+            <div className="mt-3 text-xs text-green-600 font-medium">
               {votesCount} votes cast - Thanks for helping!
             </div>
           )}
@@ -266,7 +263,8 @@ export default function MobileVotingInterface({
           {/* Photo A Card */}
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div 
-              className="relative transform transition-all duration-200"
+              className="relative cursor-pointer transform transition-all duration-200 active:scale-98"
+              onClick={() => handlePhotoSelect(photoA)}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
@@ -294,24 +292,12 @@ export default function MobileVotingInterface({
                   <p className="text-gray-600 text-sm mb-3 line-clamp-2">{photoA.description}</p>
                 )}
                 
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePhotoSelect(photoA);
-                    }}
-                    className="bg-cascadia-green hover:bg-green-700 text-white flex-1"
-                    disabled={isVoting}
-                  >
-                    <Heart className="w-4 h-4 mr-2" />
-                    Choose This One
-                  </Button>
-                  
-                  {settings?.purchaseEnabled && !photoA.neverForSale && (
+                {/* Purchase Button */}
+                {settings?.purchaseEnabled && !photoA.neverForSale && (
+                  <div className="mt-3">
                     <Button
                       variant="outline"
-                      size="default"
+                      size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         const purchaseUrl = photoA.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
@@ -320,12 +306,13 @@ export default function MobileVotingInterface({
                           window.location.href = purchaseUrl;
                         }
                       }}
+                      className="w-full"
                     >
-                      <ShoppingCart className="w-4 h-4 mr-1" />
+                      <ShoppingCart className="w-4 h-4 mr-2" />
                       Buy Print
                     </Button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -340,7 +327,8 @@ export default function MobileVotingInterface({
           {/* Photo B Card */}
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div 
-              className="relative transform transition-all duration-200"
+              className="relative cursor-pointer transform transition-all duration-200 active:scale-98"
+              onClick={() => handlePhotoSelect(photoB)}
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
@@ -368,24 +356,12 @@ export default function MobileVotingInterface({
                   <p className="text-gray-600 text-sm mb-3 line-clamp-2">{photoB.description}</p>
                 )}
                 
-                {/* Action Buttons */}
-                <div className="flex gap-2">
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handlePhotoSelect(photoB);
-                    }}
-                    className="bg-cascadia-green hover:bg-green-700 text-white flex-1"
-                    disabled={isVoting}
-                  >
-                    <Heart className="w-4 h-4 mr-2" />
-                    Choose This One
-                  </Button>
-                  
-                  {settings?.purchaseEnabled && !photoB.neverForSale && (
+                {/* Purchase Button */}
+                {settings?.purchaseEnabled && !photoB.neverForSale && (
+                  <div className="mt-3">
                     <Button
                       variant="outline"
-                      size="default"
+                      size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
                         const purchaseUrl = photoB.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
@@ -394,12 +370,13 @@ export default function MobileVotingInterface({
                           window.location.href = purchaseUrl;
                         }
                       }}
+                      className="w-full"
                     >
-                      <ShoppingCart className="w-4 h-4 mr-1" />
+                      <ShoppingCart className="w-4 h-4 mr-2" />
                       Buy Print
                     </Button>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -497,7 +474,7 @@ export default function MobileVotingInterface({
                 Full Gallery
               </a>
               <a 
-                href="https://www.chrismcnulty.net/about" 
+                href="https://www.chrismcnulty.net/biography" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-gray-100 py-3 px-4 rounded-lg text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium"
@@ -505,7 +482,7 @@ export default function MobileVotingInterface({
                 About the Artist
               </a>
               <a 
-                href="https://www.chrismcnulty.net/contact" 
+                href="https://www.chrismcnulty.net/contact-me" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-gray-100 py-3 px-4 rounded-lg text-gray-700 hover:bg-gray-200 transition-colors text-sm font-medium"
@@ -544,7 +521,7 @@ export default function MobileVotingInterface({
             
             {/* Copyright and Exhibition Message */}
             <div className="text-center border-t pt-4">
-              <p className="text-xs text-gray-500">© 2024 Chris McNulty Photography</p>
+              <p className="text-xs text-gray-500">© 2025 Christopher F. McNulty</p>
               <p className="text-xs text-gray-500 mt-1">Your votes help curate the next exhibition</p>
             </div>
           </div>

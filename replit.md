@@ -42,7 +42,7 @@ Preferred communication style: Simple, everyday language.
 ### Key Features
 - **Voting**: Photo pair randomization, win/loss ratio tracking, intelligent photo pair selection algorithm (no duplicates, no consecutive pairs). Includes a "Pairs" feature for direct comparison of related photos (e.g., color vs. B&W versions) configurable for frequency.
 - **Admin Dashboard**: Comprehensive analytics, top rankings, date range filtering, test data purging, photo hiding/showing, user management, and bulk category/sale status management.
-- **User Features**: User-specific statistics, contest entry system, favorites, purchase history.
+- **User Features**: User-specific statistics, contest entry system, favorites, purchase history, personal leaderboard view (tracks voted photos in browser localStorage for persistent personal collection).
 - **Photo Management**: Inline photo editing, file upload support (drag-and-drop), smart handling of URL-based vs. file-based photos.
 - **Collections**: System for organizing photos into themed collections.
 - **Communication**: Email notification system (welcome, verification, contest winners), customizable admin settings for contest text, support email, and privacy links.

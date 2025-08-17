@@ -395,6 +395,25 @@ export default function MobileVotingInterface({
           </div>
         </div>
 
+        {/* Voting Progress */}
+        <div className="mt-8 mb-6">
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Your Progress</h3>
+              <div className="text-sm text-gray-600">
+                {votesCount} votes cast
+              </div>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+              <div 
+                className="bg-cascadia-green h-3 rounded-full transition-all duration-300" 
+                style={{ width: `${Math.min((votesCount / 30) * 100, 100)}%` }}
+              ></div>
+            </div>
+            <p className="text-xs text-gray-500">Keep voting to help curate the exhibition!</p>
+          </div>
+        </div>
+
         {/* Bottom Call to Action */}
         <div className="mt-8 mb-6">
           <div className="bg-gradient-to-r from-green-700 to-green-600 rounded-xl p-6 text-white text-center">
@@ -420,6 +439,51 @@ export default function MobileVotingInterface({
             </div>
           </div>
         </div>
+
+        {/* Mobile Footer */}
+        <footer className="mt-12 py-8 border-t border-gray-200 bg-white">
+          <div className="text-center space-y-4">
+            <div className="flex items-center justify-center space-x-2">
+              <div className="w-8 h-8 rounded overflow-hidden">
+                <img 
+                  src={cascadiaLogoPath} 
+                  alt="Cascadia Oceanic" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <span className="font-bold text-lg text-gray-900">Cascadia Oceanic</span>
+            </div>
+            
+            <p className="text-gray-600 text-sm max-w-sm mx-auto">
+              Landscape photography showcasing the natural beauty of the Pacific Northwest and beyond.
+            </p>
+            
+            {/* Social Links */}
+            <div className="flex justify-center space-x-6">
+              <a 
+                href="https://www.instagram.com/cascadia.oceanic/" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-400 hover:text-green-600 transition-colors duration-200"
+              >
+                <FaInstagram className="w-6 h-6" />
+              </a>
+              <a 
+                href="https://www.chrismcnulty.net/photography" 
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-400 hover:text-green-600 transition-colors duration-200"
+              >
+                <span className="text-sm font-medium">Gallery</span>
+              </a>
+            </div>
+            
+            <div className="text-xs text-gray-500 space-y-1">
+              <p>© 2024 Chris McNulty Photography</p>
+              <p>Help curate the next exhibition by voting</p>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );

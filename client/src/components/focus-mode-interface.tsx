@@ -155,39 +155,39 @@ export default function FocusModeInterface({
       <SimpleAnnouncements />
 
       {/* Photo Pair - Side by Side Layout for Focus Mode */}
-      <div className="bg-black min-h-screen flex items-center justify-center p-2">
-        <div className="w-full h-full max-w-7xl mx-auto">
+      <div className="bg-black flex items-center justify-center" style={{ minHeight: 'calc(100vh - 60px)' }}>
+        <div className="w-full h-full">
           {/* Side-by-side layout for desktop focus mode */}
-          <div className="grid grid-cols-2 gap-2 h-full">
+          <div className="grid grid-cols-2 gap-1 h-full">
             {/* Photo A */}
             <div 
-              className="relative bg-black rounded-lg overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] flex items-center justify-center"
+              className="relative bg-black overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.01] flex items-center justify-center"
               onClick={() => handlePhotoSelect(photoA)}
-              style={{ minHeight: 'calc(100vh - 120px)' }}
+              style={{ height: 'calc(100vh - 60px)' }}
             >
-              <div className="relative w-full h-full flex items-center justify-center">
+              <div className="relative w-full h-full flex items-center justify-center p-2">
                 <img 
                   src={photoA.imageUrl} 
                   alt={photoA.title}
-                  className="max-w-full max-h-full object-contain"
+                  className="w-full h-full object-contain"
                   loading="lazy"
                 />
                 {selectedPhoto?.id === photoA.id && (
                   <div className="absolute inset-0 bg-cascadia-green/20 flex items-center justify-center">
-                    <div className="bg-cascadia-green rounded-full p-4">
-                      <Heart className="w-8 h-8 text-white fill-white" />
+                    <div className="bg-cascadia-green rounded-full p-6">
+                      <Heart className="w-12 h-12 text-white fill-white" />
                     </div>
                   </div>
                 )}
               </div>
               
-              {/* Minimal overlay with title */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                <h3 className="font-semibold text-white text-lg font-epilogue">{photoA.title}</h3>
+              {/* Overlay with title */}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6">
+                <h3 className="font-bold text-white text-2xl mb-2">{photoA.title}</h3>
                 {settings?.purchaseEnabled && !photoA.neverForSale && (
                   <button
                     type="button"
-                    className="mt-2 inline-flex items-center px-3 py-1 text-white bg-green-600/80 hover:bg-green-600 rounded-md transition-all duration-200 text-sm font-medium backdrop-blur-sm"
+                    className="inline-flex items-center px-4 py-2 text-white bg-green-600/90 hover:bg-green-600 rounded-lg transition-all duration-200 text-base font-medium backdrop-blur-sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       const purchaseUrl = photoA.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
@@ -197,8 +197,8 @@ export default function FocusModeInterface({
                       }
                     }}
                   >
-                    <ShoppingCart className="w-3 h-3 mr-1" />
-                    Print
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    Buy Print
                   </button>
                 )}
               </div>
@@ -206,33 +206,33 @@ export default function FocusModeInterface({
 
             {/* Photo B */}
             <div 
-              className="relative bg-black rounded-lg overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.02] flex items-center justify-center"
+              className="relative bg-black overflow-hidden cursor-pointer transform transition-all duration-200 hover:scale-[1.01] flex items-center justify-center"
               onClick={() => handlePhotoSelect(photoB)}
-              style={{ minHeight: 'calc(100vh - 120px)' }}
+              style={{ height: 'calc(100vh - 60px)' }}
             >
-              <div className="relative w-full h-full flex items-center justify-center">
+              <div className="relative w-full h-full flex items-center justify-center p-2">
                 <img 
                   src={photoB.imageUrl} 
                   alt={photoB.title}
-                  className="max-w-full max-h-full object-contain"
+                  className="w-full h-full object-contain"
                   loading="lazy"
                 />
                 {selectedPhoto?.id === photoB.id && (
                   <div className="absolute inset-0 bg-cascadia-green/20 flex items-center justify-center">
-                    <div className="bg-cascadia-green rounded-full p-4">
-                      <Heart className="w-8 h-8 text-white fill-white" />
+                    <div className="bg-cascadia-green rounded-full p-6">
+                      <Heart className="w-12 h-12 text-white fill-white" />
                     </div>
                   </div>
                 )}
               </div>
               
-              {/* Minimal overlay with title */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
-                <h3 className="font-semibold text-white text-lg font-epilogue">{photoB.title}</h3>
+              {/* Overlay with title */}
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-6">
+                <h3 className="font-bold text-white text-2xl mb-2">{photoB.title}</h3>
                 {settings?.purchaseEnabled && !photoB.neverForSale && (
                   <button
                     type="button"
-                    className="mt-2 inline-flex items-center px-3 py-1 text-white bg-green-600/80 hover:bg-green-600 rounded-md transition-all duration-200 text-sm font-medium backdrop-blur-sm"
+                    className="inline-flex items-center px-4 py-2 text-white bg-green-600/90 hover:bg-green-600 rounded-lg transition-all duration-200 text-base font-medium backdrop-blur-sm"
                     onClick={(e) => {
                       e.stopPropagation();
                       const purchaseUrl = photoB.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
@@ -242,8 +242,8 @@ export default function FocusModeInterface({
                       }
                     }}
                   >
-                    <ShoppingCart className="w-3 h-3 mr-1" />
-                    Print
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    Buy Print
                   </button>
                 )}
               </div>

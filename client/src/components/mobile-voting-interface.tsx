@@ -137,7 +137,7 @@ export default function MobileVotingInterface({
             </div>
             <div>
               <h1 className="font-bold text-lg text-gray-900">Cascadia Oceanic</h1>
-              <p className="text-xs text-gray-600">Choose Your Favorite</p>
+              <p className="text-xs text-gray-600">Photo Voting</p>
             </div>
           </div>
 
@@ -266,8 +266,7 @@ export default function MobileVotingInterface({
           {/* Photo A Card */}
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div 
-              className="relative cursor-pointer transform transition-all duration-200 active:scale-98"
-              onClick={() => handlePhotoSelect(photoA)}
+              className="relative transform transition-all duration-200"
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
@@ -296,13 +295,13 @@ export default function MobileVotingInterface({
                 )}
                 
                 {/* Action Buttons */}
-                <div className="flex items-center justify-between">
+                <div className="flex gap-2">
                   <Button
                     onClick={(e) => {
                       e.stopPropagation();
                       handlePhotoSelect(photoA);
                     }}
-                    className="bg-cascadia-green hover:bg-green-700 text-white flex-1 mr-2"
+                    className="bg-cascadia-green hover:bg-green-700 text-white flex-1"
                     disabled={isVoting}
                   >
                     <Heart className="w-4 h-4 mr-2" />
@@ -312,7 +311,7 @@ export default function MobileVotingInterface({
                   {settings?.purchaseEnabled && !photoA.neverForSale && (
                     <Button
                       variant="outline"
-                      size="sm"
+                      size="default"
                       onClick={(e) => {
                         e.stopPropagation();
                         const purchaseUrl = photoA.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
@@ -321,9 +320,9 @@ export default function MobileVotingInterface({
                           window.location.href = purchaseUrl;
                         }
                       }}
-                      className="ml-2"
                     >
-                      <ShoppingCart className="w-4 h-4" />
+                      <ShoppingCart className="w-4 h-4 mr-1" />
+                      Buy Print
                     </Button>
                   )}
                 </div>
@@ -341,8 +340,7 @@ export default function MobileVotingInterface({
           {/* Photo B Card */}
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             <div 
-              className="relative cursor-pointer transform transition-all duration-200 active:scale-98"
-              onClick={() => handlePhotoSelect(photoB)}
+              className="relative transform transition-all duration-200"
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
@@ -371,13 +369,13 @@ export default function MobileVotingInterface({
                 )}
                 
                 {/* Action Buttons */}
-                <div className="flex items-center justify-between">
+                <div className="flex gap-2">
                   <Button
                     onClick={(e) => {
                       e.stopPropagation();
                       handlePhotoSelect(photoB);
                     }}
-                    className="bg-cascadia-green hover:bg-green-700 text-white flex-1 mr-2"
+                    className="bg-cascadia-green hover:bg-green-700 text-white flex-1"
                     disabled={isVoting}
                   >
                     <Heart className="w-4 h-4 mr-2" />
@@ -387,7 +385,7 @@ export default function MobileVotingInterface({
                   {settings?.purchaseEnabled && !photoB.neverForSale && (
                     <Button
                       variant="outline"
-                      size="sm"
+                      size="default"
                       onClick={(e) => {
                         e.stopPropagation();
                         const purchaseUrl = photoB.customPurchaseUrl || settings?.defaultPurchaseUrl || "https://www.chrismcnulty.net/store";
@@ -396,9 +394,9 @@ export default function MobileVotingInterface({
                           window.location.href = purchaseUrl;
                         }
                       }}
-                      className="ml-2"
                     >
-                      <ShoppingCart className="w-4 h-4" />
+                      <ShoppingCart className="w-4 h-4 mr-1" />
+                      Buy Print
                     </Button>
                   )}
                 </div>

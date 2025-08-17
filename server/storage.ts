@@ -1669,7 +1669,7 @@ export class DatabaseStorage implements IStorage {
       const photo2VsOthersWinRate = photo2OverallTotal?.count > 0 ? 
         (photo2OverallWins.count / photo2OverallTotal.count) * 100 : 0;
 
-      const allTimeTotal = (allTimePhoto1Wins?.count || 0) + (allTimePhoto2Wins?.count || 0);
+      const allTimeTotal = Number(allTimePhoto1Wins?.count || 0) + Number(allTimePhoto2Wins?.count || 0);
 
       return {
         photo1Wins: pairPhoto1Wins,

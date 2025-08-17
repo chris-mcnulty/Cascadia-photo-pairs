@@ -198,7 +198,7 @@ export default function FocusModeInterface({
                     }}
                   >
                     <ShoppingCart className="w-4 h-4 mr-2" />
-                    Buy Print
+                    Purchase
                   </button>
                 )}
               </div>
@@ -243,7 +243,7 @@ export default function FocusModeInterface({
                     }}
                   >
                     <ShoppingCart className="w-4 h-4 mr-2" />
-                    Buy Print
+                    Purchase
                   </button>
                 )}
               </div>

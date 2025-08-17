@@ -273,7 +273,7 @@ export default function MobileVotingInterface({
                 <img 
                   src={photoA.imageUrl} 
                   alt={photoA.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   loading="lazy"
                 />
                 {selectedPhoto?.id === photoA.id && (
@@ -309,7 +309,7 @@ export default function MobileVotingInterface({
                       className="w-full"
                     >
                       <ShoppingCart className="w-4 h-4 mr-2" />
-                      Buy Print
+                      Purchase
                     </Button>
                   </div>
                 )}
@@ -337,7 +337,7 @@ export default function MobileVotingInterface({
                 <img 
                   src={photoB.imageUrl} 
                   alt={photoB.title}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   loading="lazy"
                 />
                 {selectedPhoto?.id === photoB.id && (
@@ -373,7 +373,7 @@ export default function MobileVotingInterface({
                       className="w-full"
                     >
                       <ShoppingCart className="w-4 h-4 mr-2" />
-                      Buy Print
+                      Purchase
                     </Button>
                   </div>
                 )}

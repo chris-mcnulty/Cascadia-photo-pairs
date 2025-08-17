@@ -86,7 +86,7 @@ export default function PhotoPair({ photo, onVote, isVoting, settings }: PhotoPa
             onClick={handlePurchaseClick}
           >
             <ShoppingCart className="w-4 h-4 mr-2" />
-            Purchase Print
+            Purchase
           </button>
         )}
       </div>

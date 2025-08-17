@@ -8,6 +8,7 @@ import AdminLogin from "@/components/admin-login";
 import AdminAnalytics from "@/components/admin-analytics";
 import UserManagement from "@/components/admin/user-management";
 import ContestSettings from "@/components/admin/contest-settings";
+import ContestReport from "@/components/admin/contest-report";
 import AnnouncementSettings from "@/components/admin/announcement-settings";
 import NewsManagement from "@/components/admin/news-management";
 import { PairsManagement } from "@/components/admin/pairs-management";
@@ -187,6 +188,7 @@ function AdminDashboard() {
         {activeTab === "users" && <UserManagement />}
         {activeTab === "communication" && (
           <div className="space-y-6">
+            <ContestReport />
             <ContestSettings />
             <AnnouncementSettings />
             <NewsManagement />

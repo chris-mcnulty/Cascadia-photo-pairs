@@ -10,7 +10,8 @@ import {
   users, 
   emailVerifications, 
   userStats, 
-  newsItems as newsItemsTable 
+  newsItems as newsItemsTable,
+  contestEntries 
 } from "@shared/schema";
 import { eq, sql, and, or, inArray, gte, lte, desc, isNull } from "drizzle-orm";
 import { storage } from "./storage";
@@ -1846,6 +1847,103 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating pair vote:", error);
       res.status(500).json({ message: "Failed to create pair vote" });
+    }
+  });
+
+  // Contest Report endpoint (admin only)
+  app.get("/api/admin/contest-report", async (req, res) => {
+    const sessionId = req.headers['x-session-id'] as string;
+    if (sessionId !== 'admin-session') {
+      return res.status(401).json({ message: "Admin access required" });
+    }
+
+    try {
+      const contestType = req.query.contestType as "monthly" | "quarterly" || "quarterly";
+      const contestPeriod = req.query.contestPeriod as string || "2025-Q3";
+
+      // Get contest entries
+      const entries = await db
+        .select({
+          userId: contestEntries.userId,
+          voteCount: contestEntries.voteCount,
+          enteredAt: contestEntries.enteredAt,
+          isWinner: contestEntries.isWinner
+        })
+        .from(contestEntries)
+        .where(
+          and(
+            eq(contestEntries.contestType, contestType),
+            eq(contestEntries.contestPeriod, contestPeriod)
+          )
+        )
+        .orderBy(sql`${contestEntries.voteCount} DESC`);
+
+      // Get user details for each entry
+      const topVoters = await Promise.all(
+        entries.map(async (entry) => {
+          const [user] = await db
+            .select({
+              email: users.email,
+              username: users.username
+            })
+            .from(users)
+            .where(eq(users.id, entry.userId));
+
+          return {
+            userId: entry.userId,
+            email: user?.email || "Unknown",
+            displayName: user?.username || user?.email || "Unknown User",
+            voteCount: entry.voteCount,
+            contestPeriod,
+            enteredAt: entry.enteredAt,
+            isWinner: entry.isWinner || false
+          };
+        })
+      );
+
+      // Calculate statistics
+      const totalParticipants = entries.length;
+      const totalVotes = entries.reduce((sum, entry) => sum + entry.voteCount, 0);
+      const averageVotes = totalParticipants > 0 ? totalVotes / totalParticipants : 0;
+
+      res.json({
+        totalParticipants,
+        totalVotes,
+        averageVotes,
+        topVoters
+      });
+    } catch (error) {
+      console.error('Error fetching contest report:', error);
+      res.status(500).json({ message: "Failed to fetch contest report" });
+    }
+  });
+
+  // Mark Contest Winner endpoint (admin only)
+  app.post("/api/admin/contest-winner", async (req, res) => {
+    const sessionId = req.headers['x-session-id'] as string;
+    if (sessionId !== 'admin-session') {
+      return res.status(401).json({ message: "Admin access required" });
+    }
+
+    try {
+      const { userId, contestPeriod, contestType } = req.body;
+
+      // Update the contest entry to mark as winner
+      await db
+        .update(contestEntries)
+        .set({ isWinner: true })
+        .where(
+          and(
+            eq(contestEntries.userId, userId),
+            eq(contestEntries.contestPeriod, contestPeriod),
+            eq(contestEntries.contestType, contestType)
+          )
+        );
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error marking contest winner:', error);
+      res.status(500).json({ message: "Failed to mark contest winner" });
     }
   });
 

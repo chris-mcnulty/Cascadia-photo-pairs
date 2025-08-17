@@ -1762,8 +1762,12 @@ export class DatabaseStorage implements IStorage {
       return null;
     }
     
-    console.log(`checkForPairDisplay: Returning pair with ${photo1.title} vs ${photo2.title}`);
-    return [photo1, photo2];
+    // Randomize the order of photos in the pair
+    const shouldSwap = Math.random() < 0.5;
+    const orderedPair: [Photo, Photo] = shouldSwap ? [photo2, photo1] : [photo1, photo2];
+    
+    console.log(`checkForPairDisplay: Returning pair with ${orderedPair[0].title} vs ${orderedPair[1].title} (swapped: ${shouldSwap})`);
+    return orderedPair;
   }
 
   async archivePhoto(id: string): Promise<boolean> {

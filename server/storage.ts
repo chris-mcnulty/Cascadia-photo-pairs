@@ -721,13 +721,42 @@ export class DatabaseStorage implements IStorage {
   async getRandomPhotoPair(collectionId?: string): Promise<[Photo, Photo] | null> {
     // First check if we should show a predefined pair vs regular random photos
     const settings = await this.getSettings();
-    const shouldShowPair = await this.shouldShowPair();
     
-    if (shouldShowPair && settings.pairsEnabled) {
-      const pairResult = await this.checkForPairDisplay();
-      if (pairResult) {
-        console.log('Showing predefined photo pair');
-        return pairResult;
+    if (settings.pairsEnabled) {
+      // Simple counter-based approach
+      // Use session-based tracking or a simple modulo of recent votes
+      const [totalVotesResult] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(votes);
+      
+      const totalVotes = totalVotesResult?.count || 0;
+      const minInterval = settings.pairsMinInterval || 2;
+      const maxInterval = settings.pairsMaxInterval || 4;
+      
+      // Use a simple deterministic approach with some randomness
+      // Show pairs every N votes where N varies between min and max
+      const interval = minInterval + (Math.floor(totalVotes / 10) % (maxInterval - minInterval + 1));
+      const shouldShow = totalVotes > 0 && (totalVotes % interval) === 0;
+      
+      // For immediate testing, also show on next vote if no pairs have been shown yet
+      const [pairVoteCount] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(pairVotes);
+      const noPairsYet = (pairVoteCount?.count || 0) === 0;
+      
+      const finalShouldShow = shouldShow || noPairsYet;
+      
+      if (finalShouldShow) {
+        const pairResult = await this.checkForPairDisplay();
+        if (pairResult) {
+          console.log(`Showing predefined photo pair! (vote #${totalVotes}, first pair: ${noPairsYet})`);
+          return pairResult;
+        } else {
+          console.log(`Pairs enabled but no valid pairs found to display`);
+        }
+      } else {
+        const nextPairAt = Math.ceil(totalVotes / interval) * interval;
+        console.log(`Regular photos: vote #${totalVotes}, next pair at vote #${nextPairAt} (interval: ${interval})`);
       }
     }
 

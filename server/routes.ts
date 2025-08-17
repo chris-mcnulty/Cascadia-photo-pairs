@@ -731,6 +731,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(pair);
     } catch (error) {
+      console.error('Error in random-pair endpoint:', error);
       res.status(500).json({ message: "Failed to fetch photo pair" });
     }
   });
@@ -768,6 +769,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Check if this is a pair vote
+      const isPairVote = await storage.checkIfPairVote(winnerPhotoId, loserPhotoId);
+      
       const vote = await storage.createVote({ 
         photoId: voteData.photoId, 
         winnerPhotoId: winnerPhotoId || voteData.photoId,
@@ -784,6 +788,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Track user vote statistics if userId is present
       if (userId) {
         await trackUserVote(userId);
+      }
+      
+      // If this was a pair vote, also record it in pair_votes
+      if (isPairVote) {
+        const pair = await storage.findPairByPhotos(winnerPhotoId, loserPhotoId);
+        if (pair) {
+          await storage.createPairVote({
+            pairId: pair.id,
+            winnerPhotoId,
+            loserPhotoId,
+            voterType,
+            userId
+          });
+          console.log(`Recorded pair vote for pair ${pair.id}`);
+        }
       }
       
       res.json(vote);

@@ -546,6 +546,14 @@ export class MemStorage implements IStorage {
     return [];
   }
 
+  async checkIfPairVote(photo1Id: string, photo2Id: string): Promise<boolean> {
+    return false;
+  }
+
+  async findPairByPhotos(photo1Id: string, photo2Id: string): Promise<PhotoPair | undefined> {
+    return undefined;
+  }
+
   async getPhotoPair(id: string): Promise<PhotoPair | undefined> {
     return undefined;
   }
@@ -738,21 +746,34 @@ export class DatabaseStorage implements IStorage {
       const interval = minInterval + (Math.floor(totalVotes / 10) % (maxInterval - minInterval + 1));
       const shouldShow = totalVotes > 0 && (totalVotes % interval) === 0;
       
-      // For immediate testing, also show on next vote if we have very few pair votes
-      const [pairVoteCountResult] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(pairVotes);
-      const pairVoteCount = pairVoteCountResult?.count || 0;
-      const needMorePairVotes = pairVoteCount < 3; // Show pairs more frequently until we have some data
+      // Track votes since last pair to determine when to show next pair
+      const [lastPairVoteResult] = await db
+        .select({ timestamp: pairVotes.timestamp })
+        .from(pairVotes)
+        .orderBy(sql`${pairVotes.timestamp} DESC`)
+        .limit(1);
       
-      const finalShouldShow = shouldShow || needMorePairVotes;
+      let votesSinceLastPair = 0;
+      if (lastPairVoteResult?.timestamp) {
+        const [countResult] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(votes)
+          .where(sql`${votes.timestamp} > ${lastPairVoteResult.timestamp}`);
+        votesSinceLastPair = countResult?.count || 0;
+      } else {
+        // No pairs shown yet, use a small number to trigger first pair
+        votesSinceLastPair = 3;
+      }
       
-      console.log(`Pair decision: totalVotes=${totalVotes}, interval=${interval}, shouldShow=${shouldShow}, pairVotes=${pairVoteCount}, needMore=${needMorePairVotes}, final=${finalShouldShow}`);
+      // Show a pair if we've had enough votes since the last pair
+      const finalShouldShow = votesSinceLastPair >= minInterval;
+      
+      console.log(`Pair decision: votesSinceLastPair=${votesSinceLastPair}, minInterval=${minInterval}, shouldShow=${finalShouldShow}`);
       
       if (finalShouldShow) {
         const pairResult = await this.checkForPairDisplay();
         if (pairResult) {
-          console.log(`Showing predefined photo pair! (vote #${totalVotes}, pairVotes: ${pairVoteCount})`);
+          console.log(`Showing predefined photo pair! (${votesSinceLastPair} votes since last pair)`);
           return pairResult;
         } else {
           console.log(`Pairs enabled but no valid pairs found to display`);
@@ -1165,6 +1186,32 @@ export class DatabaseStorage implements IStorage {
 
   async getAllPhotoPairs(): Promise<PhotoPair[]> {
     return await db.select().from(photoPairs);
+  }
+
+  async checkIfPairVote(photo1Id: string, photo2Id: string): Promise<boolean> {
+    const [pair] = await db
+      .select()
+      .from(photoPairs)
+      .where(
+        sql`(${photoPairs.photo1Id} = ${photo1Id} AND ${photoPairs.photo2Id} = ${photo2Id}) 
+            OR (${photoPairs.photo1Id} = ${photo2Id} AND ${photoPairs.photo2Id} = ${photo1Id})`
+      )
+      .limit(1);
+    
+    return !!pair;
+  }
+
+  async findPairByPhotos(photo1Id: string, photo2Id: string): Promise<PhotoPair | undefined> {
+    const [pair] = await db
+      .select()
+      .from(photoPairs)
+      .where(
+        sql`(${photoPairs.photo1Id} = ${photo1Id} AND ${photoPairs.photo2Id} = ${photo2Id}) 
+            OR (${photoPairs.photo1Id} = ${photo2Id} AND ${photoPairs.photo2Id} = ${photo1Id})`
+      )
+      .limit(1);
+    
+    return pair;
   }
 
   async getPhotoPair(id: string): Promise<PhotoPair | undefined> {

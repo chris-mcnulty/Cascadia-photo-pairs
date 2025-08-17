@@ -812,22 +812,29 @@ export class DatabaseStorage implements IStorage {
     const settings = await this.getSettings();
     if (!settings.pairsEnabled) return false;
 
-    // Count recent votes to determine position in frequency cycle
-    const recentVotes = await db
+    // Count total votes to determine position in frequency cycle
+    const totalVotesResult = await db
       .select({ count: sql<number>`count(*)` })
-      .from(votes)
-      .where(sql`${votes.timestamp} > NOW() - INTERVAL '1 hour'`);
+      .from(votes);
 
-    const votesInLastHour = recentVotes[0]?.count || 0;
+    const totalVotes = totalVotesResult[0]?.count || 0;
     const minInterval = settings.pairsMinInterval || 5;
     const maxInterval = settings.pairsMaxInterval || 15;
 
-    // Simple frequency logic: show pairs every minInterval to maxInterval votes
-    const randomInterval = Math.floor(Math.random() * (maxInterval - minInterval + 1)) + minInterval;
-    const shouldShow = votesInLastHour % randomInterval === 0;
+    // Use a simpler approach: show pairs every N votes within the min/max interval
+    // Generate a pseudo-random but consistent interval based on vote count
+    const interval = minInterval + (totalVotes % (maxInterval - minInterval + 1));
+    
+    // Show a pair every 'interval' votes
+    const shouldShow = totalVotes > 0 && totalVotes % interval === 0;
     
     if (shouldShow) {
-      console.log(`Pair frequency triggered: ${votesInLastHour} votes, interval ${randomInterval}`);
+      console.log(`Pair frequency triggered: vote #${totalVotes}, interval ${interval}, showing pair`);
+    } else {
+      // Log occasionally to debug
+      if (totalVotes % 10 === 0) {
+        console.log(`Pair check: vote #${totalVotes}, next pair at vote #${Math.ceil(totalVotes / interval) * interval}`);
+      }
     }
     
     return shouldShow;

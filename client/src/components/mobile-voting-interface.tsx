@@ -265,12 +265,11 @@ export default function MobileVotingInterface({
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
             >
-              <div className="relative bg-gray-100 overflow-hidden" style={{ minHeight: '350px' }}>
+              <div className="relative bg-gray-100 overflow-hidden flex items-center justify-center" style={{ height: '350px' }}>
                 <img 
                   src={photoA.imageUrl} 
                   alt={photoA.title}
-                  className="w-full h-full object-contain"
-                  style={{ minHeight: '350px' }}
+                  className="max-w-full max-h-full object-contain"
                   loading="lazy"
                 />
                 {selectedPhoto?.id === photoA.id && (
@@ -329,12 +328,11 @@ export default function MobileVotingInterface({
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
             >
-              <div className="relative bg-gray-100 overflow-hidden" style={{ minHeight: '350px' }}>
+              <div className="relative bg-gray-100 overflow-hidden flex items-center justify-center" style={{ height: '350px' }}>
                 <img 
                   src={photoB.imageUrl} 
                   alt={photoB.title}
-                  className="w-full h-full object-contain"
-                  style={{ minHeight: '350px' }}
+                  className="max-w-full max-h-full object-contain"
                   loading="lazy"
                 />
                 {selectedPhoto?.id === photoB.id && (

@@ -395,7 +395,6 @@ export default function Home() {
 
           {/* Voting Instructions with Mobile Mode Toggle */}
           <div className="text-center mt-8 mb-12">
-            <p className="text-gray-600 mb-4">Click on your preferred artwork to vote</p>
             <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
               <div className="flex items-center">
                 <MousePointer className="w-4 h-4 mr-2" />

@@ -83,7 +83,9 @@ export default function ProfilePage() {
       const token = localStorage.getItem('auth-token');
       if (!token) throw new Error("Not authenticated");
       
-      const response = await apiRequest("PUT", "/api/user/profile", data);
+      const response = await apiRequest("PUT", "/api/user/profile", data, {
+        'Authorization': `Bearer ${token}`
+      });
       
       if (!response.ok) {
         const error = await response.json();

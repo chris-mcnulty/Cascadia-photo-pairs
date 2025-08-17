@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Photo, Settings } from "@shared/schema";
 import { Button } from "@/components/ui/button";
-import { Heart, ChevronLeft, ChevronRight, Zap, Menu, X, Smartphone, Plus, MousePointer, RefreshCw, Infinity, Globe, Mail, Share2, MessageSquare, ArrowLeft, Settings as SettingsIcon, ShoppingCart } from "lucide-react";
+import { Heart, ChevronLeft, ChevronRight, Zap, Menu, X, Smartphone, Plus, MousePointer, RefreshCw, Infinity, Globe, Mail, Share2, MessageSquare, ArrowLeft, Settings as SettingsIcon, ShoppingCart, Monitor } from "lucide-react";
 import { FaInstagram, FaFacebookF, FaLinkedinIn } from "react-icons/fa6";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -229,6 +229,22 @@ export default function MobileVotingInterface({
                     Leaderboard
                   </Button>
                 </Link>
+
+                {/* Exit Focus Mode for Desktop Users */}
+                {onToggleView && !(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      onToggleView();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium text-center w-full"
+                  >
+                    <Monitor className="w-4 h-4 mr-2" />
+                    Exit Focus Mode
+                  </Button>
+                )}
 
                 <a 
                   href="https://www.chrismcnulty.net/photography" 

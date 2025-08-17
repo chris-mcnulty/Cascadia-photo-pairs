@@ -364,7 +364,7 @@ export default function Home() {
             />
           )}
 
-          {/* Voting Instructions */}
+          {/* Voting Instructions with Mobile Mode Toggle */}
           <div className="text-center mt-8 mb-12">
             <p className="text-gray-600 mb-4">Click on your preferred artwork to vote</p>
             <div className="flex items-center justify-center space-x-4 text-sm text-gray-500">
@@ -380,6 +380,20 @@ export default function Home() {
                 <Infinity className="w-4 h-4 mr-2" />
                 Vote unlimited times
               </div>
+            </div>
+            
+            {/* Desktop Mobile Mode Toggle Button */}
+            <div className="mt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setUseMobileInterface(true)}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <Smartphone className="w-4 h-4 mr-2" />
+                Switch to Focus Mode
+              </Button>
+              <p className="text-xs text-gray-500 mt-2">A distraction-free voting experience</p>
             </div>
           </div>
 

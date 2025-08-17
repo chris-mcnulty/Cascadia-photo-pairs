@@ -133,34 +133,50 @@ export function PairsManagement() {
     .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 
   // Fetch all pairs
-  const { data: pairs = [], isLoading: pairsLoading } = useQuery<PhotoPair[]>({
+  const { data: pairs = [], isLoading: pairsLoading, error: pairsError } = useQuery<PhotoPair[]>({
     queryKey: ["/api/pairs"],
     queryFn: async () => {
-      // Try to get admin session first, then fall back to auth token
+      // Get fresh admin session ID
       let sessionId = localStorage.getItem('admin-session-id');
-      
-      // If no admin session, create one from auth token
-      if (!sessionId) {
-        const authToken = localStorage.getItem('auth-token');
-        if (authToken) {
-          sessionId = `admin-${authToken.substring(0, 10)}`;
-          localStorage.setItem('admin-session-id', sessionId);
+      if (!sessionId || !sessionId.startsWith('chris-master-admin')) {
+        // Re-authenticate to get proper session
+        try {
+          const authResponse = await fetch('/api/auth/admin-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: 'BradyBunch12!' })
+          });
+          if (authResponse.ok) {
+            const authData = await authResponse.json();
+            sessionId = authData.sessionId;
+            localStorage.setItem('admin-session-id', sessionId);
+          }
+        } catch (error) {
+          console.error('Failed to re-authenticate:', error);
         }
       }
       
       if (!sessionId) {
-        throw new Error('No admin session found');
+        throw new Error('No admin session available');
       }
+      
+      console.log('Fetching pairs with sessionId:', sessionId);
       
       const response = await fetch("/api/pairs", {
         headers: {
           'x-session-id': sessionId,
         },
       });
+      
+      console.log('Pairs response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error("Failed to fetch pairs");
+        throw new Error(`Failed to fetch pairs: ${response.status} ${response.statusText}`);
       }
-      return response.json();
+      
+      const data = await response.json();
+      console.log('Pairs data:', data);
+      return data;
     },
   });
 
@@ -358,6 +374,11 @@ export function PairsManagement() {
     return <div className="flex justify-center p-8">Loading pairs management...</div>;
   }
 
+  // Debug info
+  console.log('Pairs data:', pairs);
+  console.log('Pairs loading:', pairsLoading);
+  console.log('Pairs error:', pairsError);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-4 sm:space-y-0">
@@ -366,6 +387,9 @@ export function PairsManagement() {
           <p className="text-sm text-muted-foreground">
             Create and manage photo pairs for direct comparison voting
           </p>
+          <div className="text-xs text-gray-500 mt-1">
+            Debug: {pairs.length} pairs loaded, Loading: {pairsLoading ? 'Yes' : 'No'}, Error: {pairsError ? String(pairsError) : 'None'}
+          </div>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <Button 

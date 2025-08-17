@@ -204,7 +204,7 @@ export default function Home() {
                 className="flex items-center gap-2"
               >
                 <Smartphone className="w-4 h-4" />
-                {useMobileInterface ? "Desktop" : "Mobile"} View
+                {useMobileInterface ? "Exit Focus Mode" : "Focus Mode"}
               </Button>
               <a 
                 href="https://www.chrismcnulty.net/photography" 
@@ -265,7 +265,7 @@ export default function Home() {
                   className="flex items-center gap-2 justify-center"
                 >
                   <Smartphone className="w-4 h-4" />
-                  {useMobileInterface ? "Desktop" : "Mobile"} View
+  {useMobileInterface ? "Exit Focus Mode" : "Focus Mode"}
                 </Button>
                 <Button
                   variant="outline"

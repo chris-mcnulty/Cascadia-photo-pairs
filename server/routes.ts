@@ -127,13 +127,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const adminName = isMasterAdmin ? 'Chris McNulty' : 'Admin';
       
       // Check if SMS service is available
-      const smsAvailable = isSMSServiceAvailable();
+      const { isSMSServiceAvailable } = await import('./sendgrid');
+      const { isSMSConfigured, send2FACode } = await import('./twilio');
+      
+      const smsAvailable = await isSMSServiceAvailable();
       const emailAvailable = isEmailServiceAvailable();
       
       // Try to send MFA code
       let smsSent = false;
-      if (smsAvailable) {
-        smsSent = await sendAdminMFACode(phoneNumber, mfaCode, adminName);
+      if (smsAvailable && isSMSConfigured()) {
+        // Use real phone number for Chris McNulty (master admin)
+        const realPhoneNumber = isMasterAdmin ? process.env.ADMIN_PHONE_NUMBER || phoneNumber : phoneNumber;
+        smsSent = await send2FACode(realPhoneNumber, mfaCode);
       }
       
       // Log the MFA code for debugging (remove in production)
@@ -1971,6 +1976,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error sending test email:', error);
       res.status(500).json({ message: "Failed to send test email" });
+    }
+  });
+
+  // Test SMS endpoint (admin only)
+  app.post("/api/test-sms", async (req, res) => {
+    const sessionId = req.headers['x-session-id'] as string;
+    if (sessionId !== 'admin-session') {
+      return res.status(401).json({ message: "Admin access required" });
+    }
+
+    try {
+      const { phoneNumber } = req.body;
+      if (!phoneNumber) {
+        return res.status(400).json({ message: "Phone number required" });
+      }
+
+      const { sendTestSMS } = await import('./twilio');
+      const success = await sendTestSMS(phoneNumber);
+      
+      if (success) {
+        res.json({ success: true, message: `Test SMS sent to ${phoneNumber}` });
+      } else {
+        res.status(500).json({ message: "Failed to send test SMS. Check Twilio configuration." });
+      }
+    } catch (error) {
+      console.error('Error sending test SMS:', error);
+      res.status(500).json({ message: "Failed to send test SMS" });
+    }
+  });
+
+  // Check services availability
+  app.get("/api/services/status", async (req, res) => {
+    try {
+      const { isEmailServiceAvailable, isSMSServiceAvailable } = await import('./sendgrid');
+      const { isSMSConfigured } = await import('./twilio');
+      
+      res.json({
+        email: isEmailServiceAvailable(),
+        sms: await isSMSServiceAvailable(),
+        twilio: isSMSConfigured()
+      });
+    } catch (error) {
+      console.error('Error checking services status:', error);
+      res.status(500).json({ message: "Failed to check services status" });
     }
   });
 

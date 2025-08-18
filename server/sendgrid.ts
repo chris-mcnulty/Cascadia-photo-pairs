@@ -55,23 +55,9 @@ export async function sendSMSViaSendGrid(
   }
 
   try {
-    // Note: SendGrid SMS requires Twilio integration
-    // This is a placeholder for when Twilio credentials are added
-    console.log(`[SMS Feature] Would send to ${phoneNumber}: ${message}`);
-    
-    // When Twilio is configured, you would use:
-    // const twilioClient = require('twilio')(
-    //   process.env.TWILIO_ACCOUNT_SID,
-    //   process.env.TWILIO_AUTH_TOKEN
-    // );
-    // 
-    // await twilioClient.messages.create({
-    //   body: message,
-    //   from: process.env.TWILIO_PHONE_NUMBER,
-    //   to: phoneNumber
-    // });
-    
-    return true;
+    // Use Twilio directly for SMS
+    const { sendSMS } = await import('./twilio');
+    return await sendSMS(phoneNumber, message);
   } catch (error) {
     console.error('SMS sending error:', error);
     return false;
@@ -102,7 +88,13 @@ export function isEmailServiceAvailable(): boolean {
 }
 
 // Check if SMS service is available
-export function isSMSServiceAvailable(): boolean {
+export async function isSMSServiceAvailable(): Promise<boolean> {
+  const { isSMSConfigured } = await import('./twilio');
+  return isSMSConfigured();
+}
+
+// Legacy synchronous version for backward compatibility
+export function isSMSServiceAvailableSync(): boolean {
   // SMS requires both SendGrid and Twilio configuration
   return sendGridConfigured && !!process.env.TWILIO_ACCOUNT_SID;
 }

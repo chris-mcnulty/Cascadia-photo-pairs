@@ -15,7 +15,7 @@ export async function sendEmailViaSendGrid(
   to: string,
   subject: string,
   html: string,
-  from: string = 'support@cascadia-oceanic.com'
+  from: string = 'cascadia@chrismcnulty.net'
 ): Promise<boolean> {
   if (!sendGridConfigured) {
     console.log(`[SendGrid Not Configured] Would send email to: ${to}`);

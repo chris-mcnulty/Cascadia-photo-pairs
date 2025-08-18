@@ -6,7 +6,7 @@ const EMAIL_HOST = process.env.EMAIL_HOST || "smtp.gmail.com";
 const EMAIL_PORT = parseInt(process.env.EMAIL_PORT || "587");
 const EMAIL_USER = process.env.EMAIL_USER || "";
 const EMAIL_PASS = process.env.EMAIL_PASS || "";
-const EMAIL_FROM = process.env.EMAIL_FROM || "noreply@cascadiaoceanic.com";
+const EMAIL_FROM = process.env.EMAIL_FROM || "cascadia@chrismcnulty.net";
 
 // Create reusable transporter
 const transporter = nodemailer.createTransport({

@@ -1947,6 +1947,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test email endpoint (admin only)
+  app.post("/api/test-email", async (req, res) => {
+    const sessionId = req.headers['x-session-id'] as string;
+    if (sessionId !== 'admin-session') {
+      return res.status(401).json({ message: "Admin access required" });
+    }
+
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return res.status(400).json({ message: "Email address required" });
+      }
+
+      const { sendTestEmail } = await import('./test-email');
+      const success = await sendTestEmail(email);
+      
+      if (success) {
+        res.json({ success: true, message: `Test email sent to ${email}` });
+      } else {
+        res.status(500).json({ message: "Failed to send test email" });
+      }
+    } catch (error) {
+      console.error('Error sending test email:', error);
+      res.status(500).json({ message: "Failed to send test email" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

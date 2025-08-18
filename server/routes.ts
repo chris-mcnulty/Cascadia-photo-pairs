@@ -2080,6 +2080,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Manual password reset email endpoint (admin)
+  app.post("/api/manual-reset-email", async (req, res) => {
+    const sessionId = req.headers['x-session-id'] as string;
+    if (sessionId !== 'admin-session') {
+      return res.status(401).json({ message: "Admin access required" });
+    }
+
+    try {
+      const { email, code } = req.body;
+      const { sendManualPasswordResetEmail } = await import('./manual-reset-email');
+      const success = await sendManualPasswordResetEmail(email, code);
+      
+      if (success) {
+        res.json({ message: "Password reset email sent successfully" });
+      } else {
+        res.status(500).json({ message: "Failed to send password reset email" });
+      }
+    } catch (error) {
+      console.error('Error sending manual reset email:', error);
+      res.status(500).json({ message: "Failed to send email" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

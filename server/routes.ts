@@ -238,8 +238,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ message: "Email already registered" });
       }
       
-      // Generate username from email
-      const username = email.split('@')[0];
+      // Generate unique username from email
+      let baseUsername = email.split('@')[0];
+      let username = baseUsername;
+      let counter = 1;
+      
+      // Check if username already exists and add a number if needed
+      while (true) {
+        const [existingUsername] = await db.select().from(users).where(eq(users.username, username));
+        if (!existingUsername) {
+          break;
+        }
+        username = `${baseUsername}${counter}`;
+        counter++;
+      }
       
       // Create user
       const user = await createUser(email, username, password, firstName, lastName);

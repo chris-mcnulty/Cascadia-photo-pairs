@@ -2058,6 +2058,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test Synozur email endpoint
+  app.post("/api/test-synozur-email", async (req, res) => {
+    const sessionId = req.headers['x-session-id'] as string;
+    if (sessionId !== 'admin-session') {
+      return res.status(401).json({ message: "Admin access required" });
+    }
+
+    try {
+      const { sendTestEmailToSynozur } = await import('./test-synozur-email');
+      const success = await sendTestEmailToSynozur();
+      
+      if (success) {
+        res.json({ message: "Test email sent to Synozur" });
+      } else {
+        res.status(500).json({ message: "Failed to send test email to Synozur" });
+      }
+    } catch (error) {
+      console.error('Error sending test email to Synozur:', error);
+      res.status(500).json({ message: "Failed to send test email" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

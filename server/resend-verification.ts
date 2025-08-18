@@ -34,7 +34,11 @@ export async function resendVerificationEmail(email: string): Promise<boolean> {
     // Send verification email via SendGrid
     const { sendEmailViaSendGrid } = await import('./sendgrid');
     
-    const verificationUrl = `${process.env.APP_URL || "https://cascadia-oceanic-photo-voting-app.replit.app"}/verify-email?token=${verificationToken}`;
+    // Use the Replit app URL in production, localhost in development
+    const baseUrl = process.env.REPLIT_DEV_DOMAIN 
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : process.env.APP_URL || "http://localhost:5000";
+    const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`;
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

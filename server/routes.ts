@@ -2023,6 +2023,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Resend verification email endpoint
+  app.post("/api/auth/resend-verification", async (req, res) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      const { resendVerificationEmail } = await import('./resend-verification');
+      const success = await resendVerificationEmail(email);
+      
+      if (success) {
+        res.json({ message: "Verification email sent successfully" });
+      } else {
+        res.status(400).json({ message: "Failed to send verification email" });
+      }
+    } catch (error) {
+      console.error('Error resending verification email:', error);
+      res.status(500).json({ message: "Failed to resend verification email" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

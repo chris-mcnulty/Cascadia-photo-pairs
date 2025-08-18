@@ -64,7 +64,9 @@ export async function sendVerificationEmail(email: string, token: string): Promi
     </div>
   `;
 
-  return sendEmail(email, "Verify your Cascadia Oceanic account", html);
+  // Use SendGrid if available, otherwise fall back to nodemailer
+  const { sendEmailViaSendGrid } = await import('./sendgrid');
+  return await sendEmailViaSendGrid(email, "Verify your Cascadia Oceanic account", html);
 }
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<boolean> {
@@ -89,7 +91,9 @@ export async function sendPasswordResetEmail(email: string, token: string): Prom
     </div>
   `;
 
-  return sendEmail(email, "Reset your Cascadia Oceanic password", html);
+  // Use SendGrid if available, otherwise fall back to nodemailer
+  const { sendEmailViaSendGrid } = await import('./sendgrid');
+  return await sendEmailViaSendGrid(email, "Reset your Cascadia Oceanic password", html);
 }
 
 export async function sendWelcomeEmail(email: string, firstName?: string): Promise<boolean> {

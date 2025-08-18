@@ -44,10 +44,8 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
 }
 
 export async function sendVerificationEmail(email: string, token: string): Promise<boolean> {
-  // Use the Replit app URL in production, localhost in development
-  const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-    : process.env.APP_URL || "http://localhost:5000";
+  // Always use the production URL for email links
+  const baseUrl = "https://cascadia-oceanic-photo-voting-app.replit.app";
   const verificationUrl = `${baseUrl}/verify-email?token=${token}`;
   
   const html = `
@@ -74,10 +72,8 @@ export async function sendVerificationEmail(email: string, token: string): Promi
 }
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<boolean> {
-  // Use the Replit app URL in production, localhost in development
-  const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-    : process.env.APP_URL || "http://localhost:5000";
+  // Always use the production URL for email links
+  const baseUrl = "https://cascadia-oceanic-photo-voting-app.replit.app";
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
   
   const html = `

@@ -1,10 +1,8 @@
 import { sendEmailViaSendGrid } from './sendgrid';
 
 export async function sendManualPasswordResetEmail(email: string, resetCode: string): Promise<boolean> {
-  // Use the Replit app URL
-  const baseUrl = process.env.REPLIT_DEV_DOMAIN 
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-    : "https://cascadia-oceanic-photo-voting-app.replit.app";
+  // Always use the production URL for email links
+  const baseUrl = "https://cascadia-oceanic-photo-voting-app.replit.app";
   
   const resetUrl = `${baseUrl}/reset-password?token=${resetCode}`;
   

@@ -9,6 +9,7 @@ import Leaderboard from "@/pages/leaderboard";
 import Signup from "@/pages/signup";
 import Login from "@/pages/login";
 import ResetPassword from "@/pages/reset-password";
+import VerifyEmail from "@/pages/verify-email";
 import NotFound from "@/pages/not-found";
 import UserStats from "@/pages/user-stats";
 import Profile from "@/pages/profile";
@@ -22,6 +23,7 @@ function Router() {
       <Route path="/signup" component={Signup} />
       <Route path="/login" component={Login} />
       <Route path="/reset-password" component={ResetPassword} />
+      <Route path="/verify-email" component={VerifyEmail} />
       <Route path="/user-stats" component={UserStats} />
       <Route path="/profile" component={Profile} />
       <Route path="/user-settings" component={Profile} />

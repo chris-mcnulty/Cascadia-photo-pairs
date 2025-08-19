@@ -8,7 +8,14 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { ArrowLeft, LogIn, UserPlus, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, LogIn, UserPlus, Eye, EyeOff, Mail } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Settings } from "@shared/schema";
 
 export default function LoginPage() {
@@ -19,6 +26,8 @@ export default function LoginPage() {
     password: "",
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [showResendDialog, setShowResendDialog] = useState(false);
+  const [resendEmail, setResendEmail] = useState("");
 
   // Fetch admin settings for customizable text
   const { data: settings } = useQuery<Settings>({
@@ -53,8 +62,57 @@ export default function LoginPage() {
       }, 1000);
     },
     onError: (error: Error) => {
+      // Check if error is due to unverified email
+      if (error.message.includes("verify") || error.message.includes("verified")) {
+        toast({
+          title: "Email not verified",
+          description: "Please check your email for the verification link.",
+          variant: "destructive",
+          action: (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => {
+                setResendEmail(formData.email);
+                setShowResendDialog(true);
+              }}
+            >
+              Resend Email
+            </Button>
+          ),
+        });
+      } else {
+        toast({
+          title: "Login failed",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    },
+  });
+
+  const resendVerificationMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const response = await apiRequest("POST", "/api/auth/resend-verification", { email });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to resend verification email");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
       toast({
-        title: "Login failed",
+        title: "Verification email sent!",
+        description: "Please check your inbox for the verification link.",
+      });
+      setShowResendDialog(false);
+      setResendEmail("");
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to resend email",
         description: error.message,
         variant: "destructive",
       });
@@ -178,19 +236,75 @@ export default function LoginPage() {
             </div>
 
             {/* Footer Links */}
-            <div className="mt-6 text-center text-sm text-gray-500">
-              Need help?{" "}
-              {settings?.supportEmail && (
-                <a 
-                  href={`mailto:${settings.supportEmail}`} 
-                  className="text-green-600 hover:underline"
+            <div className="mt-6 text-center text-sm text-gray-500 space-y-2">
+              <div>
+                Need help?{" "}
+                {settings?.supportEmail && (
+                  <a 
+                    href={`mailto:${settings.supportEmail}`} 
+                    className="text-green-600 hover:underline"
+                  >
+                    Contact Support
+                  </a>
+                )}
+              </div>
+              <div>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="text-green-600 hover:text-green-700 text-sm"
+                  onClick={() => setShowResendDialog(true)}
                 >
-                  Contact Support
-                </a>
-              )}
+                  <Mail className="w-3 h-3 mr-1" />
+                  Resend verification email
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Resend Verification Dialog */}
+        <Dialog open={showResendDialog} onOpenChange={setShowResendDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Resend Verification Email</DialogTitle>
+              <DialogDescription>
+                Enter your email address and we'll send you a new verification link.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="resend-email">Email Address</Label>
+                <Input
+                  id="resend-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={resendEmail}
+                  onChange={(e) => setResendEmail(e.target.value)}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowResendDialog(false);
+                    setResendEmail("");
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => resendVerificationMutation.mutate(resendEmail)}
+                  disabled={!resendEmail || resendVerificationMutation.isPending}
+                  className="flex-1 bg-green-700 hover:bg-green-800"
+                >
+                  {resendVerificationMutation.isPending ? "Sending..." : "Send Email"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

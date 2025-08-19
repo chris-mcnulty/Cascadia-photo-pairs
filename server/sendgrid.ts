@@ -37,7 +37,10 @@ export async function sendEmailViaSendGrid(
   } catch (error: any) {
     console.error('SendGrid error:', error);
     if (error.response) {
-      console.error('SendGrid error details:', error.response.body);
+      console.error('SendGrid error details:', JSON.stringify(error.response.body, null, 2));
+    }
+    if (error.message) {
+      console.error('SendGrid error message:', error.message);
     }
     return false;
   }

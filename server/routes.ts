@@ -11,7 +11,8 @@ import {
   emailVerifications, 
   userStats, 
   newsItems as newsItemsTable,
-  contestEntries 
+  contestEntries,
+  userFavorites
 } from "@shared/schema";
 import { eq, sql, and, or, inArray, gte, lte, desc, isNull } from "drizzle-orm";
 import { storage } from "./storage";
@@ -1145,18 +1146,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Delete user and related data (cascade delete)
+      // Note: Column names are user_id not userId in the database
       await db.delete(userStats).where(eq(userStats.userId, userId));
       await db.delete(votes).where(eq(votes.userId, userId));
-      // Delete from userFavorites table if it exists
-      try {
-        const userFavoritesTable = (await import('@shared/schema')).userFavorites;
-        if (userFavoritesTable) {
-          await db.delete(userFavoritesTable).where(eq(userFavoritesTable.userId, userId));
-        }
-      } catch (e) {
-        // Table might not exist, continue
-      }
+      await db.delete(userFavorites).where(eq(userFavorites.userId, userId));
       await db.delete(contestEntries).where(eq(contestEntries.userId, userId));
+      await db.delete(emailVerifications).where(eq(emailVerifications.userId, userId));
       await db.delete(users).where(eq(users.id, userId));
       
       res.json({ message: "User deleted successfully" });

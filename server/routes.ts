@@ -1144,9 +1144,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Cannot delete admin users" });
       }
       
-      // Delete user and related data
+      // Delete user and related data (cascade delete)
       await db.delete(userStats).where(eq(userStats.userId, userId));
       await db.delete(votes).where(eq(votes.userId, userId));
+      // Delete from userFavorites table if it exists
+      try {
+        const userFavoritesTable = (await import('@shared/schema')).userFavorites;
+        if (userFavoritesTable) {
+          await db.delete(userFavoritesTable).where(eq(userFavoritesTable.userId, userId));
+        }
+      } catch (e) {
+        // Table might not exist, continue
+      }
+      await db.delete(contestEntries).where(eq(contestEntries.userId, userId));
       await db.delete(users).where(eq(users.id, userId));
       
       res.json({ message: "User deleted successfully" });
@@ -2035,9 +2045,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Resend verification email endpoint
+  // Resend verification email endpoint (public or admin)
   app.post("/api/auth/resend-verification", async (req, res) => {
     try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
+      const { resendVerificationEmail } = await import('./resend-verification');
+      const success = await resendVerificationEmail(email);
+      
+      if (success) {
+        res.json({ message: "Verification email sent successfully" });
+      } else {
+        res.status(400).json({ message: "Failed to send verification email" });
+      }
+    } catch (error) {
+      console.error('Error resending verification email:', error);
+      res.status(500).json({ message: "Failed to resend verification email" });
+    }
+  });
+
+  // Admin: Resend verification email for any user
+  app.post("/api/admin/resend-verification", async (req, res) => {
+    try {
+      // Check admin authentication
+      const adminStatus = await checkAdminAuth(req);
+      if (!adminStatus.authenticated || !adminStatus.isAdmin) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+
       const { email } = req.body;
       
       if (!email) {

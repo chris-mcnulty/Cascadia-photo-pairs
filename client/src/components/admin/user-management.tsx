@@ -131,6 +131,35 @@ export default function UserManagement() {
     }
   });
 
+  // Resend verification email mutation
+  const resendVerificationMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const response = await apiRequest("POST", "/api/admin/resend-verification", { email }, {
+        'X-Session-Id': 'admin-session'
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || "Failed to resend verification email");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Verification email sent",
+        description: "A new verification email has been sent to the user.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to send email",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
   const filteredUsers = users.filter(user => 
     user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -307,6 +336,17 @@ export default function UserManagement() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          {!user.emailVerified && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => resendVerificationMutation.mutate(user.email)}
+                              disabled={resendVerificationMutation.isPending}
+                            >
+                              <Mail className="w-3 h-3 mr-1" />
+                              Resend Verification
+                            </Button>
+                          )}
                           {isMasterAdmin && !user.isMasterAdmin && (
                             <Button
                               size="sm"

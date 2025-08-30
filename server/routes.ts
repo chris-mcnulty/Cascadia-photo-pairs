@@ -325,6 +325,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Email Verification
+  app.post("/api/auth/verify-email", async (req, res) => {
+    try {
+      const { token } = req.body;
+      
+      if (!token) {
+        return res.status(400).json({ message: "Verification token is required" });
+      }
+      
+      // Find and validate verification token
+      const [verification] = await db
+        .select({
+          id: emailVerifications.id,
+          userId: emailVerifications.userId,
+          expiresAt: emailVerifications.expiresAt
+        })
+        .from(emailVerifications)
+        .where(eq(emailVerifications.token, token));
+      
+      if (!verification) {
+        return res.status(400).json({ message: "Invalid verification token" });
+      }
+      
+      // Check if token is expired
+      if (new Date() > new Date(verification.expiresAt)) {
+        // Clean up expired token
+        await db.delete(emailVerifications).where(eq(emailVerifications.id, verification.id));
+        return res.status(400).json({ message: "Verification token has expired" });
+      }
+      
+      // Update user's email verification status
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          emailVerified: true,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, verification.userId))
+        .returning();
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Delete the used verification token
+      await db.delete(emailVerifications).where(eq(emailVerifications.id, verification.id));
+      
+      res.json({ 
+        message: "Email verified successfully! You can now log in to your account.",
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          emailVerified: updatedUser.emailVerified
+        }
+      });
+    } catch (error) {
+      console.error('Email verification error:', error);
+      res.status(500).json({ message: "Failed to verify email" });
+    }
+  });
+  
   // Request Password Reset
   app.post("/api/auth/request-reset", async (req, res) => {
     try {

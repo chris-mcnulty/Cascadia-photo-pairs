@@ -247,7 +247,7 @@ export default function Home() {
               >
                 Leaderboard
               </Link>
-              {settings?.userLoginEnabledDev && (
+              {(settings?.userLoginEnabledProd || settings?.userLoginEnabledDev) && (
                 <AuthenticationButtons />
               )}
               <UserProfile />
@@ -320,10 +320,10 @@ export default function Home() {
                 >
                   Leaderboard
                 </Link>
-                {settings?.userLoginEnabledDev && (
+                {(settings?.userLoginEnabledProd || settings?.userLoginEnabledDev) && (
                   <AuthenticationButtons isMobile />
                 )}
-                {!settings?.userLoginEnabledDev && (
+                {!(settings?.userLoginEnabledProd || settings?.userLoginEnabledDev) && (
                   <a 
                     href="https://www.chrismcnulty.net/subscribe" 
                     className="bg-cascadia-green text-white px-6 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium text-center"

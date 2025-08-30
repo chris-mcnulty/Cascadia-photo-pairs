@@ -6,6 +6,9 @@ This is a full-stack photo voting application for ranking landscape photography.
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+- **Authentication System Launch (Aug 30, 2025)**: Fixed mobile menu 404 login issue by correcting `/api/login` to `/login` in mobile voting interface. Complete user registration, email verification, and login flow now fully operational for production.
+
 ## System Architecture
 
 ### Frontend Architecture

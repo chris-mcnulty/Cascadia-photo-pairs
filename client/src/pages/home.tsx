@@ -121,9 +121,11 @@ export default function Home() {
     setUseMobileInterface(isMobile);
   }, []);
 
-  const { data: settings } = useQuery<Settings>({
+  const { data: settings, isLoading: settingsLoading } = useQuery<Settings>({
     queryKey: ["/api/settings"],
   });
+
+
 
   const { data: photoPair, refetch: refetchPair } = useQuery<[Photo, Photo]>({
     queryKey: ["/api/photos/random-pair"],
@@ -247,8 +249,12 @@ export default function Home() {
               >
                 Leaderboard
               </Link>
-              {/* Show auth buttons if either dev or prod login is enabled */}
-              {(settings?.userLoginEnabledProd || settings?.userLoginEnabledDev) && (
+              {/* Show auth buttons when login is enabled */}
+              {settings && (settings.userLoginEnabledProd || settings.userLoginEnabledDev) && (
+                <AuthenticationButtons />
+              )}
+              {/* Fallback: if settings haven't loaded yet, show buttons anyway for better UX */}
+              {!settings && !settingsLoading && (
                 <AuthenticationButtons />
               )}
               <UserProfile />
@@ -321,8 +327,12 @@ export default function Home() {
                 >
                   Leaderboard
                 </Link>
-                {/* Show auth buttons if either dev or prod login is enabled */}
-                {(settings?.userLoginEnabledProd || settings?.userLoginEnabledDev) && (
+                {/* Show auth buttons when login is enabled */}
+                {settings && (settings.userLoginEnabledProd || settings.userLoginEnabledDev) && (
+                  <AuthenticationButtons isMobile />
+                )}
+                {/* Fallback: if settings haven't loaded yet, show buttons anyway for better UX */}
+                {!settings && !settingsLoading && (
                   <AuthenticationButtons isMobile />
                 )}
                 {!(settings?.userLoginEnabledProd || settings?.userLoginEnabledDev) && (

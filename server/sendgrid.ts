@@ -29,6 +29,12 @@ export async function sendEmailViaSendGrid(
       from, // This must be a verified sender in SendGrid
       subject,
       html,
+      // Disable click tracking to prevent URL rewriting
+      trackingSettings: {
+        clickTracking: {
+          enable: false
+        }
+      }
     };
 
     await sgMail.send(msg);

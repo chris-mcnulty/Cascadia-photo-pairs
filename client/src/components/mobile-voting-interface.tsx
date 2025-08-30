@@ -223,15 +223,27 @@ export default function MobileVotingInterface({
               </a>
 
               {/* Authentication Buttons */}
-              {settings?.userLoginEnabledDev && (
-                <div className="col-span-2">
-                  <a 
-                    href="/api/login"
-                    className="bg-cascadia-green text-white px-4 py-2 rounded-lg hover:bg-opacity-90 transition-all duration-200 font-medium text-center block"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Login
-                  </a>
+              {(settings?.userLoginEnabledDev || settings?.userLoginEnabledProd) && (
+                <div className="col-span-2 space-y-2">
+                  <Link href="/login">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link href="/signup">
+                    <Button 
+                      size="sm" 
+                      className="w-full bg-cascadia-green hover:bg-green-700"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Sign Up
+                    </Button>
+                  </Link>
                 </div>
               )}
             </div>

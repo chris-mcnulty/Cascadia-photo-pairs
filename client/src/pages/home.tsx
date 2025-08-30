@@ -250,11 +250,7 @@ export default function Home() {
                 Leaderboard
               </Link>
               {/* Show auth buttons when login is enabled */}
-              {settings && (settings.userLoginEnabledProd || settings.userLoginEnabledDev) && (
-                <AuthenticationButtons />
-              )}
-              {/* Fallback: if settings haven't loaded yet, show buttons anyway for better UX */}
-              {!settings && !settingsLoading && (
+              {(settings?.userLoginEnabledProd || settings?.userLoginEnabledDev) && (
                 <AuthenticationButtons />
               )}
               <UserProfile />
@@ -328,11 +324,7 @@ export default function Home() {
                   Leaderboard
                 </Link>
                 {/* Show auth buttons when login is enabled */}
-                {settings && (settings.userLoginEnabledProd || settings.userLoginEnabledDev) && (
-                  <AuthenticationButtons isMobile />
-                )}
-                {/* Fallback: if settings haven't loaded yet, show buttons anyway for better UX */}
-                {!settings && !settingsLoading && (
+                {(settings?.userLoginEnabledProd || settings?.userLoginEnabledDev) && (
                   <AuthenticationButtons isMobile />
                 )}
                 {!(settings?.userLoginEnabledProd || settings?.userLoginEnabledDev) && (
@@ -343,12 +335,12 @@ export default function Home() {
                     Subscribe
                   </a>
                 )}
-                <a 
+                <Link
                   href="/admin"
                   className="text-gray-700 hover:text-green-700 transition-colors duration-200 font-medium"
                 >
                   Admin
-                </a>
+                </Link>
               </div>
             </div>
           )}

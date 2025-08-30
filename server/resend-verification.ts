@@ -35,7 +35,7 @@ export async function resendVerificationEmail(email: string): Promise<boolean> {
     const { sendEmailViaSendGrid } = await import('./sendgrid');
     
     // Always use the production URL for email links
-    const baseUrl = "https://cascadia-oceanic-photo-voting-app.replit.app";
+    const baseUrl = process.env.BASE_URL || "https://cascadia-oceanic-photo-voting-app.chrismcnulty.net";
     const verificationUrl = `${baseUrl}/verify-email?token=${verificationToken}`;
     
     const html = `

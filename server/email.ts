@@ -44,8 +44,8 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
 }
 
 export async function sendVerificationEmail(email: string, token: string): Promise<boolean> {
-  // Always use the production URL for email links
-  const baseUrl = "https://cascadia-oceanic-photo-voting-app.replit.app";
+  // Use environment variable for base URL, fallback to your production domain
+  const baseUrl = process.env.BASE_URL || "https://cascadia-oceanic-photo-voting-app.chrismcnulty.net";
   const verificationUrl = `${baseUrl}/verify-email?token=${token}`;
   
   const html = `
@@ -72,8 +72,8 @@ export async function sendVerificationEmail(email: string, token: string): Promi
 }
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<boolean> {
-  // Always use the production URL for email links
-  const baseUrl = "https://cascadia-oceanic-photo-voting-app.replit.app";
+  // Use environment variable for base URL, fallback to your production domain
+  const baseUrl = process.env.BASE_URL || "https://cascadia-oceanic-photo-voting-app.chrismcnulty.net";
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
   
   const html = `

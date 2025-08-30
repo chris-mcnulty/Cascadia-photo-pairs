@@ -139,13 +139,23 @@ export default function Home() {
     }) => {
       // Include session ID if admin is logged in for vote segregation
       const sessionId = localStorage.getItem('admin-session-id');
-      const headers = sessionId ? { 'x-session-id': sessionId } : undefined;
+      
+      // CRITICAL FIX: Include JWT token for authenticated users
+      const authToken = localStorage.getItem('auth-token');
+      
+      const headers: Record<string, string> = {};
+      if (sessionId) {
+        headers['x-session-id'] = sessionId;
+      }
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
       
       const response = await apiRequest("POST", "/api/votes", { 
         photoId, 
         winnerPhotoId, 
         loserPhotoId 
-      }, headers);
+      }, Object.keys(headers).length > 0 ? headers : undefined);
       return response.json();
     },
     onSuccess: (data, variables) => {

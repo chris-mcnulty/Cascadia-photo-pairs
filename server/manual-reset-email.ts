@@ -2,7 +2,7 @@ import { sendEmailViaSendGrid } from './sendgrid';
 
 export async function sendManualPasswordResetEmail(email: string, resetCode: string): Promise<boolean> {
   // Use environment variable for base URL, fallback to your production domain
-  const baseUrl = process.env.BASE_URL || "https://cascadia-oceanic-photo-voting-app.chrismcnulty.net";
+  const baseUrl = process.env.BASE_URL || "https://photo-pairs.chrismcnulty.net";
   
   const resetUrl = `${baseUrl}/reset-password?token=${resetCode}`;
   

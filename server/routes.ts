@@ -1106,6 +1106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+
   // Admin: Get all users (requires admin)
   app.get("/api/admin/users", async (req, res) => {
     try {
@@ -1115,22 +1116,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Admin access required" });
       }
       
-      // Get all users with their vote counts
-      const allUsers = await db.select({
-        id: users.id,
-        email: users.email,
-        username: users.username,
-        firstName: users.firstName,
-        lastName: users.lastName,
-        emailVerified: users.emailVerified,
-        isAdmin: users.isAdmin,
-        isMasterAdmin: users.isMasterAdmin,
-        createdAt: users.createdAt,
-        lastLoginAt: users.lastLoginAt,
-        totalVotes: sql`(SELECT COUNT(*) FROM ${votes} WHERE ${votes.userId} = ${users.id})`.as('totalVotes')
-      })
-      .from(users)
-      .orderBy(sql`${users.createdAt} DESC`);
+      // Get all users with their vote counts - simplified working approach
+      const usersResult = await db.execute(sql`
+        SELECT 
+          u.id,
+          u.email,
+          u.username,
+          u.first_name,
+          u.last_name,
+          u.email_verified,
+          u.is_admin,
+          u.is_master_admin,
+          u.created_at,
+          u.last_login_at,
+          COALESCE(v.vote_count, 0) as total_votes
+        FROM users u
+        LEFT JOIN (
+          SELECT user_id, COUNT(*) as vote_count
+          FROM votes
+          WHERE user_id IS NOT NULL
+          GROUP BY user_id
+        ) v ON u.id = v.user_id
+        ORDER BY u.created_at DESC
+      `);
+      
+      const allUsers = usersResult.rows.map(row => ({
+        id: row.id,
+        email: row.email,
+        username: row.username,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        emailVerified: row.email_verified,
+        isAdmin: row.is_admin,
+        isMasterAdmin: row.is_master_admin,
+        createdAt: row.created_at,
+        lastLoginAt: row.last_login_at,
+        totalVotes: String(row.total_votes)
+      }));
       
       res.json(allUsers);
     } catch (error) {

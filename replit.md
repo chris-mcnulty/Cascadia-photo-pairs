@@ -10,6 +10,7 @@ Preferred communication style: Simple, everyday language.
 - **CRITICAL VOTE TRACKING BUG FIXED (Aug 30, 2025)**: Resolved major issue where authenticated user votes weren't being recorded due to missing JWT token headers in vote requests. Fixed vote tracking for contest integrity and legal compliance. Confirmed working with test user vote successfully recorded.
 - **Email Verification FULLY FIXED (Aug 30, 2025)**: Added missing /api/auth/verify-email endpoint and updated all email URLs to use correct SSL-enabled production domain. Email verification now works end-to-end with proper token validation and user status updates.
 - **Authentication System Launch (Aug 30, 2025)**: Fixed mobile menu 404 login issue by correcting `/api/login` to `/login` in mobile voting interface. Complete user registration, email verification, and login flow now fully operational for production.
+- **Admin Vote Display Bug FIXED (Aug 30, 2025)**: Resolved admin interface showing zero vote counts despite votes being recorded. Fixed query implementation to properly display user vote counts using SQL LEFT JOIN approach for accurate admin dashboard statistics.
 
 ## System Architecture
 

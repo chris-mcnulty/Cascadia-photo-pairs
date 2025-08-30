@@ -247,6 +247,7 @@ export default function Home() {
               >
                 Leaderboard
               </Link>
+              {/* Show auth buttons if either dev or prod login is enabled */}
               {(settings?.userLoginEnabledProd || settings?.userLoginEnabledDev) && (
                 <AuthenticationButtons />
               )}
@@ -320,6 +321,7 @@ export default function Home() {
                 >
                   Leaderboard
                 </Link>
+                {/* Show auth buttons if either dev or prod login is enabled */}
                 {(settings?.userLoginEnabledProd || settings?.userLoginEnabledDev) && (
                   <AuthenticationButtons isMobile />
                 )}

@@ -44,8 +44,8 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
 }
 
 export async function sendVerificationEmail(email: string, token: string): Promise<boolean> {
-  // Use correct production domain - check both possible domains
-  const baseUrl = process.env.BASE_URL || "https://photo-pairs.chrismcnulty.net";
+  // Use correct production domain 
+  const baseUrl = process.env.BASE_URL || "https://voting.chrismcnulty.net";
   const verificationUrl = `${baseUrl}/verify-email?token=${token}`;
   
   const html = `
@@ -72,8 +72,8 @@ export async function sendVerificationEmail(email: string, token: string): Promi
 }
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<boolean> {
-  // Use correct production domain - check both possible domains  
-  const baseUrl = process.env.BASE_URL || "https://photo-pairs.chrismcnulty.net";
+  // Use correct production domain
+  const baseUrl = process.env.BASE_URL || "https://voting.chrismcnulty.net";
   const resetUrl = `${baseUrl}/reset-password?token=${token}`;
   
   const html = `

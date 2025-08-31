@@ -33,7 +33,9 @@ export default function AdminSettings() {
     userLoginEnabledProd: false,
     consentCopyLong: "",
     consentCopyShort: "",
-
+    pairsEnabled: false,
+    pairsMinInterval: 4,
+    pairsMaxInterval: 8,
   });
 
   const updateSettingsMutation = useMutation({
@@ -119,7 +121,9 @@ export default function AdminSettings() {
         userLoginEnabledProd: settings.userLoginEnabledProd !== undefined ? settings.userLoginEnabledProd : false,
         consentCopyLong: settings.consentCopyLong || "By registering, you agree to receive updates, tips, and offers from Christopher F. McNulty (Chris) and Cascadia Oceanic LLC. You can unsubscribe anytime via the link in our emails or by contacting privacy@chrismcnulty.net. We do not sell your information. See our Privacy Policy: https://www.chrismcnulty.net/privacy",
         consentCopyShort: settings.consentCopyShort || "I agree to receive updates from Christopher F. McNulty (Chris) & Cascadia Oceanic LLC and accept the Privacy Policy.",
-
+        pairsEnabled: settings.pairsEnabled !== undefined ? settings.pairsEnabled : false,
+        pairsMinInterval: settings.pairsMinInterval || 4,
+        pairsMaxInterval: settings.pairsMaxInterval || 8,
       });
     }
   }, [settings]);
@@ -224,6 +228,71 @@ export default function AdminSettings() {
               <br />
               <strong>Purchase Priority:</strong> Master control (this toggle) → Individual photo "Never for Sale" setting
             </div>
+          </div>
+
+          {/* Photo Pairs Feature Settings */}
+          <div className="space-y-4 p-4 border border-purple-300 bg-purple-50 rounded-lg">
+            <div className="text-lg font-semibold text-purple-900">Photo Pairs Feature</div>
+            
+            {/* Pairs Toggle */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label className="text-base font-medium text-purple-900">Enable Photo Pairs</Label>
+                <div className="text-sm text-purple-700">
+                  Show predefined photo pairs (e.g., color vs B&W versions) at regular intervals
+                </div>
+              </div>
+              <Switch
+                checked={formData.pairsEnabled}
+                onCheckedChange={(checked) => 
+                  setFormData(prev => ({ ...prev, pairsEnabled: checked }))
+                }
+                className="data-[state=checked]:bg-purple-600"
+              />
+            </div>
+            
+            {/* Frequency Settings */}
+            {formData.pairsEnabled && (
+              <div className="space-y-3 mt-3 pl-4 border-l-2 border-purple-300">
+                <div className="space-y-2">
+                  <Label htmlFor="pairsMinInterval" className="text-sm font-medium text-purple-900">
+                    Minimum Votes Between Pairs
+                  </Label>
+                  <Input
+                    id="pairsMinInterval"
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={formData.pairsMinInterval}
+                    onChange={(e) => 
+                      setFormData(prev => ({ ...prev, pairsMinInterval: parseInt(e.target.value) || 4 }))
+                    }
+                    className="w-24"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="pairsMaxInterval" className="text-sm font-medium text-purple-900">
+                    Maximum Votes Between Pairs
+                  </Label>
+                  <Input
+                    id="pairsMaxInterval"
+                    type="number"
+                    min="1"
+                    max="50"
+                    value={formData.pairsMaxInterval}
+                    onChange={(e) => 
+                      setFormData(prev => ({ ...prev, pairsMaxInterval: parseInt(e.target.value) || 8 }))
+                    }
+                    className="w-24"
+                  />
+                </div>
+                
+                <div className="text-xs text-purple-600">
+                  Pairs will appear randomly within this vote interval range to add variety
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Admin Password */}

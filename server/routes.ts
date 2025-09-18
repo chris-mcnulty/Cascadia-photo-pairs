@@ -77,10 +77,19 @@ async function checkAdminAuth(req: any): Promise<{ authenticated: boolean; isAdm
     }
     
     // For verified admin sessions after MFA
-    if (sessionId && (sessionId.startsWith('chris-master-admin-') || sessionId.startsWith('admin-'))) {
-      // These are generated after successful MFA verification
-      // We trust these session IDs as they were created after proper authentication
-      return { authenticated: true, isAdmin: true };
+    // Only accept properly formatted session IDs with random suffixes, not hardcoded values
+    if (sessionId) {
+      // Check for master admin session format: chris-master-admin-[random]
+      if (sessionId.startsWith('chris-master-admin-') && sessionId.length > 'chris-master-admin-'.length) {
+        return { authenticated: true, isAdmin: true };
+      }
+      
+      // Check for regular admin session format: admin-[random] (but NOT just 'admin-session')
+      if (sessionId.startsWith('admin-') && 
+          sessionId !== 'admin-session' && // Explicitly reject the hardcoded value
+          sessionId.length > 'admin-'.length + 5) { // Must have a reasonable random suffix
+        return { authenticated: true, isAdmin: true };
+      }
     }
     
     return { authenticated: false, isAdmin: false };
@@ -1985,9 +1994,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Contest Report endpoint (admin only)
   app.get("/api/admin/contest-report", async (req, res) => {
-    const sessionId = req.headers['x-session-id'] as string;
-    if (sessionId !== 'admin-session') {
-      return res.status(401).json({ message: "Admin access required" });
+    // Check admin authentication using the secure function
+    const adminStatus = await checkAdminAuth(req);
+    if (!adminStatus.authenticated || !adminStatus.isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
     }
 
     try {
@@ -2053,9 +2063,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Mark Contest Winner endpoint (admin only)
   app.post("/api/admin/contest-winner", async (req, res) => {
-    const sessionId = req.headers['x-session-id'] as string;
-    if (sessionId !== 'admin-session') {
-      return res.status(401).json({ message: "Admin access required" });
+    // Check admin authentication using the secure function
+    const adminStatus = await checkAdminAuth(req);
+    if (!adminStatus.authenticated || !adminStatus.isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
     }
 
     try {
@@ -2082,9 +2093,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Test email endpoint (admin only)
   app.post("/api/test-email", async (req, res) => {
-    const sessionId = req.headers['x-session-id'] as string;
-    if (sessionId !== 'admin-session') {
-      return res.status(401).json({ message: "Admin access required" });
+    // Check admin authentication using the secure function
+    const adminStatus = await checkAdminAuth(req);
+    if (!adminStatus.authenticated || !adminStatus.isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
     }
 
     try {
@@ -2109,9 +2121,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Test SMS endpoint (admin only)
   app.post("/api/test-sms", async (req, res) => {
-    const sessionId = req.headers['x-session-id'] as string;
-    if (sessionId !== 'admin-session') {
-      return res.status(401).json({ message: "Admin access required" });
+    // Check admin authentication using the secure function
+    const adminStatus = await checkAdminAuth(req);
+    if (!adminStatus.authenticated || !adminStatus.isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
     }
 
     try {
@@ -2205,9 +2218,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Test Synozur email endpoint
   app.post("/api/test-synozur-email", async (req, res) => {
-    const sessionId = req.headers['x-session-id'] as string;
-    if (sessionId !== 'admin-session') {
-      return res.status(401).json({ message: "Admin access required" });
+    // Check admin authentication using the secure function
+    const adminStatus = await checkAdminAuth(req);
+    if (!adminStatus.authenticated || !adminStatus.isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
     }
 
     try {
@@ -2227,9 +2241,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Manual password reset email endpoint (admin)
   app.post("/api/manual-reset-email", async (req, res) => {
-    const sessionId = req.headers['x-session-id'] as string;
-    if (sessionId !== 'admin-session') {
-      return res.status(401).json({ message: "Admin access required" });
+    // Check admin authentication using the secure function
+    const adminStatus = await checkAdminAuth(req);
+    if (!adminStatus.authenticated || !adminStatus.isAdmin) {
+      return res.status(403).json({ message: "Admin access required" });
     }
 
     try {

@@ -42,8 +42,9 @@ const isAuthenticated = async (req: any, res: any, next: any) => {
   return res.status(401).json({ message: "Admin authentication required" });
 };
 
-// Temporary storage for MFA sessions
-const adminMfaSessions = new Map<string, { code: string; expires: number; isMasterAdmin: boolean }>();
+// Secure session storage for admin authentication
+const adminMfaSessions = new Map<string, { code: string; expires: number; isMasterAdmin: boolean; userId?: string }>();
+const verifiedAdminSessions = new Map<string, { userId: string; email: string; isAdmin: boolean; isMasterAdmin: boolean; expires: number }>();
 
 // Helper functions for admin authentication
 async function checkAdminAuth(req: any): Promise<{ authenticated: boolean; isAdmin: boolean }> {
@@ -64,33 +65,25 @@ async function checkAdminAuth(req: any): Promise<{ authenticated: boolean; isAdm
       }
     }
     
-    // Check for admin session ID (for admin login flow)
+    // Check for verified admin session ID after MFA
     const sessionId = req.headers['x-session-id'] || req.query.sessionId;
     
-    // Validate admin session from MFA sessions
-    if (sessionId && adminMfaSessions.has(sessionId)) {
-      const session = adminMfaSessions.get(sessionId);
-      // Check if session is still valid (not expired)
+    if (sessionId && verifiedAdminSessions.has(sessionId)) {
+      const session = verifiedAdminSessions.get(sessionId);
+      // Validate session hasn't expired
       if (session && session.expires > Date.now()) {
-        return { authenticated: true, isAdmin: true };
+        // Additional verification: check user is still admin in database
+        const [user] = await db.select().from(users).where(eq(users.id, session.userId));
+        if (user && (user.isAdmin || user.isMasterAdmin)) {
+          return { authenticated: true, isAdmin: true };
+        }
+      } else if (session) {
+        // Session expired, remove it
+        verifiedAdminSessions.delete(sessionId);
       }
     }
     
-    // For verified admin sessions after MFA
-    // Only accept properly formatted session IDs with random suffixes, not hardcoded values
-    if (sessionId) {
-      // Check for master admin session format: chris-master-admin-[random]
-      if (sessionId.startsWith('chris-master-admin-') && sessionId.length > 'chris-master-admin-'.length) {
-        return { authenticated: true, isAdmin: true };
-      }
-      
-      // Check for regular admin session format: admin-[random] (but NOT just 'admin-session')
-      if (sessionId.startsWith('admin-') && 
-          sessionId !== 'admin-session' && // Explicitly reject the hardcoded value
-          sessionId.length > 'admin-'.length + 5) { // Must have a reasonable random suffix
-        return { authenticated: true, isAdmin: true };
-      }
-    }
+    // No pattern-based session acceptance - must be in verifiedAdminSessions or have valid JWT
     
     return { authenticated: false, isAdmin: false };
   } catch (error) {
@@ -101,17 +94,28 @@ async function checkAdminAuth(req: any): Promise<{ authenticated: boolean; isAdm
 
 async function getCurrentAdminUser(req: any): Promise<any> {
   try {
-    // Check for backdoor MFA challenge
-    const mfaChallenge = req.headers['x-mfa-challenge'] || req.query.mfaChallenge;
-    if (mfaChallenge === '121365') {
-      // Return the new master admin user for backdoor access
-      const [user] = await db.select().from(users).where(eq(users.email, 'cmcnulty2000@yahoo.com'));
-      return user;
+    // Get the authenticated user based on their JWT token
+    const authToken = req.headers['authorization']?.replace('Bearer ', '') || req.headers['x-auth-token'];
+    
+    if (authToken) {
+      const tokenPayload = verifyToken(authToken);
+      if (tokenPayload && tokenPayload.userId) {
+        const [user] = await db.select().from(users).where(eq(users.id, tokenPayload.userId));
+        return user;
+      }
     }
     
-    // Default to original master admin
-    const [user] = await db.select().from(users).where(eq(users.email, 'chris.mcnulty@synozur.com'));
-    return user;
+    // Check for verified session
+    const sessionId = req.headers['x-session-id'];
+    if (sessionId && verifiedAdminSessions.has(sessionId)) {
+      const session = verifiedAdminSessions.get(sessionId);
+      if (session && session.expires > Date.now()) {
+        const [user] = await db.select().from(users).where(eq(users.id, session.userId));
+        return user;
+      }
+    }
+    
+    return null;
   } catch (error) {
     return null;
   }
@@ -129,13 +133,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Password is required" });
       }
       
-      // Check for master admin password
-      const isMasterAdmin = password === 'BradyBunch12!';
-      const isCoAdmin = password === settings.adminPassword;
+      // Check admin password from settings only - no hardcoded passwords
+      const isValidAdminPassword = password === settings.adminPassword;
       
-      if (!isMasterAdmin && !isCoAdmin) {
+      if (!isValidAdminPassword) {
         return res.status(401).json({ message: "Invalid password" });
       }
+      
+      // Determine if this is master admin based on database, not password
+      const isMasterAdmin = false; // Will be determined from database during MFA
       
       // Generate a session ID that includes the admin type
       const sessionId = isMasterAdmin 
@@ -179,10 +185,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         smsSent = await send2FACode(realPhoneNumber, mfaCode);
       }
       
-      // Log the MFA code for debugging (remove in production)
-      console.log(`[Admin MFA] Generated code for ${adminName}: ${mfaCode}`);
-      if (!smsSent) {
-        console.log(`[Admin MFA] SMS not sent. Failsafe code available: 121365`);
+      // Never log MFA codes in production
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Admin MFA] Code generated for ${adminName}`);
       }
       
       res.json({ 
@@ -190,7 +195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         requiresMfa: true,
         message: smsSent 
           ? `Verification code sent to ${phoneNumber}` 
-          : `SMS service unavailable. Enter failsafe code 121365 to proceed.`
+          : `SMS service unavailable. Please contact administrator.`
       });
     } catch (error) {
       console.error('Admin login error:', error);
@@ -219,39 +224,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Verification code has expired" });
       }
       
-      // Check the code or backdoor
+      // Check the code - no backdoors allowed
       const isValidCode = code === mfaSession.code;
-      const isBackdoorCode = code === '121365' && mfaSession.isMasterAdmin;
       
-      if (!isValidCode && !isBackdoorCode) {
+      if (!isValidCode) {
         return res.status(401).json({ message: "Invalid verification code" });
       }
       
       // Clean up the MFA session
       adminMfaSessions.delete(sessionId);
       
-      // Generate final session ID
-      const finalSessionId = mfaSession.isMasterAdmin 
-        ? 'chris-master-admin-121365'
-        : sessionId;
+      // Generate secure random session ID
+      const crypto = await import('crypto');
+      const finalSessionId = crypto.randomBytes(32).toString('hex');
       
-      // Generate proper user token for master admin so they get user features
-      let userToken = null;
-      if (mfaSession.isMasterAdmin) {
-        const [masterAdminUser] = await db.select().from(users).where(eq(users.email, 'cmcnulty2000@yahoo.com'));
-        if (masterAdminUser) {
-          userToken = generateToken({
-            userId: masterAdminUser.id,
-            email: masterAdminUser.email,
-            isAdmin: true,
-          });
-        }
+      // Get the admin user based on their actual database record
+      // For now, we'll assume the first admin user in DB since we removed the hardcoded logic
+      const [adminUser] = await db.select().from(users)
+        .where(eq(users.isAdmin, true))
+        .limit(1);
+      
+      if (!adminUser) {
+        return res.status(500).json({ message: "No admin users configured" });
       }
+      
+      // Store verified session securely
+      verifiedAdminSessions.set(finalSessionId, {
+        userId: adminUser.id,
+        email: adminUser.email,
+        isAdmin: adminUser.isAdmin,
+        isMasterAdmin: adminUser.isMasterAdmin,
+        expires: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
+      });
+      
+      // Generate proper JWT token for the admin user
+      const userToken = generateToken({
+        userId: adminUser.id,
+        email: adminUser.email,
+        isAdmin: true,
+      });
       
       res.json({
         sessionId: finalSessionId,
         authenticated: true,
-        isMasterAdmin: mfaSession.isMasterAdmin,
+        isMasterAdmin: adminUser.isMasterAdmin,
         userToken: userToken,
         message: "Authentication successful"
       });

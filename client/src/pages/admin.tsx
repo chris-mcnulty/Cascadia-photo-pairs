@@ -207,20 +207,28 @@ function AuthenticatedAdmin() {
   
   useEffect(() => {
     const checkAdminAuth = async () => {
-      // Check if this is truly an admin session
-      if (sessionId) {
-        try {
-          const response = await fetch('/api/auth/admin-status', {
-            headers: {
-              'x-session-id': sessionId
-            }
-          });
-          const data = await response.json();
-          setIsAdmin(data.isAdmin || false);
-        } catch (error) {
-          console.error('Admin auth check failed:', error);
-          setIsAdmin(false);
+      try {
+        const headers: Record<string, string> = {};
+        
+        // Check for JWT token first (regular user login)
+        const authToken = localStorage.getItem('auth-token');
+        if (authToken) {
+          headers['Authorization'] = `Bearer ${authToken}`;
         }
+        
+        // Also check for admin session ID
+        if (sessionId) {
+          headers['x-session-id'] = sessionId;
+        }
+        
+        const response = await fetch('/api/auth/admin-status', { headers });
+        const data = await response.json();
+        setIsAdmin(data.isAdmin || false);
+        
+        console.log('Admin auth check result:', data);
+      } catch (error) {
+        console.error('Admin auth check failed:', error);
+        setIsAdmin(false);
       }
       setCheckingAuth(false);
     };
@@ -233,11 +241,13 @@ function AuthenticatedAdmin() {
     </div>;
   }
   
-  if (!isAuthenticated || !sessionId || !isAdmin) {
-    return <AdminLogin onAuthenticated={login} />;
+  // Check if user has valid JWT admin access OR admin session
+  const authToken = localStorage.getItem('auth-token');
+  if (isAdmin && (authToken || (isAuthenticated && sessionId))) {
+    return <AdminDashboard />;
   }
   
-  return <AdminDashboard />;
+  return <AdminLogin onAuthenticated={login} />;
 }
 
 export default function Admin() {

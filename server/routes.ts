@@ -624,15 +624,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Get Admin Auth Status (separate endpoint for admin panel)
   app.get("/api/auth/admin-status", async (req, res) => {
-    const adminSessionId = req.headers['x-session-id'] as string;
-    if (adminSessionId) {
-      // This confirms admin panel access
-      return res.json({ 
-        authenticated: true,
-        isAdmin: true
+    try {
+      // Use our secure authentication check
+      const adminStatus = await checkAdminAuth(req);
+      return res.json({
+        authenticated: adminStatus.authenticated,
+        isAdmin: adminStatus.isAdmin
       });
+    } catch (error) {
+      console.error('Admin status check failed:', error);
+      return res.json({ authenticated: false, isAdmin: false });
     }
-    return res.json({ authenticated: false, isAdmin: false });
   });
   
   // Get Auth Status

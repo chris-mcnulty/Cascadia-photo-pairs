@@ -43,31 +43,30 @@ export default function UserManagement() {
 
   // Fetch all users
   const { data: users = [], isLoading } = useQuery<User[]>({
-    queryKey: ["/api/admin/users"],
-    queryFn: async () => {
-      const response = await fetch("/api/admin/users", {
-        headers: {
-          'X-Session-Id': 'admin-session' // Use simple session auth for admin
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to fetch users");
-      }
-      
-      return response.json();
-    }
+    queryKey: ["/api/admin/users"]
+    // Using default queryFn which includes auth headers automatically
   });
 
   // Promote/demote admin mutation
   const toggleAdminMutation = useMutation({
     mutationFn: async ({ userId, makeAdmin }: { userId: string; makeAdmin: boolean }) => {
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Include proper authentication headers
+      const sessionId = localStorage.getItem('admin-session-id');
+      if (sessionId) {
+        headers['X-Session-Id'] = sessionId;
+      }
+      const authToken = localStorage.getItem('auth-token');
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      
       const response = await fetch(`/api/admin/users/${userId}/admin`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Session-Id': 'admin-session'
-        },
+        headers,
         body: JSON.stringify({ isAdmin: makeAdmin })
       });
       
@@ -101,11 +100,21 @@ export default function UserManagement() {
   // Delete user mutation
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
+      const headers: Record<string, string> = {};
+      
+      // Include proper authentication headers
+      const sessionId = localStorage.getItem('admin-session-id');
+      if (sessionId) {
+        headers['X-Session-Id'] = sessionId;
+      }
+      const authToken = localStorage.getItem('auth-token');
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      
       const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'DELETE',
-        headers: {
-          'X-Session-Id': 'admin-session'
-        }
+        headers
       });
       
       if (!response.ok) {
@@ -134,9 +143,19 @@ export default function UserManagement() {
   // Resend verification email mutation
   const resendVerificationMutation = useMutation({
     mutationFn: async (email: string) => {
-      const response = await apiRequest("POST", "/api/admin/resend-verification", { email }, {
-        'X-Session-Id': 'admin-session'
-      });
+      const headers: Record<string, string> = {};
+      
+      // Include proper authentication headers
+      const sessionId = localStorage.getItem('admin-session-id');
+      if (sessionId) {
+        headers['X-Session-Id'] = sessionId;
+      }
+      const authToken = localStorage.getItem('auth-token');
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      
+      const response = await apiRequest("POST", "/api/admin/resend-verification", { email }, headers);
       
       if (!response.ok) {
         const error = await response.json();

@@ -65,20 +65,8 @@ export default function NewsManagement() {
 
   // Fetch news items
   const { data: newsItems = [], isLoading } = useQuery<NewsItem[]>({
-    queryKey: ["/api/admin/news"],
-    queryFn: async () => {
-      const response = await fetch("/api/admin/news", {
-        headers: {
-          'X-Session-Id': 'admin-session'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to fetch news items");
-      }
-      
-      return response.json();
-    }
+    queryKey: ["/api/admin/news"]
+    // Using default queryFn which includes auth headers automatically
   });
 
   // Fetch RSS settings
@@ -111,12 +99,23 @@ export default function NewsManagement() {
       const url = editingItem ? `/api/admin/news/${editingItem.id}` : "/api/admin/news";
       const method = editingItem ? "PUT" : "POST";
       
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Include proper authentication headers
+      const sessionId = localStorage.getItem('admin-session-id');
+      if (sessionId) {
+        headers['X-Session-Id'] = sessionId;
+      }
+      const authToken = localStorage.getItem('auth-token');
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      
       const response = await fetch(url, {
         method,
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Session-Id': 'admin-session'
-        },
+        headers,
         body: JSON.stringify({
           title: formData.title,
           description: formData.description,
@@ -156,11 +155,21 @@ export default function NewsManagement() {
   // Delete news item
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      const headers: Record<string, string> = {};
+      
+      // Include proper authentication headers
+      const sessionId = localStorage.getItem('admin-session-id');
+      if (sessionId) {
+        headers['X-Session-Id'] = sessionId;
+      }
+      const authToken = localStorage.getItem('auth-token');
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      
       const response = await fetch(`/api/admin/news/${id}`, {
         method: 'DELETE',
-        headers: {
-          'X-Session-Id': 'admin-session'
-        }
+        headers
       });
       
       if (!response.ok) {

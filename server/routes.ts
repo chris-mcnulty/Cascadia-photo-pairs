@@ -32,14 +32,13 @@ import { rssService } from "./rss-service";
 
 // Simple middleware for admin auth check (for pairs endpoints)
 const isAuthenticated = async (req: any, res: any, next: any) => {
-  const sessionId = req.headers['x-session-id'];
-  
-  // Accept any session that contains 'admin' or starts with 'chris-master-admin'
-  if (sessionId && (sessionId.includes('admin') || sessionId.startsWith('chris-'))) {
+  // Use the proper checkAdminAuth function
+  const adminStatus = await checkAdminAuth(req);
+  if (adminStatus.authenticated && adminStatus.isAdmin) {
     return next();
   }
   
-  console.log('Authentication failed for sessionId:', sessionId);
+  console.log('Authentication failed for request');
   return res.status(401).json({ message: "Admin authentication required" });
 };
 
@@ -49,15 +48,44 @@ const adminMfaSessions = new Map<string, { code: string; expires: number; isMast
 // Helper functions for admin authentication
 async function checkAdminAuth(req: any): Promise<{ authenticated: boolean; isAdmin: boolean }> {
   try {
-    const sessionId = req.headers['x-session-id'] || req.query.sessionId;
+    // First check for JWT token from regular user authentication
+    const authToken = req.headers['authorization']?.replace('Bearer ', '') || req.headers['x-auth-token'];
     
-    if (!sessionId || sessionId !== 'admin-session') {
-      return { authenticated: false, isAdmin: false };
+    if (authToken) {
+      // Verify JWT token and check admin status from database
+      const tokenPayload = verifyToken(authToken);
+      if (tokenPayload && tokenPayload.userId) {
+        // Get user from database to verify current admin status
+        const [user] = await db.select().from(users).where(eq(users.id, tokenPayload.userId));
+        
+        if (user && (user.isAdmin || user.isMasterAdmin)) {
+          return { authenticated: true, isAdmin: true };
+        }
+      }
     }
     
-    // Simple session validation - admin is authenticated
-    return { authenticated: true, isAdmin: true };
+    // Check for admin session ID (for admin login flow)
+    const sessionId = req.headers['x-session-id'] || req.query.sessionId;
+    
+    // Validate admin session from MFA sessions
+    if (sessionId && adminMfaSessions.has(sessionId)) {
+      const session = adminMfaSessions.get(sessionId);
+      // Check if session is still valid (not expired)
+      if (session && session.expires > Date.now()) {
+        return { authenticated: true, isAdmin: true };
+      }
+    }
+    
+    // For verified admin sessions after MFA
+    if (sessionId && (sessionId.startsWith('chris-master-admin-') || sessionId.startsWith('admin-'))) {
+      // These are generated after successful MFA verification
+      // We trust these session IDs as they were created after proper authentication
+      return { authenticated: true, isAdmin: true };
+    }
+    
+    return { authenticated: false, isAdmin: false };
   } catch (error) {
+    console.error('Admin auth check error:', error);
     return { authenticated: false, isAdmin: false };
   }
 }

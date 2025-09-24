@@ -1350,7 +1350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/news", async (req, res) => {
     try {
       // Get current settings to determine news source
-      const [currentSettings] = await db.select().from(settingsTable).where(eq(settingsTable.id, "main"));
+      const [currentSettings] = await db.select().from(settingsTable).where(eq(settingsTable.id, "default"));
       
       if (!currentSettings) {
         return res.json([]);

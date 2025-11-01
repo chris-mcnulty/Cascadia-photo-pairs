@@ -132,52 +132,9 @@ export function PairsManagement() {
     .filter(photo => !photo.archived)
     .sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 
-  // Fetch all pairs
+  // Fetch all pairs - uses default queryFn which includes auth headers automatically
   const { data: pairs = [], isLoading: pairsLoading, error: pairsError } = useQuery<PhotoPair[]>({
     queryKey: ["/api/pairs"],
-    queryFn: async () => {
-      // Get fresh admin session ID
-      let sessionId = localStorage.getItem('admin-session-id');
-      if (!sessionId || !sessionId.startsWith('chris-master-admin')) {
-        // Re-authenticate to get proper session
-        try {
-          const authResponse = await fetch('/api/auth/admin-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: 'BradyBunch12!' })
-          });
-          if (authResponse.ok) {
-            const authData = await authResponse.json();
-            sessionId = authData.sessionId;
-            localStorage.setItem('admin-session-id', sessionId);
-          }
-        } catch (error) {
-          console.error('Failed to re-authenticate:', error);
-        }
-      }
-      
-      if (!sessionId) {
-        throw new Error('No admin session available');
-      }
-      
-      console.log('Fetching pairs with sessionId:', sessionId);
-      
-      const response = await fetch("/api/pairs", {
-        headers: {
-          'x-session-id': sessionId,
-        },
-      });
-      
-      console.log('Pairs response status:', response.status);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch pairs: ${response.status} ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      console.log('Pairs data:', data);
-      return data;
-    },
   });
 
   // Fetch pair stats
@@ -193,30 +150,10 @@ export function PairsManagement() {
     },
   });
 
-  // Create pair mutation
+  // Create pair mutation - uses apiRequest which includes auth headers automatically
   const createPairMutation = useMutation({
     mutationFn: async (data: { photo1Id: string; photo2Id: string; description?: string }) => {
-      // Get the actual session ID from localStorage
-      const sessionId = localStorage.getItem('admin-session-id');
-      console.log('Creating pair with sessionId:', sessionId);
-      
-      if (!sessionId) {
-        throw new Error('No admin session found. Please refresh and log in again.');
-      }
-      
-      const response = await fetch("/api/pairs", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          'x-session-id': sessionId,
-        },
-        body: JSON.stringify(data),
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Pair creation failed:', response.status, errorText);
-        throw new Error(`Failed to create pair: ${response.status} ${errorText}`);
-      }
+      const response = await apiRequest("POST", "/api/pairs", data);
       return response.json();
     },
     onSuccess: () => {
@@ -239,24 +176,10 @@ export function PairsManagement() {
     },
   });
 
-  // Delete pair mutation
+  // Delete pair mutation - uses apiRequest which includes auth headers automatically
   const deletePairMutation = useMutation({
     mutationFn: async (pairId: string) => {
-      const sessionId = localStorage.getItem('admin-session-id');
-      if (!sessionId) {
-        throw new Error('No admin session found');
-      }
-      
-      const response = await fetch(`/api/pairs/${pairId}`, {
-        method: "DELETE",
-        headers: {
-          'x-session-id': sessionId,
-        },
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to delete pair");
-      }
+      const response = await apiRequest("DELETE", `/api/pairs/${pairId}`);
       return response.json();
     },
     onSuccess: () => {
@@ -275,24 +198,10 @@ export function PairsManagement() {
     },
   });
 
-  // Archive photo mutation
+  // Archive photo mutation - uses apiRequest which includes auth headers automatically
   const archivePhotoMutation = useMutation({
     mutationFn: async (photoId: string) => {
-      const sessionId = localStorage.getItem('admin-session-id');
-      if (!sessionId) {
-        throw new Error('No admin session found');
-      }
-      
-      const response = await fetch(`/api/photos/${photoId}/archive`, {
-        method: "POST",
-        headers: {
-          'x-session-id': sessionId,
-        },
-      });
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to archive photo");
-      }
+      const response = await apiRequest("POST", `/api/photos/${photoId}/archive`);
       return response.json();
     },
     onSuccess: () => {

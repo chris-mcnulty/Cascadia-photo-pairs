@@ -212,17 +212,24 @@ function AuthenticatedAdmin() {
         
         // Check for JWT token first (regular user login)
         const authToken = localStorage.getItem('auth-token');
+        console.log('[Admin Auth] Auth token present:', !!authToken);
         if (authToken) {
           headers['Authorization'] = `Bearer ${authToken}`;
+          console.log('[Admin Auth] Added Authorization header');
         }
         
         // Also check for admin session ID
+        console.log('[Admin Auth] Session ID present:', !!sessionId);
         if (sessionId) {
           headers['x-session-id'] = sessionId;
+          console.log('[Admin Auth] Added session ID header');
         }
         
+        console.log('[Admin Auth] Making admin-status request with headers:', Object.keys(headers));
         const response = await fetch('/api/auth/admin-status', { headers });
+        console.log('[Admin Auth] Response status:', response.status);
         const data = await response.json();
+        console.log('[Admin Auth] Response data:', data);
         setIsAdmin(data.isAdmin || false);
         
         console.log('Admin auth check result:', data);

@@ -51,15 +51,19 @@ async function checkAdminAuth(req: any): Promise<{ authenticated: boolean; isAdm
   try {
     // First check for JWT token from regular user authentication
     const authToken = req.headers['authorization']?.replace('Bearer ', '') || req.headers['x-auth-token'];
+    console.log('[Server] checkAdminAuth - JWT token present:', !!authToken);
     
     if (authToken) {
       // Verify JWT token and check admin status from database
       const tokenPayload = verifyToken(authToken);
+      console.log('[Server] checkAdminAuth - Token payload:', tokenPayload ? { userId: tokenPayload.userId, email: tokenPayload.email } : null);
       if (tokenPayload && tokenPayload.userId) {
         // Get user from database to verify current admin status
         const [user] = await db.select().from(users).where(eq(users.id, tokenPayload.userId));
+        console.log('[Server] checkAdminAuth - User found:', user ? { email: user.email, isAdmin: user.isAdmin, isMasterAdmin: user.isMasterAdmin } : null);
         
         if (user && (user.isAdmin || user.isMasterAdmin)) {
+          console.log('[Server] checkAdminAuth - JWT auth successful for', user.email);
           return { authenticated: true, isAdmin: true };
         }
       }
@@ -67,6 +71,7 @@ async function checkAdminAuth(req: any): Promise<{ authenticated: boolean; isAdm
     
     // Check for verified admin session ID after MFA
     const sessionId = req.headers['x-session-id'] || req.query.sessionId;
+    console.log('[Server] checkAdminAuth - Session ID present:', !!sessionId);
     
     if (sessionId && verifiedAdminSessions.has(sessionId)) {
       const session = verifiedAdminSessions.get(sessionId);
@@ -75,15 +80,18 @@ async function checkAdminAuth(req: any): Promise<{ authenticated: boolean; isAdm
         // Additional verification: check user is still admin in database
         const [user] = await db.select().from(users).where(eq(users.id, session.userId));
         if (user && (user.isAdmin || user.isMasterAdmin)) {
+          console.log('[Server] checkAdminAuth - Session auth successful for', user.email);
           return { authenticated: true, isAdmin: true };
         }
       } else if (session) {
         // Session expired, remove it
         verifiedAdminSessions.delete(sessionId);
+        console.log('[Server] checkAdminAuth - Session expired');
       }
     }
     
     // No pattern-based session acceptance - must be in verifiedAdminSessions or have valid JWT
+    console.log('[Server] checkAdminAuth - Authentication failed');
     
     return { authenticated: false, isAdmin: false };
   } catch (error) {

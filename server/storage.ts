@@ -1,8 +1,16 @@
-import { type Photo, type InsertPhoto, type Vote, type InsertVote, type Settings, type InsertSettings, type Collection, type InsertCollection, type PhotoPair, type InsertPhotoPair, type PairVote, type InsertPairVote } from "@shared/schema";
+import { 
+  type Photo, type InsertPhoto, type Vote, type InsertVote, type Settings, type InsertSettings, 
+  type Collection, type InsertCollection, type PhotoPair, type InsertPhotoPair, type PairVote, type InsertPairVote,
+  type SalesChannel, type InsertSalesChannel, type Supplier, type InsertSupplier,
+  type ProductSize, type InsertProductSize, type SupplierPrice, type InsertSupplierPrice,
+  type Sale, type InsertSale, type InventoryItem, type InsertInventoryItem,
+  type DropShipOrder, type InsertDropShipOrder, type ExpenseCategory, type InsertExpenseCategory,
+  type Expense, type InsertExpense
+} from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { photos, votes, settings, collections, photoPairs, pairVotes } from "@shared/schema";
-import { eq, sql, inArray, and, or, gte, lte } from "drizzle-orm";
+import { photos, votes, settings, collections, photoPairs, pairVotes, salesChannels, suppliers, productSizes, supplierPrices, sales, inventoryItems, dropShipOrders, expenseCategories, expenses } from "@shared/schema";
+import { eq, sql, inArray, and, or, gte, lte, isNull, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Collections
@@ -61,6 +69,75 @@ export interface IStorage {
   getPhotoPerformanceInPairs(photoId: string): Promise<{ wins: number; losses: number; winRate: number }>;
   checkForPairDisplay(): Promise<[Photo, Photo] | null>;
   archivePhoto(id: string): Promise<boolean>;
+  
+  // Sales Channels
+  getAllSalesChannels(): Promise<SalesChannel[]>;
+  getSalesChannel(id: string): Promise<SalesChannel | undefined>;
+  createSalesChannel(channel: InsertSalesChannel): Promise<SalesChannel>;
+  updateSalesChannel(id: string, updates: Partial<SalesChannel>): Promise<SalesChannel | undefined>;
+  deleteSalesChannel(id: string): Promise<boolean>;
+  
+  // Suppliers
+  getAllSuppliers(): Promise<Supplier[]>;
+  getSupplier(id: string): Promise<Supplier | undefined>;
+  createSupplier(supplier: InsertSupplier): Promise<Supplier>;
+  updateSupplier(id: string, updates: Partial<Supplier>): Promise<Supplier | undefined>;
+  deleteSupplier(id: string): Promise<boolean>;
+  
+  // Product Sizes
+  getAllProductSizes(): Promise<ProductSize[]>;
+  getProductSize(id: string): Promise<ProductSize | undefined>;
+  createProductSize(size: InsertProductSize): Promise<ProductSize>;
+  updateProductSize(id: string, updates: Partial<ProductSize>): Promise<ProductSize | undefined>;
+  deleteProductSize(id: string): Promise<boolean>;
+  
+  // Supplier Prices
+  getCurrentSupplierPrices(supplierId?: string): Promise<SupplierPrice[]>;
+  getSupplierPriceHistory(supplierId: string, productSizeId: string): Promise<SupplierPrice[]>;
+  createSupplierPrice(price: InsertSupplierPrice): Promise<SupplierPrice>;
+  updateSupplierPrice(supplierId: string, productSizeId: string, mediaType: string, newPrice: number, notes?: string): Promise<SupplierPrice>;
+  
+  // Sales
+  getAllSales(startDate?: Date, endDate?: Date): Promise<Sale[]>;
+  getSale(id: string): Promise<Sale | undefined>;
+  createSale(sale: InsertSale): Promise<Sale>;
+  updateSale(id: string, updates: Partial<Sale>): Promise<Sale | undefined>;
+  deleteSale(id: string): Promise<boolean>;
+  getSalesByChannel(channelId: string): Promise<Sale[]>;
+  getSalesByPhoto(photoId: string): Promise<Sale[]>;
+  
+  // Inventory Items
+  getAllInventoryItems(status?: string): Promise<InventoryItem[]>;
+  getInventoryItem(id: string): Promise<InventoryItem | undefined>;
+  createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem>;
+  updateInventoryItem(id: string, updates: Partial<InventoryItem>): Promise<InventoryItem | undefined>;
+  deleteInventoryItem(id: string): Promise<boolean>;
+  getInventoryByPhoto(photoId: string): Promise<InventoryItem[]>;
+  getInventoryWithDetails(): Promise<Array<InventoryItem & { photo?: Photo; productSize?: ProductSize; sale?: Sale }>>;
+  
+  // Drop Ship Orders
+  getAllDropShipOrders(status?: string): Promise<DropShipOrder[]>;
+  getDropShipOrder(id: string): Promise<DropShipOrder | undefined>;
+  createDropShipOrder(order: InsertDropShipOrder): Promise<DropShipOrder>;
+  updateDropShipOrder(id: string, updates: Partial<DropShipOrder>): Promise<DropShipOrder | undefined>;
+  deleteDropShipOrder(id: string): Promise<boolean>;
+  getDropShipOrdersBySale(saleId: string): Promise<DropShipOrder[]>;
+  
+  // Expense Categories
+  getAllExpenseCategories(): Promise<ExpenseCategory[]>;
+  getExpenseCategory(id: string): Promise<ExpenseCategory | undefined>;
+  createExpenseCategory(category: InsertExpenseCategory): Promise<ExpenseCategory>;
+  updateExpenseCategory(id: string, updates: Partial<ExpenseCategory>): Promise<ExpenseCategory | undefined>;
+  deleteExpenseCategory(id: string): Promise<boolean>;
+  
+  // Expenses
+  getAllExpenses(startDate?: Date, endDate?: Date): Promise<Expense[]>;
+  getExpense(id: string): Promise<Expense | undefined>;
+  createExpense(expense: InsertExpense): Promise<Expense>;
+  updateExpense(id: string, updates: Partial<Expense>): Promise<Expense | undefined>;
+  deleteExpense(id: string): Promise<boolean>;
+  getExpensesByCategory(categoryId: string): Promise<Expense[]>;
+  getExpensesByVendor(vendor: string): Promise<Expense[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -1776,6 +1853,458 @@ export class DatabaseStorage implements IStorage {
       .set({ archived: true })
       .where(eq(photos.id, id));
     return (result.rowCount || 0) > 0;
+  }
+
+  // ============================================
+  // SALES CHANNELS METHODS
+  // ============================================
+  
+  async getAllSalesChannels(): Promise<SalesChannel[]> {
+    return await db.select().from(salesChannels);
+  }
+
+  async getSalesChannel(id: string): Promise<SalesChannel | undefined> {
+    const [channel] = await db.select().from(salesChannels).where(eq(salesChannels.id, id));
+    return channel;
+  }
+
+  async createSalesChannel(channel: InsertSalesChannel): Promise<SalesChannel> {
+    const [newChannel] = await db.insert(salesChannels).values(channel).returning();
+    return newChannel;
+  }
+
+  async updateSalesChannel(id: string, updates: Partial<SalesChannel>): Promise<SalesChannel | undefined> {
+    const [updated] = await db
+      .update(salesChannels)
+      .set(updates)
+      .where(eq(salesChannels.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSalesChannel(id: string): Promise<boolean> {
+    const result = await db.delete(salesChannels).where(eq(salesChannels.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // ============================================
+  // SUPPLIERS METHODS
+  // ============================================
+  
+  async getAllSuppliers(): Promise<Supplier[]> {
+    return await db.select().from(suppliers);
+  }
+
+  async getSupplier(id: string): Promise<Supplier | undefined> {
+    const [supplier] = await db.select().from(suppliers).where(eq(suppliers.id, id));
+    return supplier;
+  }
+
+  async createSupplier(supplier: InsertSupplier): Promise<Supplier> {
+    const [newSupplier] = await db.insert(suppliers).values(supplier).returning();
+    return newSupplier;
+  }
+
+  async updateSupplier(id: string, updates: Partial<Supplier>): Promise<Supplier | undefined> {
+    const [updated] = await db
+      .update(suppliers)
+      .set(updates)
+      .where(eq(suppliers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSupplier(id: string): Promise<boolean> {
+    const result = await db.delete(suppliers).where(eq(suppliers.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // ============================================
+  // PRODUCT SIZES METHODS
+  // ============================================
+  
+  async getAllProductSizes(): Promise<ProductSize[]> {
+    return await db.select().from(productSizes);
+  }
+
+  async getProductSize(id: string): Promise<ProductSize | undefined> {
+    const [size] = await db.select().from(productSizes).where(eq(productSizes.id, id));
+    return size;
+  }
+
+  async createProductSize(size: InsertProductSize): Promise<ProductSize> {
+    const [newSize] = await db.insert(productSizes).values(size).returning();
+    return newSize;
+  }
+
+  async updateProductSize(id: string, updates: Partial<ProductSize>): Promise<ProductSize | undefined> {
+    const [updated] = await db
+      .update(productSizes)
+      .set(updates)
+      .where(eq(productSizes.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteProductSize(id: string): Promise<boolean> {
+    const result = await db.delete(productSizes).where(eq(productSizes.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // ============================================
+  // SUPPLIER PRICES METHODS (with historical versioning)
+  // ============================================
+  
+  async getCurrentSupplierPrices(supplierId?: string): Promise<SupplierPrice[]> {
+    if (supplierId) {
+      return await db
+        .select()
+        .from(supplierPrices)
+        .where(and(
+          eq(supplierPrices.supplierId, supplierId),
+          isNull(supplierPrices.effectiveTo)
+        ));
+    }
+    return await db
+      .select()
+      .from(supplierPrices)
+      .where(isNull(supplierPrices.effectiveTo));
+  }
+
+  async getSupplierPriceHistory(supplierId: string, productSizeId: string): Promise<SupplierPrice[]> {
+    return await db
+      .select()
+      .from(supplierPrices)
+      .where(and(
+        eq(supplierPrices.supplierId, supplierId),
+        eq(supplierPrices.productSizeId, productSizeId)
+      ))
+      .orderBy(desc(supplierPrices.effectiveFrom));
+  }
+
+  async createSupplierPrice(price: InsertSupplierPrice): Promise<SupplierPrice> {
+    const [newPrice] = await db.insert(supplierPrices).values(price).returning();
+    return newPrice;
+  }
+
+  async updateSupplierPrice(
+    supplierId: string, 
+    productSizeId: string, 
+    mediaType: string, 
+    newPrice: number, 
+    notes?: string
+  ): Promise<SupplierPrice> {
+    // Close the current price record by setting effectiveTo
+    await db
+      .update(supplierPrices)
+      .set({ effectiveTo: new Date() })
+      .where(and(
+        eq(supplierPrices.supplierId, supplierId),
+        eq(supplierPrices.productSizeId, productSizeId),
+        eq(supplierPrices.mediaType, mediaType),
+        isNull(supplierPrices.effectiveTo)
+      ));
+
+    // Create new price record
+    const [created] = await db
+      .insert(supplierPrices)
+      .values({
+        supplierId,
+        productSizeId,
+        mediaType,
+        basePrice: newPrice,
+        effectiveFrom: new Date(),
+        effectiveTo: null,
+        notes: notes || null
+      })
+      .returning();
+
+    return created;
+  }
+
+  // ============================================
+  // SALES METHODS
+  // ============================================
+  
+  async getAllSales(startDate?: Date, endDate?: Date): Promise<Sale[]> {
+    if (startDate && endDate) {
+      return await db
+        .select()
+        .from(sales)
+        .where(and(
+          gte(sales.saleDate, startDate),
+          lte(sales.saleDate, endDate)
+        ))
+        .orderBy(desc(sales.saleDate));
+    } else if (startDate) {
+      return await db
+        .select()
+        .from(sales)
+        .where(gte(sales.saleDate, startDate))
+        .orderBy(desc(sales.saleDate));
+    } else if (endDate) {
+      return await db
+        .select()
+        .from(sales)
+        .where(lte(sales.saleDate, endDate))
+        .orderBy(desc(sales.saleDate));
+    }
+    return await db.select().from(sales).orderBy(desc(sales.saleDate));
+  }
+
+  async getSale(id: string): Promise<Sale | undefined> {
+    const [sale] = await db.select().from(sales).where(eq(sales.id, id));
+    return sale;
+  }
+
+  async createSale(sale: InsertSale): Promise<Sale> {
+    const [newSale] = await db.insert(sales).values(sale).returning();
+    return newSale;
+  }
+
+  async updateSale(id: string, updates: Partial<Sale>): Promise<Sale | undefined> {
+    const [updated] = await db
+      .update(sales)
+      .set(updates)
+      .where(eq(sales.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSale(id: string): Promise<boolean> {
+    const result = await db.delete(sales).where(eq(sales.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async getSalesByChannel(channelId: string): Promise<Sale[]> {
+    return await db
+      .select()
+      .from(sales)
+      .where(eq(sales.channelId, channelId))
+      .orderBy(desc(sales.saleDate));
+  }
+
+  async getSalesByPhoto(photoId: string): Promise<Sale[]> {
+    return await db
+      .select()
+      .from(sales)
+      .where(eq(sales.photoId, photoId))
+      .orderBy(desc(sales.saleDate));
+  }
+
+  // ============================================
+  // INVENTORY ITEMS METHODS
+  // ============================================
+  
+  async getAllInventoryItems(status?: string): Promise<InventoryItem[]> {
+    if (status) {
+      return await db
+        .select()
+        .from(inventoryItems)
+        .where(eq(inventoryItems.status, status));
+    }
+    return await db.select().from(inventoryItems);
+  }
+
+  async getInventoryItem(id: string): Promise<InventoryItem | undefined> {
+    const [item] = await db.select().from(inventoryItems).where(eq(inventoryItems.id, id));
+    return item;
+  }
+
+  async createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem> {
+    const [newItem] = await db.insert(inventoryItems).values(item).returning();
+    return newItem;
+  }
+
+  async updateInventoryItem(id: string, updates: Partial<InventoryItem>): Promise<InventoryItem | undefined> {
+    const [updated] = await db
+      .update(inventoryItems)
+      .set(updates)
+      .where(eq(inventoryItems.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteInventoryItem(id: string): Promise<boolean> {
+    const result = await db.delete(inventoryItems).where(eq(inventoryItems.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async getInventoryByPhoto(photoId: string): Promise<InventoryItem[]> {
+    return await db
+      .select()
+      .from(inventoryItems)
+      .where(eq(inventoryItems.photoId, photoId));
+  }
+
+  async getInventoryWithDetails(): Promise<Array<InventoryItem & { photo?: Photo; productSize?: ProductSize; sale?: Sale }>> {
+    const items = await db.select().from(inventoryItems);
+    
+    const itemsWithDetails = await Promise.all(
+      items.map(async (item) => {
+        const photo = item.photoId ? await this.getPhoto(item.photoId) : undefined;
+        const productSize = item.productSizeId ? await this.getProductSize(item.productSizeId) : undefined;
+        const sale = item.saleId ? await this.getSale(item.saleId) : undefined;
+        
+        return {
+          ...item,
+          photo,
+          productSize,
+          sale
+        };
+      })
+    );
+    
+    return itemsWithDetails;
+  }
+
+  // ============================================
+  // DROP SHIP ORDERS METHODS
+  // ============================================
+  
+  async getAllDropShipOrders(status?: string): Promise<DropShipOrder[]> {
+    if (status) {
+      return await db
+        .select()
+        .from(dropShipOrders)
+        .where(eq(dropShipOrders.status, status))
+        .orderBy(desc(dropShipOrders.orderDate));
+    }
+    return await db.select().from(dropShipOrders).orderBy(desc(dropShipOrders.orderDate));
+  }
+
+  async getDropShipOrder(id: string): Promise<DropShipOrder | undefined> {
+    const [order] = await db.select().from(dropShipOrders).where(eq(dropShipOrders.id, id));
+    return order;
+  }
+
+  async createDropShipOrder(order: InsertDropShipOrder): Promise<DropShipOrder> {
+    const [newOrder] = await db.insert(dropShipOrders).values(order).returning();
+    return newOrder;
+  }
+
+  async updateDropShipOrder(id: string, updates: Partial<DropShipOrder>): Promise<DropShipOrder | undefined> {
+    const [updated] = await db
+      .update(dropShipOrders)
+      .set(updates)
+      .where(eq(dropShipOrders.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteDropShipOrder(id: string): Promise<boolean> {
+    const result = await db.delete(dropShipOrders).where(eq(dropShipOrders.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async getDropShipOrdersBySale(saleId: string): Promise<DropShipOrder[]> {
+    return await db
+      .select()
+      .from(dropShipOrders)
+      .where(eq(dropShipOrders.saleId, saleId))
+      .orderBy(desc(dropShipOrders.orderDate));
+  }
+
+  // ============================================
+  // EXPENSE CATEGORIES METHODS
+  // ============================================
+  
+  async getAllExpenseCategories(): Promise<ExpenseCategory[]> {
+    return await db.select().from(expenseCategories);
+  }
+
+  async getExpenseCategory(id: string): Promise<ExpenseCategory | undefined> {
+    const [category] = await db.select().from(expenseCategories).where(eq(expenseCategories.id, id));
+    return category;
+  }
+
+  async createExpenseCategory(category: InsertExpenseCategory): Promise<ExpenseCategory> {
+    const [newCategory] = await db.insert(expenseCategories).values(category).returning();
+    return newCategory;
+  }
+
+  async updateExpenseCategory(id: string, updates: Partial<ExpenseCategory>): Promise<ExpenseCategory | undefined> {
+    const [updated] = await db
+      .update(expenseCategories)
+      .set(updates)
+      .where(eq(expenseCategories.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteExpenseCategory(id: string): Promise<boolean> {
+    const result = await db.delete(expenseCategories).where(eq(expenseCategories.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // ============================================
+  // EXPENSES METHODS
+  // ============================================
+  
+  async getAllExpenses(startDate?: Date, endDate?: Date): Promise<Expense[]> {
+    if (startDate && endDate) {
+      return await db
+        .select()
+        .from(expenses)
+        .where(and(
+          gte(expenses.expenseDate, startDate),
+          lte(expenses.expenseDate, endDate)
+        ))
+        .orderBy(desc(expenses.expenseDate));
+    } else if (startDate) {
+      return await db
+        .select()
+        .from(expenses)
+        .where(gte(expenses.expenseDate, startDate))
+        .orderBy(desc(expenses.expenseDate));
+    } else if (endDate) {
+      return await db
+        .select()
+        .from(expenses)
+        .where(lte(expenses.expenseDate, endDate))
+        .orderBy(desc(expenses.expenseDate));
+    }
+    return await db.select().from(expenses).orderBy(desc(expenses.expenseDate));
+  }
+
+  async getExpense(id: string): Promise<Expense | undefined> {
+    const [expense] = await db.select().from(expenses).where(eq(expenses.id, id));
+    return expense;
+  }
+
+  async createExpense(expense: InsertExpense): Promise<Expense> {
+    const [newExpense] = await db.insert(expenses).values(expense).returning();
+    return newExpense;
+  }
+
+  async updateExpense(id: string, updates: Partial<Expense>): Promise<Expense | undefined> {
+    const [updated] = await db
+      .update(expenses)
+      .set(updates)
+      .where(eq(expenses.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteExpense(id: string): Promise<boolean> {
+    const result = await db.delete(expenses).where(eq(expenses.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async getExpensesByCategory(categoryId: string): Promise<Expense[]> {
+    return await db
+      .select()
+      .from(expenses)
+      .where(eq(expenses.categoryId, categoryId))
+      .orderBy(desc(expenses.expenseDate));
+  }
+
+  async getExpensesByVendor(vendor: string): Promise<Expense[]> {
+    return await db
+      .select()
+      .from(expenses)
+      .where(eq(expenses.vendor, vendor))
+      .orderBy(desc(expenses.expenseDate));
   }
 }
 

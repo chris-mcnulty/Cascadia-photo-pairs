@@ -310,3 +310,231 @@ export const insertNewsItemSchema = createInsertSchema(newsItems).omit({
 
 export type InsertNewsItem = z.infer<typeof insertNewsItemSchema>;
 export type NewsItem = typeof newsItems.$inferSelect;
+
+// ============================================
+// INVENTORY & SALES MANAGEMENT SYSTEM
+// ============================================
+
+// Sales channels (website, art shows, Amazon, Etsy, etc.)
+export const salesChannels = pgTable("sales_channels", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull().unique(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Suppliers for prints
+export const suppliers = pgTable("suppliers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull().unique(),
+  contactEmail: varchar("contact_email"),
+  contactPhone: varchar("contact_phone"),
+  website: text("website"),
+  notes: text("notes"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Product sizes (8x10, 11x14, 16x20, etc.) with aspect ratios
+export const productSizes = pgTable("product_sizes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sizeLabel: varchar("size_label").notNull(), // "8x10", "11x14", etc.
+  widthInches: integer("width_inches").notNull(),
+  heightInches: integer("height_inches").notNull(),
+  aspectRatio: text("aspect_ratio").notNull(), // "4:5", "3:2", etc.
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Historical supplier pricing - versioned by effective dates
+export const supplierPrices = pgTable("supplier_prices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  supplierId: varchar("supplier_id").notNull().references(() => suppliers.id),
+  productSizeId: varchar("product_size_id").notNull().references(() => productSizes.id),
+  mediaType: varchar("media_type").notNull(), // "ChromaLuxe", "Magnet"
+  basePrice: integer("base_price").notNull(), // Price in cents
+  effectiveFrom: timestamp("effective_from").notNull().defaultNow(),
+  effectiveTo: timestamp("effective_to"), // NULL for current price
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_supplier_prices_supplier").on(table.supplierId),
+  index("idx_supplier_prices_size").on(table.productSizeId),
+  index("idx_supplier_prices_effective").on(table.effectiveFrom),
+]);
+
+// Sales records with buyer information
+export const sales = pgTable("sales", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  photoId: varchar("photo_id").references(() => photos.id),
+  channelId: varchar("channel_id").notNull().references(() => salesChannels.id),
+  saleDate: timestamp("sale_date").notNull().defaultNow(),
+  soldPrice: integer("sold_price").notNull(), // Price in cents
+  taxCollected: integer("tax_collected").default(0).notNull(), // Tax in cents
+  
+  // Buyer information
+  buyerName: varchar("buyer_name"),
+  buyerEmail: varchar("buyer_email"),
+  buyerPhone: varchar("buyer_phone"),
+  shippingAddress: text("shipping_address"),
+  
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_sales_photo").on(table.photoId),
+  index("idx_sales_channel").on(table.channelId),
+  index("idx_sales_date").on(table.saleDate),
+]);
+
+// Individual inventory items (each physical print)
+export const inventoryItems = pgTable("inventory_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  photoId: varchar("photo_id").notNull().references(() => photos.id),
+  saleId: varchar("sale_id").references(() => sales.id), // Link to sale when sold
+  
+  // Print details
+  title: text("title").notNull(),
+  description: text("description"),
+  originalDate: timestamp("original_date"), // Date photo was taken
+  mediaType: varchar("media_type").notNull(), // "ChromaLuxe", "Magnet"
+  productSizeId: varchar("product_size_id").notNull().references(() => productSizes.id),
+  
+  // Financial details
+  acquisitionCost: integer("acquisition_cost").notNull(), // Cost in cents
+  listPrice: integer("list_price").notNull(), // List price in cents
+  
+  // Status tracking
+  status: varchar("status").notNull().default("ordered"), // "ordered", "in_stock", "sold", "shipped"
+  purchaseDate: timestamp("purchase_date"), // When we ordered/bought it
+  receivedDate: timestamp("received_date"), // When we received it
+  soldDate: timestamp("sold_date"), // When it sold
+  shippedDate: timestamp("shipped_date"), // When we shipped it
+  
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_inventory_items_photo").on(table.photoId),
+  index("idx_inventory_items_status").on(table.status),
+  index("idx_inventory_items_sale").on(table.saleId),
+]);
+
+// Drop-ship orders for online sales (ordered before inventory arrives)
+export const dropShipOrders = pgTable("drop_ship_orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  saleId: varchar("sale_id").notNull().references(() => sales.id),
+  inventoryItemId: varchar("inventory_item_id").references(() => inventoryItems.id),
+  supplierId: varchar("supplier_id").notNull().references(() => suppliers.id),
+  
+  orderNumber: varchar("order_number"),
+  trackingNumber: varchar("tracking_number"),
+  orderDate: timestamp("order_date").notNull().defaultNow(),
+  estimatedDelivery: timestamp("estimated_delivery"),
+  actualDelivery: timestamp("actual_delivery"),
+  
+  fulfillmentStatus: varchar("fulfillment_status").notNull().default("pending"), // "pending", "ordered", "shipped", "delivered", "cancelled"
+  
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_drop_ship_sale").on(table.saleId),
+  index("idx_drop_ship_status").on(table.fulfillmentStatus),
+]);
+
+// Expense categories
+export const expenseCategories = pgTable("expense_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull().unique(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Business expenses with receipt storage
+export const expenses = pgTable("expenses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  categoryId: varchar("category_id").notNull().references(() => expenseCategories.id),
+  vendor: varchar("vendor").notNull(),
+  amount: integer("amount").notNull(), // Amount in cents
+  expenseDate: timestamp("expense_date").notNull(),
+  purpose: text("purpose").notNull(),
+  receiptUrl: text("receipt_url"), // SharePoint URL
+  receiptFileName: text("receipt_file_name"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_expenses_category").on(table.categoryId),
+  index("idx_expenses_date").on(table.expenseDate),
+  index("idx_expenses_vendor").on(table.vendor),
+]);
+
+// Insert schemas
+export const insertSalesChannelSchema = createInsertSchema(salesChannels).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSupplierSchema = createInsertSchema(suppliers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertProductSizeSchema = createInsertSchema(productSizes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSupplierPriceSchema = createInsertSchema(supplierPrices).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertSaleSchema = createInsertSchema(sales).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertInventoryItemSchema = createInsertSchema(inventoryItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertDropShipOrderSchema = createInsertSchema(dropShipOrders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertExpenseCategorySchema = createInsertSchema(expenseCategories).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertExpenseSchema = createInsertSchema(expenses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+// Type exports
+export type SalesChannel = typeof salesChannels.$inferSelect;
+export type InsertSalesChannel = z.infer<typeof insertSalesChannelSchema>;
+export type Supplier = typeof suppliers.$inferSelect;
+export type InsertSupplier = z.infer<typeof insertSupplierSchema>;
+export type ProductSize = typeof productSizes.$inferSelect;
+export type InsertProductSize = z.infer<typeof insertProductSizeSchema>;
+export type SupplierPrice = typeof supplierPrices.$inferSelect;
+export type InsertSupplierPrice = z.infer<typeof insertSupplierPriceSchema>;
+export type Sale = typeof sales.$inferSelect;
+export type InsertSale = z.infer<typeof insertSaleSchema>;
+export type InventoryItem = typeof inventoryItems.$inferSelect;
+export type InsertInventoryItem = z.infer<typeof insertInventoryItemSchema>;
+export type DropShipOrder = typeof dropShipOrders.$inferSelect;
+export type InsertDropShipOrder = z.infer<typeof insertDropShipOrderSchema>;
+export type ExpenseCategory = typeof expenseCategories.$inferSelect;
+export type InsertExpenseCategory = z.infer<typeof insertExpenseCategorySchema>;
+export type Expense = typeof expenses.$inferSelect;
+export type InsertExpense = z.infer<typeof insertExpenseSchema>;

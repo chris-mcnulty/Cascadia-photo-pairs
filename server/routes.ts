@@ -174,36 +174,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isMasterAdmin
       });
       
-      // Try to send SMS if services are configured
-      const phoneNumber = isMasterAdmin ? '+1-503-XXX-XXXX' : '+1-XXX-XXX-XXXX';
-      const adminName = isMasterAdmin ? 'Chris McNulty' : 'Admin';
+      // DISABLED: Old SMS/MFA flow - Users should login with regular account instead
+      // This endpoint is deprecated and should not be used
+      console.log('[Admin Login] DEPRECATED: This admin-login endpoint with SMS is no longer used.');
+      console.log('[Admin Login] Users should login via regular login (/api/auth/login) with their admin account.');
       
-      // Check if SMS service is available
-      const { isSMSServiceAvailable } = await import('./sendgrid');
-      const { isSMSConfigured, send2FACode } = await import('./twilio');
-      
-      const smsAvailable = await isSMSServiceAvailable();
-      const emailAvailable = isEmailServiceAvailable();
-      
-      // Try to send MFA code
-      let smsSent = false;
-      if (smsAvailable && isSMSConfigured()) {
-        // Use real phone number for Chris McNulty (master admin)
-        const realPhoneNumber = isMasterAdmin ? process.env.ADMIN_PHONE_NUMBER || phoneNumber : phoneNumber;
-        smsSent = await send2FACode(realPhoneNumber, mfaCode);
-      }
-      
-      // Never log MFA codes in production
-      if (process.env.NODE_ENV === 'development') {
-        console.log(`[Admin MFA] Code generated for ${adminName}`);
-      }
-      
-      res.json({ 
-        sessionId,
-        requiresMfa: true,
-        message: smsSent 
-          ? `Verification code sent to ${phoneNumber}` 
-          : `SMS service unavailable. Please contact administrator.`
+      // Return error to indicate this flow is deprecated
+      return res.status(410).json({ 
+        message: "This admin login method is deprecated. Please log in with your regular admin account.",
+        redirectTo: "/login"
       });
     } catch (error) {
       console.error('Admin login error:', error);
@@ -1846,10 +1825,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Pairs API endpoints
   app.get("/api/pairs", isAuthenticated, async (req, res) => {
     try {
+      console.log('[/api/pairs] Request received, fetching all photo pairs...');
       const pairs = await storage.getAllPhotoPairs();
+      console.log('[/api/pairs] Successfully fetched', pairs.length, 'pairs');
       res.json(pairs);
     } catch (error) {
-      console.error("Error fetching pairs:", error);
+      console.error("[/api/pairs] Error fetching pairs:", error);
       res.status(500).json({ message: "Failed to fetch pairs" });
     }
   });

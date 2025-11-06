@@ -7,6 +7,7 @@ This is a full-stack photo voting application for ranking landscape photography.
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+- **Admin Authentication Streamlined (Nov 6, 2025)**: Eliminated deprecated SMS/MFA admin login flow. Admin access now works seamlessly with JWT tokens from regular login - no separate password prompts or SMS verification. Automatic authentication headers added to all API requests (queryClient.ts) for consistent admin feature access including Pairs management. Single authentication at login provides full admin panel access.
 - **CRITICAL VOTE TRACKING BUG FIXED (Aug 30, 2025)**: Resolved major issue where authenticated user votes weren't being recorded due to missing JWT token headers in vote requests. Fixed vote tracking for contest integrity and legal compliance. Confirmed working with test user vote successfully recorded.
 - **Email Verification FULLY FIXED (Aug 30, 2025)**: Added missing /api/auth/verify-email endpoint and updated all email URLs to use correct SSL-enabled production domain. Email verification now works end-to-end with proper token validation and user status updates.
 - **Authentication System Launch (Aug 30, 2025)**: Fixed mobile menu 404 login issue by correcting `/api/login` to `/login` in mobile voting interface. Complete user registration, email verification, and login flow now fully operational for production.

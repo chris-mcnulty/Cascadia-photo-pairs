@@ -33,14 +33,30 @@ export async function apiRequest(
 ): Promise<Response> {
   const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
   
-  // Add any additional headers passed in (e.g., for authentication)
+  // Automatically include authentication headers
+  // Include session ID for admin authenticated requests
+  const sessionId = localStorage.getItem('admin-session-id');
+  if (sessionId) {
+    headers['x-session-id'] = sessionId;
+    console.log('[apiRequest] Added admin session ID header');
+  }
+  
+  // Include JWT token for user authenticated requests
+  const authToken = localStorage.getItem('auth-token');
+  if (authToken) {
+    headers['Authorization'] = `Bearer ${authToken}`;
+    console.log('[apiRequest] Added JWT Authorization header');
+  }
+  
+  // Add any additional headers passed in (these can override the automatic ones)
   if (additionalHeaders) {
     Object.assign(headers, additionalHeaders);
   }
 
   console.log(`API Request: ${method} ${url}`, { 
     hasData: !!data, 
-    dataSize: data ? JSON.stringify(data).length : 0
+    dataSize: data ? JSON.stringify(data).length : 0,
+    headers: Object.keys(headers)
   });
 
   try {
@@ -77,19 +93,25 @@ export const getQueryFn: <T>(options: {
     const sessionId = localStorage.getItem('admin-session-id');
     if (sessionId) {
       headers['x-session-id'] = sessionId;
+      console.log('[QueryFn] Added admin session ID header');
     }
     
     // Include JWT token for user authenticated requests
     const authToken = localStorage.getItem('auth-token');
     if (authToken) {
       headers['Authorization'] = `Bearer ${authToken}`;
+      console.log('[QueryFn] Added JWT Authorization header');
     }
 
+    console.log('[QueryFn] Fetching:', queryKey.join("/"), 'with headers:', Object.keys(headers));
+    
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",
       headers,
     });
 
+    console.log('[QueryFn] Response status:', res.status);
+    
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
     }

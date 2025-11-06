@@ -225,6 +225,14 @@ function AuthenticatedAdmin() {
           console.log('[Admin Auth] Added session ID header');
         }
         
+        // If no authentication credentials at all, show login
+        if (!authToken && !sessionId) {
+          console.log('[Admin Auth] No credentials found, showing login');
+          setIsAdmin(false);
+          setCheckingAuth(false);
+          return;
+        }
+        
         console.log('[Admin Auth] Making admin-status request with headers:', Object.keys(headers));
         const response = await fetch('/api/auth/admin-status', { headers });
         console.log('[Admin Auth] Response status:', response.status);
@@ -240,7 +248,7 @@ function AuthenticatedAdmin() {
       setCheckingAuth(false);
     };
     checkAdminAuth();
-  }, [sessionId]);
+  }, [sessionId]); // Only re-run when sessionId changes, not on every tab switch
   
   if (checkingAuth) {
     return <div className="flex items-center justify-center min-h-screen">

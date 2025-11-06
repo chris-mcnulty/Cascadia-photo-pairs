@@ -665,6 +665,67 @@ export class MemStorage implements IStorage {
     photo.archived = true;
     return true;
   }
+
+  // Inventory stub implementations for MemStorage
+  async getAllSalesChannels(): Promise<SalesChannel[]> { return []; }
+  async getSalesChannel(id: string): Promise<SalesChannel | undefined> { return undefined; }
+  async createSalesChannel(channel: InsertSalesChannel): Promise<SalesChannel> { throw new Error('Not implemented in MemStorage'); }
+  async updateSalesChannel(id: string, updates: Partial<SalesChannel>): Promise<SalesChannel | undefined> { return undefined; }
+  async deleteSalesChannel(id: string): Promise<boolean> { return false; }
+  
+  async getAllSuppliers(): Promise<Supplier[]> { return []; }
+  async getSupplier(id: string): Promise<Supplier | undefined> { return undefined; }
+  async createSupplier(supplier: InsertSupplier): Promise<Supplier> { throw new Error('Not implemented in MemStorage'); }
+  async updateSupplier(id: string, updates: Partial<Supplier>): Promise<Supplier | undefined> { return undefined; }
+  async deleteSupplier(id: string): Promise<boolean> { return false; }
+  
+  async getAllProductSizes(): Promise<ProductSize[]> { return []; }
+  async getProductSize(id: string): Promise<ProductSize | undefined> { return undefined; }
+  async createProductSize(size: InsertProductSize): Promise<ProductSize> { throw new Error('Not implemented in MemStorage'); }
+  async updateProductSize(id: string, updates: Partial<ProductSize>): Promise<ProductSize | undefined> { return undefined; }
+  async deleteProductSize(id: string): Promise<boolean> { return false; }
+  
+  async getCurrentSupplierPrices(supplierId?: string): Promise<SupplierPrice[]> { return []; }
+  async getSupplierPriceHistory(supplierId: string, productSizeId: string): Promise<SupplierPrice[]> { return []; }
+  async createSupplierPrice(price: InsertSupplierPrice): Promise<SupplierPrice> { throw new Error('Not implemented in MemStorage'); }
+  async updateSupplierPrice(supplierId: string, productSizeId: string, mediaType: string, newPrice: number, notes?: string): Promise<SupplierPrice> { throw new Error('Not implemented in MemStorage'); }
+  
+  async getAllSales(startDate?: Date, endDate?: Date): Promise<Sale[]> { return []; }
+  async getSale(id: string): Promise<Sale | undefined> { return undefined; }
+  async createSale(sale: InsertSale): Promise<Sale> { throw new Error('Not implemented in MemStorage'); }
+  async updateSale(id: string, updates: Partial<Sale>): Promise<Sale | undefined> { return undefined; }
+  async deleteSale(id: string): Promise<boolean> { return false; }
+  async getSalesByChannel(channelId: string): Promise<Sale[]> { return []; }
+  async getSalesByPhoto(photoId: string): Promise<Sale[]> { return []; }
+  
+  async getAllInventoryItems(status?: string): Promise<InventoryItem[]> { return []; }
+  async getInventoryItem(id: string): Promise<InventoryItem | undefined> { return undefined; }
+  async createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem> { throw new Error('Not implemented in MemStorage'); }
+  async updateInventoryItem(id: string, updates: Partial<InventoryItem>): Promise<InventoryItem | undefined> { return undefined; }
+  async deleteInventoryItem(id: string): Promise<boolean> { return false; }
+  async getInventoryByPhoto(photoId: string): Promise<InventoryItem[]> { return []; }
+  async getInventoryWithDetails(): Promise<Array<InventoryItem & { photo?: Photo; productSize?: ProductSize; sale?: Sale }>> { return []; }
+  
+  async getAllDropShipOrders(status?: string): Promise<DropShipOrder[]> { return []; }
+  async getDropShipOrder(id: string): Promise<DropShipOrder | undefined> { return undefined; }
+  async createDropShipOrder(order: InsertDropShipOrder): Promise<DropShipOrder> { throw new Error('Not implemented in MemStorage'); }
+  async updateDropShipOrder(id: string, updates: Partial<DropShipOrder>): Promise<DropShipOrder | undefined> { return undefined; }
+  async deleteDropShipOrder(id: string): Promise<boolean> { return false; }
+  async getDropShipOrdersBySale(saleId: string): Promise<DropShipOrder[]> { return []; }
+  
+  async getAllExpenseCategories(): Promise<ExpenseCategory[]> { return []; }
+  async getExpenseCategory(id: string): Promise<ExpenseCategory | undefined> { return undefined; }
+  async createExpenseCategory(category: InsertExpenseCategory): Promise<ExpenseCategory> { throw new Error('Not implemented in MemStorage'); }
+  async updateExpenseCategory(id: string, updates: Partial<ExpenseCategory>): Promise<ExpenseCategory | undefined> { return undefined; }
+  async deleteExpenseCategory(id: string): Promise<boolean> { return false; }
+  
+  async getAllExpenses(startDate?: Date, endDate?: Date): Promise<Expense[]> { return []; }
+  async getExpense(id: string): Promise<Expense | undefined> { return undefined; }
+  async createExpense(expense: InsertExpense): Promise<Expense> { throw new Error('Not implemented in MemStorage'); }
+  async updateExpense(id: string, updates: Partial<Expense>): Promise<Expense | undefined> { return undefined; }
+  async deleteExpense(id: string): Promise<boolean> { return false; }
+  async getExpensesByCategory(categoryId: string): Promise<Expense[]> { return []; }
+  async getExpensesByVendor(vendor: string): Promise<Expense[]> { return []; }
 }
 
 // DatabaseStorage implementation
@@ -2167,7 +2228,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(dropShipOrders)
-        .where(eq(dropShipOrders.status, status))
+        .where(eq(dropShipOrders.fulfillmentStatus, status))
         .orderBy(desc(dropShipOrders.orderDate));
     }
     return await db.select().from(dropShipOrders).orderBy(desc(dropShipOrders.orderDate));

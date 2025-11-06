@@ -12,13 +12,14 @@ import ContestReport from "@/components/admin/contest-report";
 import AnnouncementSettings from "@/components/admin/announcement-settings";
 import NewsManagement from "@/components/admin/news-management";
 import { PairsManagement } from "@/components/admin/pairs-management";
-import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell, MessageSquare, Link2 } from "lucide-react";
+import BusinessManagement from "@/components/admin/business-management";
+import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell, MessageSquare, Link2, Briefcase } from "lucide-react";
 import { Link } from "wouter";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
 
 function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"analytics" | "photos" | "pairs" | "users" | "communication" | "settings">("analytics");
+  const [activeTab, setActiveTab] = useState<"analytics" | "photos" | "pairs" | "users" | "communication" | "settings" | "business">("analytics");
   const { logout, isAuthenticated, sessionId } = useAuth();
 
   const { data: stats } = useQuery<{
@@ -171,6 +172,17 @@ function AdminDashboard() {
             <span className="sm:hidden">Comm</span>
           </Button>
           <Button
+            variant={activeTab === "business" ? "default" : "outline"}
+            onClick={() => setActiveTab("business")}
+            className="flex items-center text-sm"
+            size="sm"
+            data-testid="button-business-tab"
+          >
+            <Briefcase className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Business</span>
+            <span className="sm:hidden">Sales</span>
+          </Button>
+          <Button
             variant={activeTab === "settings" ? "default" : "outline"}
             onClick={() => setActiveTab("settings")}
             className="flex items-center text-sm"
@@ -194,6 +206,7 @@ function AdminDashboard() {
             <NewsManagement />
           </div>
         )}
+        {activeTab === "business" && <BusinessManagement />}
         {activeTab === "settings" && <AdminSettings />}
       </div>
     </div>

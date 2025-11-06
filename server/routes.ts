@@ -16,7 +16,21 @@ import {
 } from "@shared/schema";
 import { eq, sql, and, or, inArray, gte, lte, desc, isNull } from "drizzle-orm";
 import { storage } from "./storage";
-import { insertVoteSchema, insertSettingsSchema, insertPhotoSchema, insertCollectionSchema } from "@shared/schema";
+import { 
+  insertVoteSchema, 
+  insertSettingsSchema, 
+  insertPhotoSchema, 
+  insertCollectionSchema,
+  insertSalesChannelSchema,
+  insertSupplierSchema,
+  insertProductSizeSchema,
+  insertSupplierPriceSchema,
+  insertSaleSchema,
+  insertInventoryItemSchema,
+  insertDropShipOrderSchema,
+  insertExpenseCategorySchema,
+  insertExpenseSchema
+} from "@shared/schema";
 import { 
   createUser, 
   authenticateUser, 
@@ -2267,6 +2281,780 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error sending manual reset email:', error);
       res.status(500).json({ message: "Failed to send email" });
+    }
+  });
+
+  // ============================================
+  // SALES CHANNELS ROUTES
+  // ============================================
+  
+  // Get all sales channels
+  app.get("/api/admin/sales-channels", isAuthenticated, async (req, res) => {
+    try {
+      const channels = await storage.getAllSalesChannels();
+      res.json(channels);
+    } catch (error) {
+      console.error('Error fetching sales channels:', error);
+      res.status(500).json({ message: "Failed to fetch sales channels" });
+    }
+  });
+
+  // Get single sales channel
+  app.get("/api/admin/sales-channels/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const channel = await storage.getSalesChannel(id);
+      
+      if (!channel) {
+        return res.status(404).json({ message: "Sales channel not found" });
+      }
+      
+      res.json(channel);
+    } catch (error) {
+      console.error('Error fetching sales channel:', error);
+      res.status(500).json({ message: "Failed to fetch sales channel" });
+    }
+  });
+
+  // Create sales channel
+  app.post("/api/admin/sales-channels", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertSalesChannelSchema.parse(req.body);
+      const channel = await storage.createSalesChannel(validatedData);
+      res.status(201).json(channel);
+    } catch (error) {
+      console.error('Error creating sales channel:', error);
+      res.status(400).json({ message: "Failed to create sales channel", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Update sales channel
+  app.put("/api/admin/sales-channels/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const channel = await storage.updateSalesChannel(id, req.body);
+      
+      if (!channel) {
+        return res.status(404).json({ message: "Sales channel not found" });
+      }
+      
+      res.json(channel);
+    } catch (error) {
+      console.error('Error updating sales channel:', error);
+      res.status(400).json({ message: "Failed to update sales channel" });
+    }
+  });
+
+  // Delete sales channel
+  app.delete("/api/admin/sales-channels/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteSalesChannel(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Sales channel not found" });
+      }
+      
+      res.json({ message: "Sales channel deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting sales channel:', error);
+      res.status(500).json({ message: "Failed to delete sales channel" });
+    }
+  });
+
+  // ============================================
+  // SUPPLIERS ROUTES
+  // ============================================
+  
+  // Get all suppliers
+  app.get("/api/admin/suppliers", isAuthenticated, async (req, res) => {
+    try {
+      const suppliers = await storage.getAllSuppliers();
+      res.json(suppliers);
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+      res.status(500).json({ message: "Failed to fetch suppliers" });
+    }
+  });
+
+  // Get single supplier
+  app.get("/api/admin/suppliers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const supplier = await storage.getSupplier(id);
+      
+      if (!supplier) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      
+      res.json(supplier);
+    } catch (error) {
+      console.error('Error fetching supplier:', error);
+      res.status(500).json({ message: "Failed to fetch supplier" });
+    }
+  });
+
+  // Create supplier
+  app.post("/api/admin/suppliers", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertSupplierSchema.parse(req.body);
+      const supplier = await storage.createSupplier(validatedData);
+      res.status(201).json(supplier);
+    } catch (error) {
+      console.error('Error creating supplier:', error);
+      res.status(400).json({ message: "Failed to create supplier", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Update supplier
+  app.put("/api/admin/suppliers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const supplier = await storage.updateSupplier(id, req.body);
+      
+      if (!supplier) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      
+      res.json(supplier);
+    } catch (error) {
+      console.error('Error updating supplier:', error);
+      res.status(400).json({ message: "Failed to update supplier" });
+    }
+  });
+
+  // Delete supplier
+  app.delete("/api/admin/suppliers/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteSupplier(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Supplier not found" });
+      }
+      
+      res.json({ message: "Supplier deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting supplier:', error);
+      res.status(500).json({ message: "Failed to delete supplier" });
+    }
+  });
+
+  // ============================================
+  // PRODUCT SIZES ROUTES
+  // ============================================
+  
+  // Get all product sizes
+  app.get("/api/admin/product-sizes", isAuthenticated, async (req, res) => {
+    try {
+      const sizes = await storage.getAllProductSizes();
+      res.json(sizes);
+    } catch (error) {
+      console.error('Error fetching product sizes:', error);
+      res.status(500).json({ message: "Failed to fetch product sizes" });
+    }
+  });
+
+  // Get single product size
+  app.get("/api/admin/product-sizes/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const size = await storage.getProductSize(id);
+      
+      if (!size) {
+        return res.status(404).json({ message: "Product size not found" });
+      }
+      
+      res.json(size);
+    } catch (error) {
+      console.error('Error fetching product size:', error);
+      res.status(500).json({ message: "Failed to fetch product size" });
+    }
+  });
+
+  // Create product size
+  app.post("/api/admin/product-sizes", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertProductSizeSchema.parse(req.body);
+      const size = await storage.createProductSize(validatedData);
+      res.status(201).json(size);
+    } catch (error) {
+      console.error('Error creating product size:', error);
+      res.status(400).json({ message: "Failed to create product size", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Update product size
+  app.put("/api/admin/product-sizes/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const size = await storage.updateProductSize(id, req.body);
+      
+      if (!size) {
+        return res.status(404).json({ message: "Product size not found" });
+      }
+      
+      res.json(size);
+    } catch (error) {
+      console.error('Error updating product size:', error);
+      res.status(400).json({ message: "Failed to update product size" });
+    }
+  });
+
+  // Delete product size
+  app.delete("/api/admin/product-sizes/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteProductSize(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Product size not found" });
+      }
+      
+      res.json({ message: "Product size deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting product size:', error);
+      res.status(500).json({ message: "Failed to delete product size" });
+    }
+  });
+
+  // ============================================
+  // SUPPLIER PRICES ROUTES
+  // ============================================
+  
+  // Get current supplier prices
+  app.get("/api/admin/supplier-prices", isAuthenticated, async (req, res) => {
+    try {
+      const { supplierId } = req.query;
+      const prices = await storage.getCurrentSupplierPrices(supplierId as string | undefined);
+      res.json(prices);
+    } catch (error) {
+      console.error('Error fetching supplier prices:', error);
+      res.status(500).json({ message: "Failed to fetch supplier prices" });
+    }
+  });
+
+  // Get supplier price history
+  app.get("/api/admin/supplier-prices/history/:supplierId/:productSizeId", isAuthenticated, async (req, res) => {
+    try {
+      const { supplierId, productSizeId } = req.params;
+      const history = await storage.getSupplierPriceHistory(supplierId, productSizeId);
+      res.json(history);
+    } catch (error) {
+      console.error('Error fetching price history:', error);
+      res.status(500).json({ message: "Failed to fetch price history" });
+    }
+  });
+
+  // Create supplier price
+  app.post("/api/admin/supplier-prices", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertSupplierPriceSchema.parse(req.body);
+      const price = await storage.createSupplierPrice(validatedData);
+      res.status(201).json(price);
+    } catch (error) {
+      console.error('Error creating supplier price:', error);
+      res.status(400).json({ message: "Failed to create supplier price", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Update supplier price (closes old, creates new)
+  app.put("/api/admin/supplier-prices", isAuthenticated, async (req, res) => {
+    try {
+      const { supplierId, productSizeId, mediaType, newPrice, notes } = req.body;
+      
+      if (!supplierId || !productSizeId || !mediaType || newPrice === undefined) {
+        return res.status(400).json({ message: "Missing required fields: supplierId, productSizeId, mediaType, newPrice" });
+      }
+      
+      const price = await storage.updateSupplierPrice(supplierId, productSizeId, mediaType, newPrice, notes);
+      res.json(price);
+    } catch (error) {
+      console.error('Error updating supplier price:', error);
+      res.status(400).json({ message: "Failed to update supplier price" });
+    }
+  });
+
+  // ============================================
+  // SALES ROUTES
+  // ============================================
+  
+  // Get all sales
+  app.get("/api/admin/sales", isAuthenticated, async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const start = startDate ? new Date(startDate as string) : undefined;
+      const end = endDate ? new Date(endDate as string) : undefined;
+      
+      const sales = await storage.getAllSales(start, end);
+      res.json(sales);
+    } catch (error) {
+      console.error('Error fetching sales:', error);
+      res.status(500).json({ message: "Failed to fetch sales" });
+    }
+  });
+
+  // Get single sale
+  app.get("/api/admin/sales/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const sale = await storage.getSale(id);
+      
+      if (!sale) {
+        return res.status(404).json({ message: "Sale not found" });
+      }
+      
+      res.json(sale);
+    } catch (error) {
+      console.error('Error fetching sale:', error);
+      res.status(500).json({ message: "Failed to fetch sale" });
+    }
+  });
+
+  // Create sale
+  app.post("/api/admin/sales", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertSaleSchema.parse(req.body);
+      const sale = await storage.createSale(validatedData);
+      res.status(201).json(sale);
+    } catch (error) {
+      console.error('Error creating sale:', error);
+      res.status(400).json({ message: "Failed to create sale", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Update sale
+  app.put("/api/admin/sales/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const sale = await storage.updateSale(id, req.body);
+      
+      if (!sale) {
+        return res.status(404).json({ message: "Sale not found" });
+      }
+      
+      res.json(sale);
+    } catch (error) {
+      console.error('Error updating sale:', error);
+      res.status(400).json({ message: "Failed to update sale" });
+    }
+  });
+
+  // Delete sale
+  app.delete("/api/admin/sales/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteSale(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Sale not found" });
+      }
+      
+      res.json({ message: "Sale deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting sale:', error);
+      res.status(500).json({ message: "Failed to delete sale" });
+    }
+  });
+
+  // Get sales by channel
+  app.get("/api/admin/sales/by-channel/:channelId", isAuthenticated, async (req, res) => {
+    try {
+      const { channelId } = req.params;
+      const sales = await storage.getSalesByChannel(channelId);
+      res.json(sales);
+    } catch (error) {
+      console.error('Error fetching sales by channel:', error);
+      res.status(500).json({ message: "Failed to fetch sales by channel" });
+    }
+  });
+
+  // Get sales by photo
+  app.get("/api/admin/sales/by-photo/:photoId", isAuthenticated, async (req, res) => {
+    try {
+      const { photoId } = req.params;
+      const sales = await storage.getSalesByPhoto(photoId);
+      res.json(sales);
+    } catch (error) {
+      console.error('Error fetching sales by photo:', error);
+      res.status(500).json({ message: "Failed to fetch sales by photo" });
+    }
+  });
+
+  // ============================================
+  // INVENTORY ITEMS ROUTES
+  // ============================================
+  
+  // Get all inventory items
+  app.get("/api/admin/inventory", isAuthenticated, async (req, res) => {
+    try {
+      const { status } = req.query;
+      const items = await storage.getAllInventoryItems(status as string | undefined);
+      res.json(items);
+    } catch (error) {
+      console.error('Error fetching inventory:', error);
+      res.status(500).json({ message: "Failed to fetch inventory" });
+    }
+  });
+
+  // Get inventory with details
+  app.get("/api/admin/inventory/details", isAuthenticated, async (req, res) => {
+    try {
+      const items = await storage.getInventoryWithDetails();
+      res.json(items);
+    } catch (error) {
+      console.error('Error fetching inventory details:', error);
+      res.status(500).json({ message: "Failed to fetch inventory details" });
+    }
+  });
+
+  // Get single inventory item
+  app.get("/api/admin/inventory/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const item = await storage.getInventoryItem(id);
+      
+      if (!item) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      
+      res.json(item);
+    } catch (error) {
+      console.error('Error fetching inventory item:', error);
+      res.status(500).json({ message: "Failed to fetch inventory item" });
+    }
+  });
+
+  // Create inventory item
+  app.post("/api/admin/inventory", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertInventoryItemSchema.parse(req.body);
+      const item = await storage.createInventoryItem(validatedData);
+      res.status(201).json(item);
+    } catch (error) {
+      console.error('Error creating inventory item:', error);
+      res.status(400).json({ message: "Failed to create inventory item", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Update inventory item
+  app.put("/api/admin/inventory/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const item = await storage.updateInventoryItem(id, req.body);
+      
+      if (!item) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      
+      res.json(item);
+    } catch (error) {
+      console.error('Error updating inventory item:', error);
+      res.status(400).json({ message: "Failed to update inventory item" });
+    }
+  });
+
+  // Delete inventory item
+  app.delete("/api/admin/inventory/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteInventoryItem(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Inventory item not found" });
+      }
+      
+      res.json({ message: "Inventory item deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting inventory item:', error);
+      res.status(500).json({ message: "Failed to delete inventory item" });
+    }
+  });
+
+  // Get inventory by photo
+  app.get("/api/admin/inventory/by-photo/:photoId", isAuthenticated, async (req, res) => {
+    try {
+      const { photoId } = req.params;
+      const items = await storage.getInventoryByPhoto(photoId);
+      res.json(items);
+    } catch (error) {
+      console.error('Error fetching inventory by photo:', error);
+      res.status(500).json({ message: "Failed to fetch inventory by photo" });
+    }
+  });
+
+  // ============================================
+  // DROP SHIP ORDERS ROUTES
+  // ============================================
+  
+  // Get all drop ship orders
+  app.get("/api/admin/dropship", isAuthenticated, async (req, res) => {
+    try {
+      const { status } = req.query;
+      const orders = await storage.getAllDropShipOrders(status as string | undefined);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching drop ship orders:', error);
+      res.status(500).json({ message: "Failed to fetch drop ship orders" });
+    }
+  });
+
+  // Get single drop ship order
+  app.get("/api/admin/dropship/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const order = await storage.getDropShipOrder(id);
+      
+      if (!order) {
+        return res.status(404).json({ message: "Drop ship order not found" });
+      }
+      
+      res.json(order);
+    } catch (error) {
+      console.error('Error fetching drop ship order:', error);
+      res.status(500).json({ message: "Failed to fetch drop ship order" });
+    }
+  });
+
+  // Create drop ship order
+  app.post("/api/admin/dropship", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertDropShipOrderSchema.parse(req.body);
+      const order = await storage.createDropShipOrder(validatedData);
+      res.status(201).json(order);
+    } catch (error) {
+      console.error('Error creating drop ship order:', error);
+      res.status(400).json({ message: "Failed to create drop ship order", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Update drop ship order
+  app.put("/api/admin/dropship/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const order = await storage.updateDropShipOrder(id, req.body);
+      
+      if (!order) {
+        return res.status(404).json({ message: "Drop ship order not found" });
+      }
+      
+      res.json(order);
+    } catch (error) {
+      console.error('Error updating drop ship order:', error);
+      res.status(400).json({ message: "Failed to update drop ship order" });
+    }
+  });
+
+  // Delete drop ship order
+  app.delete("/api/admin/dropship/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteDropShipOrder(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Drop ship order not found" });
+      }
+      
+      res.json({ message: "Drop ship order deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting drop ship order:', error);
+      res.status(500).json({ message: "Failed to delete drop ship order" });
+    }
+  });
+
+  // Get drop ship orders by sale
+  app.get("/api/admin/dropship/by-sale/:saleId", isAuthenticated, async (req, res) => {
+    try {
+      const { saleId } = req.params;
+      const orders = await storage.getDropShipOrdersBySale(saleId);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching drop ship orders by sale:', error);
+      res.status(500).json({ message: "Failed to fetch drop ship orders by sale" });
+    }
+  });
+
+  // ============================================
+  // EXPENSE CATEGORIES ROUTES
+  // ============================================
+  
+  // Get all expense categories
+  app.get("/api/admin/expense-categories", isAuthenticated, async (req, res) => {
+    try {
+      const categories = await storage.getAllExpenseCategories();
+      res.json(categories);
+    } catch (error) {
+      console.error('Error fetching expense categories:', error);
+      res.status(500).json({ message: "Failed to fetch expense categories" });
+    }
+  });
+
+  // Get single expense category
+  app.get("/api/admin/expense-categories/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const category = await storage.getExpenseCategory(id);
+      
+      if (!category) {
+        return res.status(404).json({ message: "Expense category not found" });
+      }
+      
+      res.json(category);
+    } catch (error) {
+      console.error('Error fetching expense category:', error);
+      res.status(500).json({ message: "Failed to fetch expense category" });
+    }
+  });
+
+  // Create expense category
+  app.post("/api/admin/expense-categories", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertExpenseCategorySchema.parse(req.body);
+      const category = await storage.createExpenseCategory(validatedData);
+      res.status(201).json(category);
+    } catch (error) {
+      console.error('Error creating expense category:', error);
+      res.status(400).json({ message: "Failed to create expense category", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Update expense category
+  app.put("/api/admin/expense-categories/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const category = await storage.updateExpenseCategory(id, req.body);
+      
+      if (!category) {
+        return res.status(404).json({ message: "Expense category not found" });
+      }
+      
+      res.json(category);
+    } catch (error) {
+      console.error('Error updating expense category:', error);
+      res.status(400).json({ message: "Failed to update expense category" });
+    }
+  });
+
+  // Delete expense category
+  app.delete("/api/admin/expense-categories/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteExpenseCategory(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Expense category not found" });
+      }
+      
+      res.json({ message: "Expense category deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting expense category:', error);
+      res.status(500).json({ message: "Failed to delete expense category" });
+    }
+  });
+
+  // ============================================
+  // EXPENSES ROUTES
+  // ============================================
+  
+  // Get all expenses
+  app.get("/api/admin/expenses", isAuthenticated, async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const start = startDate ? new Date(startDate as string) : undefined;
+      const end = endDate ? new Date(endDate as string) : undefined;
+      
+      const expenses = await storage.getAllExpenses(start, end);
+      res.json(expenses);
+    } catch (error) {
+      console.error('Error fetching expenses:', error);
+      res.status(500).json({ message: "Failed to fetch expenses" });
+    }
+  });
+
+  // Get single expense
+  app.get("/api/admin/expenses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const expense = await storage.getExpense(id);
+      
+      if (!expense) {
+        return res.status(404).json({ message: "Expense not found" });
+      }
+      
+      res.json(expense);
+    } catch (error) {
+      console.error('Error fetching expense:', error);
+      res.status(500).json({ message: "Failed to fetch expense" });
+    }
+  });
+
+  // Create expense
+  app.post("/api/admin/expenses", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertExpenseSchema.parse(req.body);
+      const expense = await storage.createExpense(validatedData);
+      res.status(201).json(expense);
+    } catch (error) {
+      console.error('Error creating expense:', error);
+      res.status(400).json({ message: "Failed to create expense", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Update expense
+  app.put("/api/admin/expenses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const expense = await storage.updateExpense(id, req.body);
+      
+      if (!expense) {
+        return res.status(404).json({ message: "Expense not found" });
+      }
+      
+      res.json(expense);
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      res.status(400).json({ message: "Failed to update expense" });
+    }
+  });
+
+  // Delete expense
+  app.delete("/api/admin/expenses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteExpense(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Expense not found" });
+      }
+      
+      res.json({ message: "Expense deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      res.status(500).json({ message: "Failed to delete expense" });
+    }
+  });
+
+  // Get expenses by category
+  app.get("/api/admin/expenses/by-category/:categoryId", isAuthenticated, async (req, res) => {
+    try {
+      const { categoryId } = req.params;
+      const expenses = await storage.getExpensesByCategory(categoryId);
+      res.json(expenses);
+    } catch (error) {
+      console.error('Error fetching expenses by category:', error);
+      res.status(500).json({ message: "Failed to fetch expenses by category" });
+    }
+  });
+
+  // Get expenses by vendor
+  app.get("/api/admin/expenses/by-vendor/:vendor", isAuthenticated, async (req, res) => {
+    try {
+      const { vendor } = req.params;
+      const expenses = await storage.getExpensesByVendor(vendor);
+      res.json(expenses);
+    } catch (error) {
+      console.error('Error fetching expenses by vendor:', error);
+      res.status(500).json({ message: "Failed to fetch expenses by vendor" });
     }
   });
 

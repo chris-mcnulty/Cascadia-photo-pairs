@@ -7,6 +7,7 @@ This is a full-stack photo voting application for ranking landscape photography.
 Preferred communication style: Simple, everyday language.
 
 ## Recent Changes
+- **Business Inventory & Sales Management System (Nov 6, 2025)**: Complete inventory tracking and financial management system for photography print sales. Includes 9 new database tables: sales channels, suppliers, product sizes, supplier pricing (with historical versioning), sales records (with full buyer details), inventory items (linked to photo library), drop-ship orders, expense categories, and expenses. SharePoint integration configured for receipt uploads. New "Business" tab in admin panel provides dashboard analytics, inventory management, supplier pricing matrix, and expense tracking. Seeded with 4 sales channels (Website, Art Shows, Amazon, Etsy), 7 expense categories, and 10 standard product sizes. Supports two workflows: online sales (sale → drop-ship order → inventory) and art shows (inventory → sale).
 - **Admin Authentication Streamlined (Nov 6, 2025)**: Eliminated deprecated SMS/MFA admin login flow. Admin access now works seamlessly with JWT tokens from regular login - no separate password prompts or SMS verification. Automatic authentication headers added to all API requests (queryClient.ts) for consistent admin feature access including Pairs management. Single authentication at login provides full admin panel access.
 - **CRITICAL VOTE TRACKING BUG FIXED (Aug 30, 2025)**: Resolved major issue where authenticated user votes weren't being recorded due to missing JWT token headers in vote requests. Fixed vote tracking for contest integrity and legal compliance. Confirmed working with test user vote successfully recorded.
 - **Email Verification FULLY FIXED (Aug 30, 2025)**: Added missing /api/auth/verify-email endpoint and updated all email URLs to use correct SSL-enabled production domain. Email verification now works end-to-end with proper token validation and user status updates.
@@ -32,9 +33,10 @@ Preferred communication style: Simple, everyday language.
 ### Data Storage
 - **Database**: PostgreSQL, configured with Drizzle ORM.
 - **Hosting**: Supports Neon Database serverless PostgreSQL.
-- **Schema**: Includes tables for photos, votes, settings, users, userStats, contestEntries, and userFavorites.
+- **Schema**: Includes tables for photos, votes, settings, users, userStats, contestEntries, userFavorites, and business management (inventoryItems, sales, dropShipOrders, salesChannels, suppliers, supplierPrices, productSizes, expenses, expenseCategories).
 - **Migrations**: Drizzle Kit for schema management.
 - **Session Management**: Persistent session storage using connect-pg-simple.
+- **SharePoint Integration**: Receipt storage for business expense tracking.
 
 ### API Design
 - **Style**: RESTful endpoints with conventional patterns.
@@ -49,6 +51,7 @@ Preferred communication style: Simple, everyday language.
 ### Key Features
 - **Voting**: Photo pair randomization, win/loss ratio tracking, intelligent photo pair selection algorithm (no duplicates, no consecutive pairs). Includes a "Pairs" feature for direct comparison of related photos (e.g., color vs. B&W versions) configurable for frequency.
 - **Admin Dashboard**: Comprehensive analytics, top rankings, date range filtering, test data purging, photo hiding/showing, user management, and bulk category/sale status management.
+- **Business Management**: Complete inventory and sales tracking system with supplier pricing (historical versioning), inventory management (individual print tracking), drop-ship order fulfillment, expense tracking with SharePoint receipt uploads, and multi-channel sales tracking (Website, Art Shows, Amazon, Etsy). Supports both online (sale-first) and art show (inventory-first) workflows.
 - **User Features**: User-specific statistics, contest entry system, favorites, purchase history, personal leaderboard view (tracks voted photos in browser localStorage for persistent personal collection).
 - **Photo Management**: Inline photo editing, file upload support (drag-and-drop), smart handling of URL-based vs. file-based photos.
 - **Collections**: System for organizing photos into themed collections.

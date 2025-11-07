@@ -2685,6 +2685,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // INVENTORY ITEMS ROUTES
   // ============================================
   
+  // Get all photos for inventory dropdown
+  app.get("/api/admin/photos", isAuthenticated, async (req, res) => {
+    try {
+      const photos = await storage.getAllPhotos();
+      // Return only id and title for dropdown
+      const photoList = photos.map(p => ({ id: p.id, title: p.title }));
+      res.json(photoList);
+    } catch (error) {
+      console.error('Error fetching photos for inventory:', error);
+      res.status(500).json({ message: "Failed to fetch photos" });
+    }
+  });
+  
   // Get all inventory items
   app.get("/api/admin/inventory", isAuthenticated, async (req, res) => {
     try {

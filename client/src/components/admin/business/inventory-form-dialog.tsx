@@ -23,9 +23,16 @@ interface ProductSize {
   sizeLabel: string;
 }
 
+interface Supplier {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
 interface InventoryItem {
   id: string;
   photoId: string;
+  supplierId: string;
   title: string;
   description?: string;
   originalDate?: string;
@@ -45,6 +52,7 @@ interface InventoryFormDialogProps {
 
 const inventorySchema = z.object({
   photoId: z.string().min(1, "Photo is required"),
+  supplierId: z.string().min(1, "Supplier is required"),
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
   originalDate: z.string().optional(),
@@ -71,10 +79,16 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
     enabled: open,
   });
 
+  const { data: suppliers } = useQuery<Supplier[]>({
+    queryKey: ["/api/admin/suppliers"],
+    enabled: open,
+  });
+
   const form = useForm<InventoryFormData>({
     resolver: zodResolver(inventorySchema),
     defaultValues: {
       photoId: "",
+      supplierId: "",
       title: "",
       description: "",
       originalDate: "",
@@ -91,6 +105,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
     if (editingItem) {
       form.reset({
         photoId: editingItem.photoId,
+        supplierId: editingItem.supplierId,
         title: editingItem.title,
         description: editingItem.description || "",
         originalDate: editingItem.originalDate || "",
@@ -104,6 +119,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
     } else {
       form.reset({
         photoId: "",
+        supplierId: "",
         title: "",
         description: "",
         originalDate: "",
@@ -198,6 +214,31 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="supplierId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Supplier</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
+                    <FormControl>
+                      <SelectTrigger data-testid="select-supplier">
+                        <SelectValue placeholder="Select a supplier" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {suppliers?.filter(s => s.isActive).map((supplier) => (
+                        <SelectItem key={supplier.id} value={supplier.id}>
+                          {supplier.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}

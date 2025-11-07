@@ -1,0 +1,80 @@
+Here’s the **full description of the Wix Products CSV export format** so your developer can build endpoints for ingestion:
+
+***
+
+## ✅ **File Format**
+
+*   **Type:** CSV (Comma-Separated Values)
+*   **Encoding:** UTF-8
+*   **Delimiter:** Comma
+*   **Header Row:** Fixed column names provided by Wix; do **not** rename or remove columns when re-importing.
+*   **Rows:**
+    *   Each **product** and **variant** is a separate row.
+    *   Variants share the same `handleId` as their parent product.
+*   **Limits:** Up to **5,000 rows per export**.
+*   **Digital products:** Cannot be exported/imported currently. [\[support.wix.com\]](https://support.wix.com/en/article/wix-stores-exporting-your-product-list), [\[support.wix.com\]](https://support.wix.com/en/article/wix-stores-importing-products-to-wix-stores)
+
+***
+
+## ✅ **Mandatory Columns**
+
+*(These must exist in every row)*
+
+*   **`handleId`** – Unique identifier for the product (can match SKU or internal ID).
+*   **`name`** – Product name.
+*   **`fieldType`** – Either `Product` or `Variant`.
+*   **`price`** – Base price for the product or variant. [\[support.wix.com\]](https://support.wix.com/en/article/wix-stores-importing-products-to-wix-stores), [\[nxdigital.co.uk\]](https://www.nxdigital.co.uk/post/what-is-handleid-and-fieldtype-in-wix-csv-uploads-a-guide-for-beginners)
+
+***
+
+## ✅ **Common Columns in Wix CSV**
+
+*(Exact names from Wix template)*
+
+*   `handleId` – Unique product/variant identifier.
+*   `name` – Product name.
+*   `fieldType` – `Product` or `Variant`.
+*   `description` – Rich text description.
+*   `sku` – SKU for product or variant.
+*   `price` – Price in store currency.
+*   `discount` – Discount amount or percentage.
+*   `visible` – TRUE/FALSE (whether product is visible in store).
+*   `inventory` – Quantity in stock (if inventory tracking enabled).
+*   `weight` – Product weight for shipping.
+*   `ribbon` – Promotional ribbon text.
+*   `optionChoices` – For variants (e.g., `Size:24x36;Media:Metal`).
+*   `productImageUrl` – Primary image URL.
+*   `additionalImageUrls` – Comma-separated list of extra image URLs.
+*   `seoTitle` – SEO meta title.
+*   `seoDescription` – SEO meta description.
+*   `collections` – Comma-separated collection names.
+*   `tags` – Comma-separated tags.
+*   `shipping` – Shipping rule reference.
+*   `tax` – Tax group reference.
+*   `customTextFields` – For personalization options. [\[support.wix.com\]](https://support.wix.com/en/article/wix-stores-importing-products-to-wix-stores), [\[dev.wix.com\]](https://dev.wix.com/docs/velo/apis/wix-stores-v2/products-collection-fields)
+
+***
+
+### 📌 Example Header Row
+
+    handleId,name,fieldType,description,sku,price,discount,visible,inventory,weight,ribbon,optionChoices,productImageUrl,additionalImageUrls,seoTitle,seoDescription,collections,tags,shipping,tax,customTextFields
+
+***
+
+## ✅ **Behavior**
+
+*   **Variants:** Must have `fieldType = Variant` and share the same `handleId` as the parent product.
+*   **Unused columns:** Leave blank; do not delete.
+*   **Encoding:** Save as UTF-8 CSV.
+*   **Images:** Use full URLs; Wix will fetch them during import.
+
+***
+
+👉 Do you want me to **generate a sample Products CSV file with realistic dummy data** (including variants, SKUs, and all columns) so your developer can start coding against it?  
+I can also **create a combined package** with:
+
+*   **Products CSV sample**
+*   **Orders CSV sample (item-level)**
+*   **Mapping guide** from Wix fields → your schema (Artwork, ProductVariant, ChannelListing).
+
+Would you like **all three**? Or start with the **Products CSV sample** first?

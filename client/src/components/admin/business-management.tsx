@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Package, Package2, Building2, Receipt } from "lucide-react";
+import { LayoutDashboard, Package, Package2, Building2, Receipt, Upload } from "lucide-react";
 import BusinessDashboard from "./business/business-dashboard";
 import ProductManagement from "./business/product-management";
 import InventoryManagement from "./business/inventory-management";
 import SupplierManagement from "./business/supplier-management";
 import ExpenseTracker from "./business/expense-tracker";
+import { CSVImport } from "./business/csv-import";
 
 export default function BusinessManagement() {
-  const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "products" | "inventory" | "suppliers" | "expenses">("dashboard");
+  const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "products" | "inventory" | "suppliers" | "expenses" | "import">("dashboard");
 
   return (
     <div className="space-y-6">
@@ -68,6 +69,16 @@ export default function BusinessManagement() {
           <Receipt className="w-4 h-4 mr-2" />
           Expenses
         </Button>
+        <Button
+          variant={activeSubTab === "import" ? "default" : "outline"}
+          onClick={() => setActiveSubTab("import")}
+          className="flex items-center text-sm"
+          size="sm"
+          data-testid="button-import-subtab"
+        >
+          <Upload className="w-4 h-4 mr-2" />
+          Import Data
+        </Button>
       </div>
 
       {/* Sub-tab Content */}
@@ -76,6 +87,7 @@ export default function BusinessManagement() {
       {activeSubTab === "inventory" && <InventoryManagement />}
       {activeSubTab === "suppliers" && <SupplierManagement />}
       {activeSubTab === "expenses" && <ExpenseTracker />}
+      {activeSubTab === "import" && <CSVImport />}
     </div>
   );
 }

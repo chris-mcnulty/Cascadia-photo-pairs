@@ -447,16 +447,31 @@ export const supplierPrices = pgTable("supplier_prices", {
   index("idx_supplier_prices_current").on(table.isCurrent),
 ]);
 
+// Customers table for tracking buyers
+export const customers = pgTable("customers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  email: varchar("email"),
+  phone: varchar("phone"),
+  address: text("address"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_customers_email").on(table.email),
+]);
+
 // Sales records with buyer information
 export const sales = pgTable("sales", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   productId: varchar("product_id").references(() => products.id), // Changed from photoId
   channelId: varchar("channel_id").notNull().references(() => salesChannels.id),
+  customerId: varchar("customer_id").references(() => customers.id), // Reference to customers table
   saleDate: timestamp("sale_date").notNull().defaultNow(),
   soldPrice: integer("sold_price").notNull(), // Price in cents - can override standard pricing
   taxCollected: integer("tax_collected").default(0).notNull(), // Tax in cents
   
-  // Buyer information
+  // Legacy buyer information (for backward compatibility)
   buyerName: varchar("buyer_name"),
   buyerEmail: varchar("buyer_email"),
   buyerPhone: varchar("buyer_phone"),
@@ -467,6 +482,7 @@ export const sales = pgTable("sales", {
 }, (table) => [
   index("idx_sales_product").on(table.productId),
   index("idx_sales_channel").on(table.channelId),
+  index("idx_sales_customer").on(table.customerId),
   index("idx_sales_date").on(table.saleDate),
 ]);
 

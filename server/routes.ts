@@ -45,6 +45,8 @@ import { sendVerificationEmail, sendPasswordResetEmail } from "./email";
 import { sendAdminMFACode, isEmailServiceAvailable, isSMSServiceAvailable } from "./sendgrid";
 import { rssService } from "./rss-service";
 import { z } from "zod";
+import multer from "multer";
+import { importWixProducts, importWixOrders } from "./csv-import";
 
 // Simple middleware for admin auth check (for pairs endpoints)
 const isAuthenticated = async (req: any, res: any, next: any) => {
@@ -2785,6 +2787,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // CSV IMPORT ROUTES
+  // ============================================
+  
+  // Configure multer for CSV uploads
+  const csvUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+      if (file.mimetype === 'text/csv' || file.originalname.endsWith('.csv')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only CSV files are allowed'));
+      }
+    },
+  });
+  
+  // Import Wix products from CSV
+  app.post("/api/admin/import/wix-products", isAuthenticated, csvUpload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      
+      const csvText = req.file.buffer.toString('utf-8');
+      const result = await importWixProducts(csvText);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error importing Wix products:', error);
+      res.status(500).json({ 
+        message: "Failed to import products", 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  });
+  
+  // Import Wix orders from CSV
+  app.post("/api/admin/import/wix-orders", isAuthenticated, csvUpload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      
+      const csvText = req.file.buffer.toString('utf-8');
+      const result = await importWixOrders(csvText);
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error importing Wix orders:', error);
+      res.status(500).json({ 
+        message: "Failed to import orders", 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      });
+    }
+  });
+  
   // ============================================
   // INVENTORY ITEMS ROUTES
   // ============================================

@@ -1,0 +1,78 @@
+Here’s the **full description of the Wix Orders CSV export format** for **item-level reporting** when doing a complete data dump:
+
+***
+
+## ✅ **File Format**
+
+*   **Type:** CSV (Comma-Separated Values)
+*   **Encoding:** UTF-8
+*   **Delimiter:** Comma
+*   **Time Zone:** All timestamps in **UTC**
+*   **Structure:** Each purchased item appears as a separate row, even if multiple items belong to the same order.
+*   **Header Row:** Column names provided by Wix; do **not** rename or remove columns when re-importing.
+
+***
+
+## ✅ **Typical Columns in Item-Level Export**
+
+*(Exact names may vary slightly by Wix version, but these are standard fields)*
+
+### **Order-Level Fields**
+
+*   `Order ID` – Unique Wix order identifier
+*   `Order Number` – Sequential number for display
+*   `Order Date` – UTC timestamp of purchase
+*   `Order Status` – e.g., Paid, Fulfilled, Cancelled
+*   `Payment Status` – Paid / Pending / Refunded
+*   `Payment Method` – e.g., Credit Card, PayPal
+*   `Currency` – ISO code (e.g., USD)
+*   `Subtotal` – Before tax/shipping
+*   `Tax` – Tax amount
+*   `Shipping` – Shipping cost
+*   `Discount` – Discount applied
+*   `Total` – Grand total
+*   `Channel` – Sales channel (Website, POS, etc.)
+
+### **Item-Level Fields**
+
+*   `Product Name` – Name of the purchased product
+*   `SKU` – Product SKU (if defined)
+*   `Quantity` – Number of units purchased
+*   `Price` – Unit price at time of sale
+*   `Line Total` – Price × Quantity
+*   `Variant Options` – e.g., Size: 24x36; Media: Metal
+*   `Product ID` – Internal Wix product identifier
+
+### **Customer Fields**
+
+*   `Customer Name`
+*   `Email`
+*   `Phone`
+*   `Billing Address` – Full formatted address
+*   `Shipping Address` – Full formatted address
+
+### **Additional Fields**
+
+*   `Notes` – Seller notes or buyer comments
+*   `Tracking Number` – If fulfillment completed
+*   `Fulfillment Status` – e.g., Shipped, Delivered
+*   `Refund Status` – If applicable
+
+***
+
+## ✅ **Behavior**
+
+*   You can **deselect columns** before export, but for a full dump, keep all columns.
+*   Each row = **one item**; multi-item orders will have repeated order-level data across rows.
+*   Export includes **all selected orders**; max rows depend on number of items.
+
+***
+
+### 📌 Example Header Row (Item-Level)
+
+    Order ID,Order Number,Order Date,Order Status,Payment Status,Payment Method,Currency,Subtotal,Tax,Shipping,Discount,Total,Channel,Product Name,SKU,Quantity,Price,Line Total,Variant Options,Product ID,Customer Name,Email,Phone,Billing Address,Shipping Address,Notes,Tracking Number,Fulfillment Status,Refund Status
+
+***
+
+👉 Do you want me to **generate a sample CSV file with realistic dummy data** (matching Wix’s structure) so your developer on Replit can start coding against it?  
+Or should I also include the **Products CSV format** in the same package for completeness?

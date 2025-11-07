@@ -342,6 +342,39 @@ export const productVariants = pgTable("product_variants", {
   index("idx_product_variants_media").on(table.mediaType),
 ]);
 
+// Master SKUs - unique combination of product + media + size
+export const productSKUs = pgTable("product_skus", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sku: varchar("sku").notNull().unique(), // e.g., "TRUL2020-CL-24x36"
+  productId: varchar("product_id").notNull().references(() => products.id),
+  mediaType: varchar("media_type").notNull(), // "ChromaLuxe", "Framed Archival", etc.
+  productSizeId: varchar("product_size_id").notNull().references(() => productSizes.id),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_product_skus_product").on(table.productId),
+  index("idx_product_skus_size").on(table.productSizeId),
+  index("idx_product_skus_sku").on(table.sku),
+  // Ensure unique combination of product + media + size
+  index("idx_product_skus_unique").on(table.productId, table.mediaType, table.productSizeId),
+]);
+
+// Channel-specific SKUs (children of master SKUs)
+export const channelSKUs = pgTable("channel_skus", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  masterSKUId: varchar("master_sku_id").notNull().references(() => productSKUs.id),
+  channelId: varchar("channel_id").notNull().references(() => salesChannels.id),
+  channelSKU: varchar("channel_sku").notNull(), // e.g., "AMZN-TRUL2020-CL-24x36"
+  channelListingId: varchar("channel_listing_id"), // External ID from Amazon, Etsy, etc.
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_channel_skus_master").on(table.masterSKUId),
+  index("idx_channel_skus_channel").on(table.channelId),
+  index("idx_channel_skus_unique").on(table.channelId, table.channelSKU),
+]);
+
 // Retail prices - YOUR pricing history, not supplier costs
 export const retailPrices = pgTable("retail_prices", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -440,11 +473,12 @@ export const sales = pgTable("sales", {
 // Individual inventory items (each physical print)
 export const inventoryItems = pgTable("inventory_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  productId: varchar("product_id").notNull().references(() => products.id),
+  productSKUId: varchar("product_sku_id").notNull().references(() => productSKUs.id), // References master SKU
+  productId: varchar("product_id").notNull().references(() => products.id), // Keep for convenience
   supplierId: varchar("supplier_id").notNull().references(() => suppliers.id), // Track supplier for each item
   saleId: varchar("sale_id").references(() => sales.id), // Link to sale when sold
   
-  // Print details
+  // Print details (denormalized for convenience)
   title: text("title").notNull(),
   description: text("description"),
   originalDate: timestamp("original_date"), // Date photo was taken
@@ -466,6 +500,7 @@ export const inventoryItems = pgTable("inventory_items", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
+  index("idx_inventory_items_sku").on(table.productSKUId),
   index("idx_inventory_items_product").on(table.productId),
   index("idx_inventory_items_supplier").on(table.supplierId),
   index("idx_inventory_items_status").on(table.status),
@@ -535,6 +570,17 @@ export const insertProductVariantSchema = createInsertSchema(productVariants).om
   createdAt: true,
 });
 
+export const insertProductSKUSchema = createInsertSchema(productSKUs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertChannelSKUSchema = createInsertSchema(channelSKUs).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertRetailPriceSchema = createInsertSchema(retailPrices).omit({
   id: true,
   createdAt: true,
@@ -596,6 +642,10 @@ export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type ProductVariant = typeof productVariants.$inferSelect;
 export type InsertProductVariant = z.infer<typeof insertProductVariantSchema>;
+export type ProductSKU = typeof productSKUs.$inferSelect;
+export type InsertProductSKU = z.infer<typeof insertProductSKUSchema>;
+export type ChannelSKU = typeof channelSKUs.$inferSelect;
+export type InsertChannelSKU = z.infer<typeof insertChannelSKUSchema>;
 export type RetailPrice = typeof retailPrices.$inferSelect;
 export type InsertRetailPrice = z.infer<typeof insertRetailPriceSchema>;
 export type SalesChannel = typeof salesChannels.$inferSelect;

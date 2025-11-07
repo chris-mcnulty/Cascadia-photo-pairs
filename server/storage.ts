@@ -1,6 +1,9 @@
 import { 
   type Photo, type InsertPhoto, type Vote, type InsertVote, type Settings, type InsertSettings, 
   type Collection, type InsertCollection, type PhotoPair, type InsertPhotoPair, type PairVote, type InsertPairVote,
+  type Product, type InsertProduct, type ProductVariant, type InsertProductVariant,
+  type ProductSKU, type InsertProductSKU, type ChannelSKU, type InsertChannelSKU,
+  type RetailPrice, type InsertRetailPrice,
   type SalesChannel, type InsertSalesChannel, type Supplier, type InsertSupplier,
   type ProductSize, type InsertProductSize, type SupplierPrice, type InsertSupplierPrice,
   type Sale, type InsertSale, type InventoryItem, type InsertInventoryItem,
@@ -9,7 +12,7 @@ import {
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { photos, votes, settings, collections, photoPairs, pairVotes, salesChannels, suppliers, productSizes, supplierPrices, sales, inventoryItems, dropShipOrders, expenseCategories, expenses } from "@shared/schema";
+import { photos, votes, settings, collections, photoPairs, pairVotes, products, productVariants, productSKUs, channelSKUs, retailPrices, salesChannels, suppliers, productSizes, supplierPrices, sales, inventoryItems, dropShipOrders, expenseCategories, expenses } from "@shared/schema";
 import { eq, sql, inArray, and, or, gte, lte, isNull, desc } from "drizzle-orm";
 
 export interface IStorage {
@@ -69,6 +72,40 @@ export interface IStorage {
   getPhotoPerformanceInPairs(photoId: string): Promise<{ wins: number; losses: number; winRate: number }>;
   checkForPairDisplay(): Promise<[Photo, Photo] | null>;
   archivePhoto(id: string): Promise<boolean>;
+  
+  // Products
+  getAllProducts(): Promise<Product[]>;
+  getProduct(id: string): Promise<Product | undefined>;
+  createProduct(product: InsertProduct): Promise<Product>;
+  updateProduct(id: string, updates: Partial<Product>): Promise<Product | undefined>;
+  deleteProduct(id: string): Promise<boolean>;
+  getProductsByPhoto(photoId: string): Promise<Product[]>;
+  
+  // Product Variants
+  getProductVariants(productId: string): Promise<ProductVariant[]>;
+  createProductVariant(variant: InsertProductVariant): Promise<ProductVariant>;
+  updateProductVariant(id: string, updates: Partial<ProductVariant>): Promise<ProductVariant | undefined>;
+  deleteProductVariant(id: string): Promise<boolean>;
+  
+  // Product SKUs
+  getAllProductSKUs(): Promise<ProductSKU[]>;
+  getProductSKU(id: string): Promise<ProductSKU | undefined>;
+  createProductSKU(sku: InsertProductSKU): Promise<ProductSKU>;
+  updateProductSKU(id: string, updates: Partial<ProductSKU>): Promise<ProductSKU | undefined>;
+  deleteProductSKU(id: string): Promise<boolean>;
+  getProductSKUsByProduct(productId: string): Promise<ProductSKU[]>;
+  
+  // Channel SKUs
+  getChannelSKUs(masterSKUId: string): Promise<ChannelSKU[]>;
+  createChannelSKU(sku: InsertChannelSKU): Promise<ChannelSKU>;
+  updateChannelSKU(id: string, updates: Partial<ChannelSKU>): Promise<ChannelSKU | undefined>;
+  deleteChannelSKU(id: string): Promise<boolean>;
+  
+  // Retail Prices
+  getRetailPrices(productSizeId: string, mediaType: string): Promise<RetailPrice[]>;
+  getCurrentRetailPrice(productSizeId: string, mediaType: string): Promise<RetailPrice | undefined>;
+  createRetailPrice(price: InsertRetailPrice): Promise<RetailPrice>;
+  updateRetailPrice(id: string, updates: Partial<RetailPrice>): Promise<RetailPrice | undefined>;
   
   // Sales Channels
   getAllSalesChannels(): Promise<SalesChannel[]>;
@@ -666,6 +703,36 @@ export class MemStorage implements IStorage {
     return true;
   }
 
+  // Product stub implementations for MemStorage
+  async getAllProducts(): Promise<Product[]> { return []; }
+  async getProduct(id: string): Promise<Product | undefined> { return undefined; }
+  async createProduct(product: InsertProduct): Promise<Product> { throw new Error('Not implemented in MemStorage'); }
+  async updateProduct(id: string, updates: Partial<Product>): Promise<Product | undefined> { return undefined; }
+  async deleteProduct(id: string): Promise<boolean> { return false; }
+  async getProductsByPhoto(photoId: string): Promise<Product[]> { return []; }
+  
+  async getProductVariants(productId: string): Promise<ProductVariant[]> { return []; }
+  async createProductVariant(variant: InsertProductVariant): Promise<ProductVariant> { throw new Error('Not implemented in MemStorage'); }
+  async updateProductVariant(id: string, updates: Partial<ProductVariant>): Promise<ProductVariant | undefined> { return undefined; }
+  async deleteProductVariant(id: string): Promise<boolean> { return false; }
+  
+  async getAllProductSKUs(): Promise<ProductSKU[]> { return []; }
+  async getProductSKU(id: string): Promise<ProductSKU | undefined> { return undefined; }
+  async createProductSKU(sku: InsertProductSKU): Promise<ProductSKU> { throw new Error('Not implemented in MemStorage'); }
+  async updateProductSKU(id: string, updates: Partial<ProductSKU>): Promise<ProductSKU | undefined> { return undefined; }
+  async deleteProductSKU(id: string): Promise<boolean> { return false; }
+  async getProductSKUsByProduct(productId: string): Promise<ProductSKU[]> { return []; }
+  
+  async getChannelSKUs(masterSKUId: string): Promise<ChannelSKU[]> { return []; }
+  async createChannelSKU(sku: InsertChannelSKU): Promise<ChannelSKU> { throw new Error('Not implemented in MemStorage'); }
+  async updateChannelSKU(id: string, updates: Partial<ChannelSKU>): Promise<ChannelSKU | undefined> { return undefined; }
+  async deleteChannelSKU(id: string): Promise<boolean> { return false; }
+  
+  async getRetailPrices(productSizeId: string, mediaType: string): Promise<RetailPrice[]> { return []; }
+  async getCurrentRetailPrice(productSizeId: string, mediaType: string): Promise<RetailPrice | undefined> { return undefined; }
+  async createRetailPrice(price: InsertRetailPrice): Promise<RetailPrice> { throw new Error('Not implemented in MemStorage'); }
+  async updateRetailPrice(id: string, updates: Partial<RetailPrice>): Promise<RetailPrice | undefined> { return undefined; }
+
   // Inventory stub implementations for MemStorage
   async getAllSalesChannels(): Promise<SalesChannel[]> { return []; }
   async getSalesChannel(id: string): Promise<SalesChannel | undefined> { return undefined; }
@@ -1179,13 +1246,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPhotoStats(startDate?: string, endDate?: string, category?: string, voterType?: string): Promise<Photo[]> {
-    let query = db.select().from(photos);
-    
-    if (category) {
-      query = query.where(eq(photos.category, category));
-    }
-    
-    const allPhotos = await query;
+    const allPhotos = category 
+      ? await db.select().from(photos).where(eq(photos.category, category))
+      : await db.select().from(photos);
     
     // If filtering by voterType or date range, we need to recalculate stats based on filtered votes
     if (voterType || startDate || endDate) {
@@ -1917,6 +1980,150 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ============================================
+  // PRODUCTS METHODS
+  // ============================================
+  async getAllProducts(): Promise<Product[]> {
+    return await db.select().from(products);
+  }
+
+  async getProduct(id: string): Promise<Product | undefined> {
+    const [product] = await db.select().from(products).where(eq(products.id, id));
+    return product;
+  }
+
+  async createProduct(product: InsertProduct): Promise<Product> {
+    const [newProduct] = await db.insert(products).values(product).returning();
+    return newProduct;
+  }
+
+  async updateProduct(id: string, updates: Partial<Product>): Promise<Product | undefined> {
+    const [updated] = await db.update(products).set(updates).where(eq(products.id, id)).returning();
+    return updated;
+  }
+
+  async deleteProduct(id: string): Promise<boolean> {
+    const result = await db.delete(products).where(eq(products.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async getProductsByPhoto(photoId: string): Promise<Product[]> {
+    return await db.select().from(products).where(eq(products.photoId, photoId));
+  }
+
+  // Product Variants
+  async getProductVariants(productId: string): Promise<ProductVariant[]> {
+    return await db.select().from(productVariants).where(eq(productVariants.productId, productId));
+  }
+
+  async createProductVariant(variant: InsertProductVariant): Promise<ProductVariant> {
+    const [newVariant] = await db.insert(productVariants).values(variant).returning();
+    return newVariant;
+  }
+
+  async updateProductVariant(id: string, updates: Partial<ProductVariant>): Promise<ProductVariant | undefined> {
+    const [updated] = await db.update(productVariants).set(updates).where(eq(productVariants.id, id)).returning();
+    return updated;
+  }
+
+  async deleteProductVariant(id: string): Promise<boolean> {
+    const result = await db.delete(productVariants).where(eq(productVariants.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Product SKUs
+  async getAllProductSKUs(): Promise<ProductSKU[]> {
+    return await db.select().from(productSKUs);
+  }
+
+  async getProductSKU(id: string): Promise<ProductSKU | undefined> {
+    const [sku] = await db.select().from(productSKUs).where(eq(productSKUs.id, id));
+    return sku;
+  }
+
+  async createProductSKU(sku: InsertProductSKU): Promise<ProductSKU> {
+    const [newSKU] = await db.insert(productSKUs).values(sku).returning();
+    return newSKU;
+  }
+
+  async updateProductSKU(id: string, updates: Partial<ProductSKU>): Promise<ProductSKU | undefined> {
+    const [updated] = await db.update(productSKUs).set(updates).where(eq(productSKUs.id, id)).returning();
+    return updated;
+  }
+
+  async deleteProductSKU(id: string): Promise<boolean> {
+    const result = await db.delete(productSKUs).where(eq(productSKUs.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  async getProductSKUsByProduct(productId: string): Promise<ProductSKU[]> {
+    return await db.select().from(productSKUs).where(eq(productSKUs.productId, productId));
+  }
+
+  // Channel SKUs
+  async getChannelSKUs(masterSKUId: string): Promise<ChannelSKU[]> {
+    return await db.select().from(channelSKUs).where(eq(channelSKUs.masterSKUId, masterSKUId));
+  }
+
+  async createChannelSKU(sku: InsertChannelSKU): Promise<ChannelSKU> {
+    const [newSKU] = await db.insert(channelSKUs).values(sku).returning();
+    return newSKU;
+  }
+
+  async updateChannelSKU(id: string, updates: Partial<ChannelSKU>): Promise<ChannelSKU | undefined> {
+    const [updated] = await db.update(channelSKUs).set(updates).where(eq(channelSKUs.id, id)).returning();
+    return updated;
+  }
+
+  async deleteChannelSKU(id: string): Promise<boolean> {
+    const result = await db.delete(channelSKUs).where(eq(channelSKUs.id, id));
+    return (result.rowCount || 0) > 0;
+  }
+
+  // Retail Prices
+  async getRetailPrices(productSizeId: string, mediaType: string): Promise<RetailPrice[]> {
+    return await db.select()
+      .from(retailPrices)
+      .where(and(
+        eq(retailPrices.productSizeId, productSizeId),
+        eq(retailPrices.mediaType, mediaType)
+      ))
+      .orderBy(desc(retailPrices.effectiveFrom));
+  }
+
+  async getCurrentRetailPrice(productSizeId: string, mediaType: string): Promise<RetailPrice | undefined> {
+    const [price] = await db.select()
+      .from(retailPrices)
+      .where(and(
+        eq(retailPrices.productSizeId, productSizeId),
+        eq(retailPrices.mediaType, mediaType),
+        eq(retailPrices.isCurrent, true)
+      ));
+    return price;
+  }
+
+  async createRetailPrice(price: InsertRetailPrice): Promise<RetailPrice> {
+    // Mark old prices as not current
+    await db.update(retailPrices)
+      .set({ isCurrent: false })
+      .where(and(
+        eq(retailPrices.productSizeId, price.productSizeId),
+        eq(retailPrices.mediaType, price.mediaType)
+      ));
+
+    const [newPrice] = await db.insert(retailPrices).values({
+      ...price,
+      isCurrent: true,
+      version: 1 // TODO: increment based on existing versions
+    }).returning();
+    return newPrice;
+  }
+
+  async updateRetailPrice(id: string, updates: Partial<RetailPrice>): Promise<RetailPrice | undefined> {
+    const [updated] = await db.update(retailPrices).set(updates).where(eq(retailPrices.id, id)).returning();
+    return updated;
+  }
+
+  // ============================================
   // SALES CHANNELS METHODS
   // ============================================
   
@@ -2146,10 +2353,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getSalesByPhoto(photoId: string): Promise<Sale[]> {
+    // Find products for this photo first
+    const photosProducts = await db.select()
+      .from(products)
+      .where(eq(products.photoId, photoId));
+    
+    if (photosProducts.length === 0) return [];
+    
+    const productIds = photosProducts.map(p => p.id);
     return await db
       .select()
       .from(sales)
-      .where(eq(sales.photoId, photoId))
+      .where(inArray(sales.productId, productIds))
       .orderBy(desc(sales.saleDate));
   }
 
@@ -2192,10 +2407,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getInventoryByPhoto(photoId: string): Promise<InventoryItem[]> {
+    // Find products for this photo first
+    const photosProducts = await db.select()
+      .from(products)
+      .where(eq(products.photoId, photoId));
+    
+    if (photosProducts.length === 0) return [];
+    
+    const productIds = photosProducts.map(p => p.id);
     return await db
       .select()
       .from(inventoryItems)
-      .where(eq(inventoryItems.photoId, photoId));
+      .where(inArray(inventoryItems.productId, productIds));
   }
 
   async getInventoryWithDetails(): Promise<Array<InventoryItem & { photo?: Photo; productSize?: ProductSize; sale?: Sale }>> {
@@ -2203,7 +2426,9 @@ export class DatabaseStorage implements IStorage {
     
     const itemsWithDetails = await Promise.all(
       items.map(async (item) => {
-        const photo = item.photoId ? await this.getPhoto(item.photoId) : undefined;
+        // Get product first, then photo through the product
+        const product = item.productId ? await this.getProduct(item.productId) : undefined;
+        const photo = product?.photoId ? await this.getPhoto(product.photoId) : undefined;
         const productSize = item.productSizeId ? await this.getProductSize(item.productSizeId) : undefined;
         const sale = item.saleId ? await this.getSale(item.saleId) : undefined;
         

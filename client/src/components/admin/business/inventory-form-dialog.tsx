@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus } from "lucide-react";
 
 interface Photo {
   id: string;
@@ -68,6 +68,9 @@ type InventoryFormData = z.infer<typeof inventorySchema>;
 
 export default function InventoryFormDialog({ open, onClose, editingItem }: InventoryFormDialogProps) {
   const { toast } = useToast();
+  const [addSizeDialogOpen, setAddSizeDialogOpen] = useState(false);
+  const [newSizeLabel, setNewSizeLabel] = useState("");
+  const [isAddingSize, setIsAddingSize] = useState(false);
 
   const { data: photos } = useQuery<Photo[]>({
     queryKey: ["/api/admin/photos"],
@@ -132,6 +135,42 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
       });
     }
   }, [editingItem, form, open]);
+
+  const handleAddCustomSize = async () => {
+    if (!newSizeLabel.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a size label",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsAddingSize(true);
+    try {
+      await apiRequest("POST", "/api/admin/product-sizes", {
+        sizeLabel: newSizeLabel.trim(),
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ["/api/admin/product-sizes"] });
+
+      toast({
+        title: "Success",
+        description: `Size "${newSizeLabel}" added successfully`,
+      });
+
+      setNewSizeLabel("");
+      setAddSizeDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add custom size",
+        variant: "destructive",
+      });
+    } finally {
+      setIsAddingSize(false);
+    }
+  };
 
   const onSubmit = async (data: InventoryFormData) => {
     try {
@@ -298,7 +337,20 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
                 name="productSizeId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Size</FormLabel>
+                    <div className="flex items-center justify-between">
+                      <FormLabel>Size</FormLabel>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setAddSizeDialogOpen(true)}
+                        data-testid="button-add-custom-size"
+                        className="h-7 text-xs"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        Add Custom
+                      </Button>
+                    </div>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-size">
@@ -415,6 +467,58 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
           </form>
         </Form>
       </DialogContent>
+
+      {/* Add Custom Size Dialog */}
+      <Dialog open={addSizeDialogOpen} onOpenChange={setAddSizeDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Custom Size</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="size-label" className="text-sm font-medium">
+                Size Label
+              </label>
+              <Input
+                id="size-label"
+                value={newSizeLabel}
+                onChange={(e) => setNewSizeLabel(e.target.value)}
+                placeholder="e.g., 60x45"
+                data-testid="input-custom-size-label"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleAddCustomSize();
+                  }
+                }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setAddSizeDialogOpen(false);
+                setNewSizeLabel("");
+              }}
+              data-testid="button-cancel-custom-size"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAddCustomSize}
+              disabled={isAddingSize}
+              data-testid="button-submit-custom-size"
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isAddingSize && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Add Size
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }

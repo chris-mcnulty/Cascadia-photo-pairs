@@ -275,7 +275,29 @@ function AuthenticatedAdmin() {
     return <AdminDashboard />;
   }
   
-  return <AdminLogin onAuthenticated={login} />;
+  // If not authenticated as admin, show message and redirect to login
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <Card className="max-w-md w-full">
+        <CardHeader>
+          <CardTitle className="text-center">Admin Access Required</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-center text-gray-600">
+            You need to be logged in with an admin account to access this area.
+          </p>
+          <div className="flex flex-col gap-2">
+            <Link href="/login" className="w-full">
+              <Button className="w-full">Go to Login</Button>
+            </Link>
+            <Link href="/" className="w-full">
+              <Button variant="outline" className="w-full">Back to Home</Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 }
 
 export default function Admin() {

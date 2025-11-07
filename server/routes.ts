@@ -29,7 +29,8 @@ import {
   insertInventoryItemSchema,
   insertDropShipOrderSchema,
   insertExpenseCategorySchema,
-  insertExpenseSchema
+  insertExpenseSchema,
+  insertProductSchema
 } from "@shared/schema";
 import { 
   createUser, 
@@ -43,6 +44,7 @@ import {
 import { sendVerificationEmail, sendPasswordResetEmail } from "./email";
 import { sendAdminMFACode, isEmailServiceAvailable, isSMSServiceAvailable } from "./sendgrid";
 import { rssService } from "./rss-service";
+import { z } from "zod";
 
 // Simple middleware for admin auth check (for pairs endpoints)
 const isAuthenticated = async (req: any, res: any, next: any) => {
@@ -2678,6 +2680,108 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching sales by photo:', error);
       res.status(500).json({ message: "Failed to fetch sales by photo" });
+    }
+  });
+
+  // ============================================
+  // PRODUCT ROUTES
+  // ============================================
+
+  // Get all products
+  app.get("/api/products", async (req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      res.status(500).json({ message: "Failed to fetch products" });
+    }
+  });
+
+  // Get single product
+  app.get("/api/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const product = await storage.getProduct(id);
+      
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      
+      res.json(product);
+    } catch (error) {
+      console.error('Error fetching product:', error);
+      res.status(500).json({ message: "Failed to fetch product" });
+    }
+  });
+
+  // Get products by photo
+  app.get("/api/products/by-photo/:photoId", async (req, res) => {
+    try {
+      const { photoId } = req.params;
+      const products = await storage.getProductsByPhoto(photoId);
+      res.json(products);
+    } catch (error) {
+      console.error('Error fetching products by photo:', error);
+      res.status(500).json({ message: "Failed to fetch products by photo" });
+    }
+  });
+
+  // Create product (admin only)
+  app.post("/api/products", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertProductSchema.parse(req.body);
+      const product = await storage.createProduct(validatedData);
+      res.status(201).json(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(400).json({ message: "Failed to create product", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Update product (admin only)
+  app.patch("/api/products/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Validate the update data using partial schema
+      const updateSchema = insertProductSchema.partial();
+      const validatedData = updateSchema.parse(req.body);
+      
+      const product = await storage.updateProduct(id, validatedData);
+      
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      
+      res.json(product);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ 
+          message: "Invalid product data", 
+          errors: error.errors 
+        });
+      } else {
+        res.status(400).json({ message: "Failed to update product" });
+      }
+    }
+  });
+
+  // Delete product (admin only)
+  app.delete("/api/products/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteProduct(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      
+      res.json({ message: "Product deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(400).json({ message: "Failed to delete product" });
     }
   });
 

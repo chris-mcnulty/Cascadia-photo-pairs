@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Package, Building2, Receipt } from "lucide-react";
+import { LayoutDashboard, Package, Package2, Building2, Receipt } from "lucide-react";
 import BusinessDashboard from "./business/business-dashboard";
+import ProductManagement from "./business/product-management";
 import InventoryManagement from "./business/inventory-management";
 import SupplierManagement from "./business/supplier-management";
 import ExpenseTracker from "./business/expense-tracker";
 
 export default function BusinessManagement() {
-  const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "inventory" | "suppliers" | "expenses">("dashboard");
+  const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "products" | "inventory" | "suppliers" | "expenses">("dashboard");
 
   return (
     <div className="space-y-6">
@@ -26,6 +27,16 @@ export default function BusinessManagement() {
         >
           <LayoutDashboard className="w-4 h-4 mr-2" />
           Dashboard
+        </Button>
+        <Button
+          variant={activeSubTab === "products" ? "default" : "outline"}
+          onClick={() => setActiveSubTab("products")}
+          className="flex items-center text-sm"
+          size="sm"
+          data-testid="button-products-subtab"
+        >
+          <Package2 className="w-4 h-4 mr-2" />
+          Products
         </Button>
         <Button
           variant={activeSubTab === "inventory" ? "default" : "outline"}
@@ -61,6 +72,7 @@ export default function BusinessManagement() {
 
       {/* Sub-tab Content */}
       {activeSubTab === "dashboard" && <BusinessDashboard />}
+      {activeSubTab === "products" && <ProductManagement />}
       {activeSubTab === "inventory" && <InventoryManagement />}
       {activeSubTab === "suppliers" && <SupplierManagement />}
       {activeSubTab === "expenses" && <ExpenseTracker />}

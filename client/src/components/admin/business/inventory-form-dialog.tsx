@@ -13,9 +13,11 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, Plus } from "lucide-react";
 
-interface Photo {
+interface Product {
   id: string;
   title: string;
+  photoId: string | null;
+  aspectRatio: string;
 }
 
 interface ProductSize {
@@ -31,7 +33,8 @@ interface Supplier {
 
 interface InventoryItem {
   id: string;
-  photoId: string;
+  productId: string;
+  productSKUId: string | null;
   supplierId: string;
   title: string;
   description?: string;
@@ -51,7 +54,7 @@ interface InventoryFormDialogProps {
 }
 
 const inventorySchema = z.object({
-  photoId: z.string().min(1, "Photo is required"),
+  productId: z.string().min(1, "Product is required"),
   supplierId: z.string().min(1, "Supplier is required"),
   title: z.string().min(1, "Title is required"),
   description: z.string().optional(),
@@ -72,8 +75,8 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
   const [newSizeLabel, setNewSizeLabel] = useState("");
   const [isAddingSize, setIsAddingSize] = useState(false);
 
-  const { data: photos } = useQuery<Photo[]>({
-    queryKey: ["/api/admin/photos"],
+  const { data: products } = useQuery<Product[]>({
+    queryKey: ["/api/products"],
     enabled: open,
   });
 
@@ -90,7 +93,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
   const form = useForm<InventoryFormData>({
     resolver: zodResolver(inventorySchema),
     defaultValues: {
-      photoId: "",
+      productId: "",
       supplierId: "",
       title: "",
       description: "",
@@ -107,7 +110,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
   useEffect(() => {
     if (editingItem) {
       form.reset({
-        photoId: editingItem.photoId,
+        productId: editingItem.productId,
         supplierId: editingItem.supplierId,
         title: editingItem.title,
         description: editingItem.description || "",
@@ -121,7 +124,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
       });
     } else {
       form.reset({
-        photoId: "",
+        productId: "",
         supplierId: "",
         title: "",
         description: "",
@@ -216,20 +219,20 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="photoId"
+                name="productId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Photo</FormLabel>
+                    <FormLabel>Product</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger data-testid="select-photo">
-                          <SelectValue placeholder="Select a photo" />
+                        <SelectTrigger data-testid="select-product">
+                          <SelectValue placeholder="Select a product" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {photos?.map((photo) => (
-                          <SelectItem key={photo.id} value={photo.id}>
-                            {photo.title}
+                        {products?.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.title} ({product.aspectRatio})
                           </SelectItem>
                         ))}
                       </SelectContent>

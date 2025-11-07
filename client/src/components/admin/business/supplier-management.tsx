@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Edit, Trash2, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import SupplierFormDialog from "./supplier-form-dialog";
 
 interface Supplier {
   id: string;
@@ -33,6 +34,8 @@ interface SupplierPrice {
 export default function SupplierManagement() {
   const { toast } = useToast();
   const [editingPrices, setEditingPrices] = useState<Record<string, string>>({});
+  const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
 
   const { data: suppliers, isLoading: loadingSuppliers } = useQuery<Supplier[]>({
     queryKey: ["/api/admin/suppliers"],
@@ -139,6 +142,21 @@ export default function SupplierManagement() {
     }).format(cents);
   };
 
+  const handleAddSupplier = () => {
+    setEditingSupplier(null);
+    setSupplierDialogOpen(true);
+  };
+
+  const handleEditSupplier = (supplier: Supplier) => {
+    setEditingSupplier(supplier);
+    setSupplierDialogOpen(true);
+  };
+
+  const handleCloseSupplierDialog = () => {
+    setSupplierDialogOpen(false);
+    setEditingSupplier(null);
+  };
+
   return (
     <div className="space-y-8">
       {/* Suppliers Section */}
@@ -146,7 +164,7 @@ export default function SupplierManagement() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle className="text-xl font-semibold">Suppliers</CardTitle>
-            <Button size="sm" data-testid="button-add-supplier">
+            <Button size="sm" onClick={handleAddSupplier} data-testid="button-add-supplier">
               <Plus className="w-4 h-4 mr-2" />
               Add Supplier
             </Button>
@@ -193,6 +211,7 @@ export default function SupplierManagement() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => handleEditSupplier(supplier)}
                             data-testid={`button-edit-supplier-${supplier.id}`}
                           >
                             <Edit className="w-4 h-4" />
@@ -292,6 +311,12 @@ export default function SupplierManagement() {
           )}
         </CardContent>
       </Card>
+
+      <SupplierFormDialog
+        open={supplierDialogOpen}
+        onClose={handleCloseSupplierDialog}
+        editingSupplier={editingSupplier}
+      />
     </div>
   );
 }

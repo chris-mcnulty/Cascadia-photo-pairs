@@ -2689,8 +2689,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/photos", isAuthenticated, async (req, res) => {
     try {
       const photos = await storage.getAllPhotos();
+      // Filter for saleable photos only (neverForSale = false)
+      const saleablePhotos = photos.filter(p => !p.neverForSale);
+      // Sort alphabetically by title (case-insensitive)
+      const sortedPhotos = saleablePhotos.sort((a, b) => 
+        a.title.toLowerCase().localeCompare(b.title.toLowerCase())
+      );
       // Return only id and title for dropdown
-      const photoList = photos.map(p => ({ id: p.id, title: p.title }));
+      const photoList = sortedPhotos.map(p => ({ id: p.id, title: p.title }));
       res.json(photoList);
     } catch (error) {
       console.error('Error fetching photos for inventory:', error);

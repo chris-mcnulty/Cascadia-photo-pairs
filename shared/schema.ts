@@ -315,6 +315,52 @@ export type NewsItem = typeof newsItems.$inferSelect;
 // INVENTORY & SALES MANAGEMENT SYSTEM
 // ============================================
 
+// Products table - core business entity that can reference photos
+export const products = pgTable("products", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  photoId: varchar("photo_id").references(() => photos.id), // Optional - future products might not be photos
+  title: varchar("title").notNull(),
+  description: text("description"),
+  aspectRatio: varchar("aspect_ratio").notNull(), // "3x2", "2x3", "16x9", "1x1", etc. - orientation specific!
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_products_photo").on(table.photoId),
+  index("idx_products_aspect_ratio").on(table.aspectRatio),
+]);
+
+// Product variants (same product in different media types)
+export const productVariants = pgTable("product_variants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  mediaType: varchar("media_type").notNull(), // "ChromaLuxe", "Framed Archival", "Canvas", etc.
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_product_variants_product").on(table.productId),
+  index("idx_product_variants_media").on(table.mediaType),
+]);
+
+// Retail prices - YOUR pricing history, not supplier costs
+export const retailPrices = pgTable("retail_prices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  productSizeId: varchar("product_size_id").notNull().references(() => productSizes.id),
+  mediaType: varchar("media_type").notNull(), // "ChromaLuxe", "Framed Archival", etc.
+  retailPrice: integer("retail_price").notNull(), // Price in cents
+  effectiveFrom: timestamp("effective_from").notNull().defaultNow(),
+  effectiveTo: timestamp("effective_to"), // NULL for current price
+  version: integer("version").notNull().default(1),
+  isCurrent: boolean("is_current").default(true).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_retail_prices_size").on(table.productSizeId),
+  index("idx_retail_prices_media").on(table.mediaType),
+  index("idx_retail_prices_effective").on(table.effectiveFrom),
+  index("idx_retail_prices_current").on(table.isCurrent),
+]);
+
 // Sales channels (website, art shows, Amazon, Etsy, etc.)
 export const salesChannels = pgTable("sales_channels", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -342,9 +388,11 @@ export const productSizes = pgTable("product_sizes", {
   sizeLabel: varchar("size_label").notNull(), // "8x10", "11x14", etc.
   widthInches: integer("width_inches").notNull(),
   heightInches: integer("height_inches").notNull(),
-  aspectRatio: text("aspect_ratio").notNull(), // "4:5", "3:2", etc.
+  aspectRatio: text("aspect_ratio").notNull(), // "3x2", "2x3", "16x9", etc. - orientation specific!
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (table) => [
+  index("idx_product_sizes_aspect_ratio").on(table.aspectRatio),
+]);
 
 // Historical supplier pricing - versioned by effective dates
 export const supplierPrices = pgTable("supplier_prices", {
@@ -355,21 +403,24 @@ export const supplierPrices = pgTable("supplier_prices", {
   basePrice: integer("base_price").notNull(), // Price in cents
   effectiveFrom: timestamp("effective_from").notNull().defaultNow(),
   effectiveTo: timestamp("effective_to"), // NULL for current price
+  version: integer("version").notNull().default(1),
+  isCurrent: boolean("is_current").default(true).notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_supplier_prices_supplier").on(table.supplierId),
   index("idx_supplier_prices_size").on(table.productSizeId),
   index("idx_supplier_prices_effective").on(table.effectiveFrom),
+  index("idx_supplier_prices_current").on(table.isCurrent),
 ]);
 
 // Sales records with buyer information
 export const sales = pgTable("sales", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  photoId: varchar("photo_id").references(() => photos.id),
+  productId: varchar("product_id").references(() => products.id), // Changed from photoId
   channelId: varchar("channel_id").notNull().references(() => salesChannels.id),
   saleDate: timestamp("sale_date").notNull().defaultNow(),
-  soldPrice: integer("sold_price").notNull(), // Price in cents
+  soldPrice: integer("sold_price").notNull(), // Price in cents - can override standard pricing
   taxCollected: integer("tax_collected").default(0).notNull(), // Tax in cents
   
   // Buyer information
@@ -381,7 +432,7 @@ export const sales = pgTable("sales", {
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
-  index("idx_sales_photo").on(table.photoId),
+  index("idx_sales_product").on(table.productId),
   index("idx_sales_channel").on(table.channelId),
   index("idx_sales_date").on(table.saleDate),
 ]);
@@ -389,7 +440,8 @@ export const sales = pgTable("sales", {
 // Individual inventory items (each physical print)
 export const inventoryItems = pgTable("inventory_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  photoId: varchar("photo_id").notNull().references(() => photos.id),
+  productId: varchar("product_id").notNull().references(() => products.id),
+  supplierId: varchar("supplier_id").notNull().references(() => suppliers.id), // Track supplier for each item
   saleId: varchar("sale_id").references(() => sales.id), // Link to sale when sold
   
   // Print details
@@ -400,7 +452,7 @@ export const inventoryItems = pgTable("inventory_items", {
   productSizeId: varchar("product_size_id").notNull().references(() => productSizes.id),
   
   // Financial details
-  acquisitionCost: integer("acquisition_cost").notNull(), // Cost in cents
+  acquisitionCost: integer("acquisition_cost").notNull(), // Cost in cents (actual cost for this specific item)
   listPrice: integer("list_price").notNull(), // List price in cents
   
   // Status tracking
@@ -414,7 +466,8 @@ export const inventoryItems = pgTable("inventory_items", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
-  index("idx_inventory_items_photo").on(table.photoId),
+  index("idx_inventory_items_product").on(table.productId),
+  index("idx_inventory_items_supplier").on(table.supplierId),
   index("idx_inventory_items_status").on(table.status),
   index("idx_inventory_items_sale").on(table.saleId),
 ]);
@@ -471,6 +524,25 @@ export const expenses = pgTable("expenses", {
 ]);
 
 // Insert schemas
+export const insertProductSchema = createInsertSchema(products).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProductVariantSchema = createInsertSchema(productVariants).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertRetailPriceSchema = createInsertSchema(retailPrices).omit({
+  id: true,
+  createdAt: true,
+  effectiveFrom: true,
+  version: true,
+  isCurrent: true,
+});
+
 export const insertSalesChannelSchema = createInsertSchema(salesChannels).omit({
   id: true,
   createdAt: true,
@@ -520,6 +592,12 @@ export const insertExpenseSchema = createInsertSchema(expenses).omit({
 });
 
 // Type exports
+export type Product = typeof products.$inferSelect;
+export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type ProductVariant = typeof productVariants.$inferSelect;
+export type InsertProductVariant = z.infer<typeof insertProductVariantSchema>;
+export type RetailPrice = typeof retailPrices.$inferSelect;
+export type InsertRetailPrice = z.infer<typeof insertRetailPriceSchema>;
 export type SalesChannel = typeof salesChannels.$inferSelect;
 export type InsertSalesChannel = z.infer<typeof insertSalesChannelSchema>;
 export type Supplier = typeof suppliers.$inferSelect;

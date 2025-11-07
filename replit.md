@@ -63,6 +63,15 @@ Preferred communication style: Simple, everyday language.
 - **Business Model**: Multi-instance architecture supporting "Visual Mode" (Cascadia Oceanic) for photo voting and "Text Mode" (Synozur) for text-based content comparison, targeting visual artists, conferences, software teams, etc.
 - **Rich Text Voting Mode (Planned)**: Future feature enabling voting/comparison of text-based content (proposals, backlog items) with mode switching, dedicated database schema, rich text editor, multi-tenancy, and subscription payment integration.
 
+### Business Module Backlog
+- **Channel-Specific Pricing Strategy (High Priority)**: Different sales channels require different pricing for the same product:
+  - Amazon: Demands "most favored nation" status - must have the lowest price across all channels
+  - Etsy: Adds its own charges, requiring higher prices to maintain margins
+  - Website: Standard pricing (baseline)
+  - Art Shows: May have event-specific pricing
+  - Implementation needs: Channel-specific price overrides in retailPrices table, validation to ensure Amazon always has lowest price, margin calculation per channel
+- **Supplier Pricing Analytics**: Average sales margin by supplier over time, cost trend analysis, supplier performance metrics (requires accumulation of more sales data before implementation)
+
 ## External Dependencies
 
 ### Database & ORM

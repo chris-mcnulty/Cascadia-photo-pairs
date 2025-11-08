@@ -15,6 +15,7 @@ export const photos = pgTable("photos", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   description: text("description"),
+  originalDate: timestamp("original_date"),
   imageUrl: text("image_url").notNull(),
   collectionId: varchar("collection_id").references(() => collections.id),
   category: text("category").default("General").notNull(),
@@ -321,6 +322,7 @@ export const products = pgTable("products", {
   photoId: varchar("photo_id").references(() => photos.id), // Optional - future products might not be photos
   title: varchar("title").notNull(),
   description: text("description"),
+  originalDate: timestamp("original_date"),
   aspectRatio: varchar("aspect_ratio").notNull(), // "3x2", "2x3", "16x9", "1x1", etc. - orientation specific!
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -494,8 +496,7 @@ export const inventoryItems = pgTable("inventory_items", {
   supplierId: varchar("supplier_id").notNull().references(() => suppliers.id), // Track supplier for each item
   saleId: varchar("sale_id").references(() => sales.id), // Link to sale when sold
   
-  // Print details (no longer duplicate title/description - get from product)
-  originalDate: timestamp("original_date"), // Date photo was taken
+  // Print details (no longer duplicate title/description/originalDate - get from product)
   mediaType: varchar("media_type").notNull(), // "ChromaLuxe", "Magnet"
   productSizeId: varchar("product_size_id").notNull().references(() => productSizes.id),
   

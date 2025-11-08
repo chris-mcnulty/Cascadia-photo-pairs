@@ -2734,7 +2734,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertProductSchema.parse(req.body);
       
-      // If a photoId is provided, copy title and description from the photo
+      // If a photoId is provided, copy title, description, and originalDate from the photo
       let finalData = { ...validatedData };
       if (validatedData.photoId) {
         const photo = await storage.getPhoto(validatedData.photoId);
@@ -2745,6 +2745,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           if (!finalData.description) {
             finalData.description = photo.description || null;
+          }
+          if (!finalData.originalDate) {
+            finalData.originalDate = photo.originalDate || null;
           }
         }
       }
@@ -2766,12 +2769,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updateSchema = insertProductSchema.partial();
       const validatedData = updateSchema.parse(req.body);
       
-      // If a photoId is being updated and title/description are not provided, copy from photo
+      // If a photoId is being updated and title/description/originalDate are not provided, copy from photo
       let finalData = { ...validatedData };
       if (validatedData.photoId) {
         const photo = await storage.getPhoto(validatedData.photoId);
         if (photo) {
-          // Get current product to see if title/description should be copied
+          // Get current product to see if title/description/originalDate should be copied
           const currentProduct = await storage.getProduct(id);
           if (currentProduct) {
             // Only copy if not provided in the update and product doesn't have them yet
@@ -2780,6 +2783,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             if (!finalData.description && !currentProduct.description) {
               finalData.description = photo.description || null;
+            }
+            if (!finalData.originalDate && !currentProduct.originalDate) {
+              finalData.originalDate = photo.originalDate || null;
             }
           }
         }

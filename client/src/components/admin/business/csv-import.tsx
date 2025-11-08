@@ -58,13 +58,26 @@ export function CSVImport() {
     formData.append('file', productFile);
 
     try {
+      // Build headers for multipart/form-data request
+      const headers: Record<string, string> = {};
+      
+      // Get JWT token using the correct key
+      const authToken = localStorage.getItem('auth-token');
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      
+      // Include session ID if present
+      const sessionId = localStorage.getItem('admin-session-id');
+      if (sessionId) {
+        headers['x-session-id'] = sessionId;
+      }
+      
       const response = await fetch('/api/admin/import/wix-products', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-          'x-auth-token': localStorage.getItem('authToken') || '',
-        },
+        headers,
         body: formData,
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -105,13 +118,26 @@ export function CSVImport() {
     formData.append('file', orderFile);
 
     try {
+      // Build headers for multipart/form-data request
+      const headers: Record<string, string> = {};
+      
+      // Get JWT token using the correct key
+      const authToken = localStorage.getItem('auth-token');
+      if (authToken) {
+        headers['Authorization'] = `Bearer ${authToken}`;
+      }
+      
+      // Include session ID if present
+      const sessionId = localStorage.getItem('admin-session-id');
+      if (sessionId) {
+        headers['x-session-id'] = sessionId;
+      }
+      
       const response = await fetch('/api/admin/import/wix-orders', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-          'x-auth-token': localStorage.getItem('authToken') || '',
-        },
+        headers,
         body: formData,
+        credentials: 'include',
       });
 
       if (!response.ok) {

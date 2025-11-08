@@ -89,8 +89,10 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
   });
 
   // Filter product sizes based on selected product's aspect ratio
-  const filteredProductSizes = selectedProductAspectRatio
-    ? productSizes?.filter(size => size.aspectRatio === selectedProductAspectRatio)
+  // Convert product aspectRatio format (e.g., "3x2") to match product_sizes format (e.g., "3:2")
+  const convertedAspectRatio = selectedProductAspectRatio?.replace('x', ':');
+  const filteredProductSizes = convertedAspectRatio
+    ? productSizes?.filter(size => size.aspectRatio === convertedAspectRatio)
     : productSizes;
 
   const form = useForm<InventoryFormData>({
@@ -192,7 +194,6 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
         await apiRequest("POST", "/api/admin/inventory", payload);
       }
 
-      await queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory/details"] });
 
       toast({

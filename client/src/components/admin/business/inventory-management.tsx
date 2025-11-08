@@ -24,9 +24,14 @@ export default function InventoryManagement() {
   const [editingItem, setEditingItem] = useState<InventoryItemWithDetails | null>(null);
   const { toast } = useToast();
 
-  const { data: inventory, isLoading } = useQuery<InventoryItemWithDetails[]>({
-    queryKey: ["/api/admin/inventory", statusFilter !== "all" ? { status: statusFilter } : {}],
+  const { data: inventoryData, isLoading } = useQuery<InventoryItemWithDetails[]>({
+    queryKey: ["/api/admin/inventory/details"],
   });
+  
+  // Filter inventory on the client side based on status
+  const inventory = inventoryData?.filter(item => 
+    statusFilter === "all" || item.status === statusFilter
+  );
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this inventory item?")) return;
@@ -34,7 +39,6 @@ export default function InventoryManagement() {
     try {
       await apiRequest("DELETE", `/api/admin/inventory/${id}`);
       
-      await queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory"] });
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory/details"] });
       
       toast({

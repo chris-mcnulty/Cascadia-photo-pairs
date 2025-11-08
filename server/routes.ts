@@ -2961,7 +2961,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create inventory item
   app.post("/api/admin/inventory", isAuthenticated, async (req, res) => {
     try {
-      const validatedData = insertInventoryItemSchema.parse(req.body);
+      // Convert date strings to Date objects for timestamp fields
+      const dataWithDates = {
+        ...req.body,
+        originalDate: req.body.originalDate ? new Date(req.body.originalDate) : undefined,
+        purchaseDate: req.body.purchaseDate ? new Date(req.body.purchaseDate) : undefined,
+        receivedDate: req.body.receivedDate ? new Date(req.body.receivedDate) : undefined,
+        soldDate: req.body.soldDate ? new Date(req.body.soldDate) : undefined,
+        shippedDate: req.body.shippedDate ? new Date(req.body.shippedDate) : undefined,
+      };
+      
+      const validatedData = insertInventoryItemSchema.parse(dataWithDates);
       const item = await storage.createInventoryItem(validatedData);
       res.status(201).json(item);
     } catch (error) {
@@ -2974,7 +2984,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/inventory/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
-      const item = await storage.updateInventoryItem(id, req.body);
+      
+      // Convert date strings to Date objects for timestamp fields
+      const dataWithDates = {
+        ...req.body,
+        originalDate: req.body.originalDate ? new Date(req.body.originalDate) : undefined,
+        purchaseDate: req.body.purchaseDate ? new Date(req.body.purchaseDate) : undefined,
+        receivedDate: req.body.receivedDate ? new Date(req.body.receivedDate) : undefined,
+        soldDate: req.body.soldDate ? new Date(req.body.soldDate) : undefined,
+        shippedDate: req.body.shippedDate ? new Date(req.body.shippedDate) : undefined,
+      };
+      
+      const item = await storage.updateInventoryItem(id, dataWithDates);
       
       if (!item) {
         return res.status(404).json({ message: "Inventory item not found" });

@@ -2733,7 +2733,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/products", isAuthenticated, async (req, res) => {
     try {
       const validatedData = insertProductSchema.parse(req.body);
-      const product = await storage.createProduct(validatedData);
+      
+      // If a photoId is provided, copy title and description from the photo
+      let finalData = { ...validatedData };
+      if (validatedData.photoId) {
+        const photo = await storage.getPhoto(validatedData.photoId);
+        if (photo) {
+          // Only copy if the values aren't already provided
+          if (!finalData.title) {
+            finalData.title = photo.title;
+          }
+          if (!finalData.description) {
+            finalData.description = photo.description || null;
+          }
+        }
+      }
+      
+      const product = await storage.createProduct(finalData);
       res.status(201).json(product);
     } catch (error) {
       console.error('Error creating product:', error);
@@ -2750,7 +2766,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updateSchema = insertProductSchema.partial();
       const validatedData = updateSchema.parse(req.body);
       
-      const product = await storage.updateProduct(id, validatedData);
+      // If a photoId is being updated and title/description are not provided, copy from photo
+      let finalData = { ...validatedData };
+      if (validatedData.photoId) {
+        const photo = await storage.getPhoto(validatedData.photoId);
+        if (photo) {
+          // Get current product to see if title/description should be copied
+          const currentProduct = await storage.getProduct(id);
+          if (currentProduct) {
+            // Only copy if not provided in the update and product doesn't have them yet
+            if (!finalData.title && !currentProduct.title) {
+              finalData.title = photo.title;
+            }
+            if (!finalData.description && !currentProduct.description) {
+              finalData.description = photo.description || null;
+            }
+          }
+        }
+      }
+      
+      const product = await storage.updateProduct(id, finalData);
       
       if (!product) {
         return res.status(404).json({ message: "Product not found" });

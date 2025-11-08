@@ -5,30 +5,35 @@ import { db } from './db';
 import { products, inventoryItems, sales, customers } from '@shared/schema';
 import { eq } from 'drizzle-orm';
 
-// Wix Products CSV Schema
+// Wix Products CSV Schema - Updated to match actual Wix export format
 const wixProductSchema = z.object({
   handleId: z.string(),
-  name: z.string(),
   fieldType: z.enum(['Product', 'Variant']),
+  name: z.string(),
   description: z.string().optional(),
-  sku: z.string().optional(),
-  price: z.string().transform(val => parseFloat(val) || 0),
-  discount: z.string().optional(),
-  visible: z.string().transform(val => val === 'TRUE'),
-  inventory: z.string().optional().transform(val => parseInt(val || '0')),
-  weight: z.string().optional(),
-  ribbon: z.string().optional(),
-  optionChoices: z.string().optional(),
   productImageUrl: z.string().optional(),
-  additionalImageUrls: z.string().optional(),
-  seoTitle: z.string().optional(),
-  seoDescription: z.string().optional(),
-  collections: z.string().optional(),
-  tags: z.string().optional(),
-  shipping: z.string().optional(),
-  tax: z.string().optional(),
-  customTextFields: z.string().optional(),
-});
+  collection: z.string().optional(),
+  sku: z.string().optional(),
+  ribbon: z.string().optional(),
+  price: z.string().transform(val => {
+    const parsed = parseFloat(val);
+    return isNaN(parsed) ? 0 : parsed;
+  }),
+  surcharge: z.string().optional(),
+  visible: z.string().transform(val => val?.toLowerCase() === 'true'),
+  discountMode: z.string().optional(),
+  discountValue: z.string().optional(),
+  inventory: z.string().optional(),
+  weight: z.string().optional(),
+  cost: z.string().optional(),
+  productOptionName1: z.string().optional(),
+  productOptionType1: z.string().optional(),
+  productOptionDescription1: z.string().optional(), // Contains size options
+  productOptionName2: z.string().optional(),
+  productOptionType2: z.string().optional(),
+  productOptionDescription2: z.string().optional(),
+  // ... could have more options, but we'll focus on the first one for sizes
+}).passthrough(); // Allow extra fields
 
 // Wix Orders CSV Schema (Item-level)
 const wixOrderSchema = z.object({
@@ -66,28 +71,34 @@ const wixOrderSchema = z.object({
 type WixProduct = z.infer<typeof wixProductSchema>;
 type WixOrder = z.infer<typeof wixOrderSchema>;
 
-// Parse variant options string (e.g., "Size:24x36;Media:Metal")
-function parseVariantOptions(optionChoices?: string): { size?: string; media?: string } {
-  if (!optionChoices) return {};
+// Parse size options from Wix productOptionDescription1 field
+// Format: '12" X 18";16" X 24";24" X 36"' etc.
+function parseSizeOptions(sizeString?: string): string[] {
+  if (!sizeString) return [];
   
-  const options: Record<string, string> = {};
-  const pairs = optionChoices.split(';');
+  // Split by semicolon and clean up each size
+  const sizes = sizeString.split(';')
+    .map(s => s.trim())
+    .map(s => s.replace(/"/g, '')) // Remove quotes
+    .filter(s => s.length > 0);
   
-  for (const pair of pairs) {
-    const [key, value] = pair.split(':');
-    if (key && value) {
-      options[key.trim().toLowerCase()] = value.trim();
-    }
-  }
-  
-  return {
-    size: options.size,
-    media: options.media || options.medium,
-  };
+  return sizes;
+}
+
+// Get the first size from the options to determine aspect ratio
+function getFirstSize(sizeString?: string): string | null {
+  const sizes = parseSizeOptions(sizeString);
+  return sizes.length > 0 ? sizes[0] : null;
 }
 
 // Determine aspect ratio from size string
 function getAspectRatioFromSize(size: string): string {
+  // Normalize the size string - handle "12 X 18" format from Wix
+  const normalizedSize = size.toLowerCase()
+    .replace(/"/g, '') // Remove quotes
+    .replace(/\s+/g, '') // Remove all spaces
+    .replace(/x/gi, 'x'); // Ensure lowercase x
+  
   // Common photo print sizes and their aspect ratios
   const sizeToAspectRatio: Record<string, string> = {
     // 3:2 ratio (landscape)
@@ -103,6 +114,10 @@ function getAspectRatioFromSize(size: string): string {
     '30x20': '2x3',
     '24x36': '3x2',
     '36x24': '2x3',
+    '40x60': '3x2',
+    '60x40': '2x3',
+    '48x72': '3x2',
+    '72x48': '2x3',
     
     // 4:3 ratio
     '8x6': '4x3',
@@ -113,6 +128,16 @@ function getAspectRatioFromSize(size: string): string {
     '12x16': '3x4',
     '20x15': '4x3',
     '15x20': '3x4',
+    '24x18': '4x3',
+    '18x24': '3x4',
+    '32x24': '4x3',
+    '24x32': '3x4',
+    '36x27': '4x3',
+    '27x36': '3x4',
+    '48x36': '4x3',
+    '36x48': '3x4',
+    '60x45': '4x3',
+    '45x60': '3x4',
     
     // 5:7 ratio
     '5x7': '5x7',
@@ -121,6 +146,14 @@ function getAspectRatioFromSize(size: string): string {
     // 16:9 ratio (wide)
     '16x9': '16x9',
     '9x16': '9x16',
+    '24x13.5': '16x9',
+    '13.5x24': '9x16',
+    '32x18': '16x9',
+    '18x32': '9x16',
+    '48x27': '16x9',
+    '27x48': '9x16',
+    '64x36': '16x9',
+    '36x64': '9x16',
     
     // 1:1 ratio (square)
     '8x8': '1x1',
@@ -128,22 +161,31 @@ function getAspectRatioFromSize(size: string): string {
     '12x12': '1x1',
     '16x16': '1x1',
     '20x20': '1x1',
+    '24x24': '1x1',
+    '30x30': '1x1',
+    
+    // Additional common sizes
+    '30x45': '3x2',
+    '45x30': '2x3',
+    '16x20': '4x5',
+    '20x16': '5x4',
+    '11x14': '11x14',
+    '14x11': '14x11',
   };
   
   // Check direct match
-  const normalizedSize = size.toLowerCase().replace(/\s/g, '');
   if (sizeToAspectRatio[normalizedSize]) {
     return sizeToAspectRatio[normalizedSize];
   }
   
   // Try to extract dimensions and calculate
-  const match = normalizedSize.match(/(\d+)x(\d+)/);
+  const match = normalizedSize.match(/(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)/);
   if (match) {
-    const width = parseInt(match[1]);
-    const height = parseInt(match[2]);
+    const width = parseFloat(match[1]);
+    const height = parseFloat(match[2]);
     const isLandscape = width > height;
     
-    // Determine common ratios
+    // Determine common ratios with more tolerance
     const ratio = width / height;
     const inverseRatio = height / width;
     
@@ -153,8 +195,14 @@ function getAspectRatioFromSize(size: string): string {
     if (Math.abs(ratio - 1.33) < 0.1 || Math.abs(inverseRatio - 1.33) < 0.1) {
       return isLandscape ? '4x3' : '3x4';
     }
+    if (Math.abs(ratio - 1.78) < 0.1 || Math.abs(inverseRatio - 1.78) < 0.1) {
+      return isLandscape ? '16x9' : '9x16';
+    }
     if (Math.abs(ratio - 1.4) < 0.1 || Math.abs(inverseRatio - 1.4) < 0.1) {
       return isLandscape ? '7x5' : '5x7';
+    }
+    if (Math.abs(ratio - 1.25) < 0.1 || Math.abs(inverseRatio - 1.25) < 0.1) {
+      return isLandscape ? '5x4' : '4x5';
     }
     if (Math.abs(ratio - 1) < 0.1) {
       return '1x1';
@@ -181,6 +229,8 @@ export async function importWixProducts(csvContent: string): Promise<{
       columns: true,
       skip_empty_lines: true,
       trim: true,
+      relax_quotes: true, // Handle quotes in field values
+      relax_column_count: true, // Handle variable column counts
     });
     
     // Process each record
@@ -209,9 +259,9 @@ export async function importWixProducts(csvContent: string): Promise<{
           continue;
         }
         
-        // Parse variant options to determine aspect ratio
-        const options = parseVariantOptions(wixProduct.optionChoices);
-        const aspectRatio = options.size ? getAspectRatioFromSize(options.size) : '3x2';
+        // Parse size options from productOptionDescription1 to determine aspect ratio
+        const firstSize = getFirstSize(wixProduct.productOptionDescription1);
+        const aspectRatio = firstSize ? getAspectRatioFromSize(firstSize) : '3x2';
         
         // Create product
         const product = await storage.createProduct({
@@ -344,10 +394,7 @@ export async function importWixOrders(csvContent: string): Promise<{
             continue;
           }
           
-          // Parse variant options
-          const options = parseVariantOptions(item['Variant Options']);
-          
-          // Create sale record
+          // Create sale record (variant options not needed for basic sale tracking)
           await storage.createSale({
             productId: matchingProduct.id,
             channelId: salesChannelId,

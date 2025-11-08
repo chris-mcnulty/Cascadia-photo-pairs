@@ -2479,12 +2479,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create product size
   app.post("/api/admin/product-sizes", isAuthenticated, async (req, res) => {
     try {
-      const validatedData = insertProductSizeSchema.parse(req.body);
+      // Parse size label like "60x45" to extract dimensions
+      const { sizeLabel } = req.body;
+      
+      if (!sizeLabel || typeof sizeLabel !== 'string') {
+        return res.status(400).json({ message: "Size label is required" });
+      }
+      
+      // Extract width and height from size label (e.g., "60x45", "8.5x11", or "60 x 45")
+      const match = sizeLabel.match(/(\d+\.?\d*)\s*x\s*(\d+\.?\d*)/i);
+      if (!match) {
+        return res.status(400).json({ message: "Invalid size format. Use format like '60x45', '8.5x11', or '60 x 45'" });
+      }
+      
+      const widthFloat = parseFloat(match[1]);
+      const heightFloat = parseFloat(match[2]);
+      
+      // Calculate aspect ratio by finding GCD
+      // For decimal values, multiply by 10 to handle .5 increments (8.5 -> 85, 11 -> 110)
+      const gcd = (a: number, b: number): number => {
+        return b === 0 ? a : gcd(b, a % b);
+      };
+      
+      // Convert to integers by multiplying by 10 (handles .5 increments)
+      // Then divide by GCD to get simplified fraction
+      const widthInt = Math.round(widthFloat * 10);
+      const heightInt = Math.round(heightFloat * 10);
+      const divisor = gcd(widthInt, heightInt);
+      const aspectRatio = `${widthInt / divisor}:${heightInt / divisor}`;
+      
+      const validatedData = insertProductSizeSchema.parse({
+        sizeLabel: sizeLabel.trim(),
+        widthInches: Math.round(widthFloat),
+        heightInches: Math.round(heightFloat),
+        aspectRatio,
+      });
+      
       const size = await storage.createProductSize(validatedData);
       res.status(201).json(size);
     } catch (error) {
       console.error('Error creating product size:', error);
-      res.status(400).json({ message: "Failed to create product size", error: error instanceof Error ? error.message : "Unknown error" });
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ 
+          message: "Invalid product size data", 
+          errors: error.errors 
+        });
+      } else {
+        res.status(400).json({ message: "Failed to create product size", error: error instanceof Error ? error.message : "Unknown error" });
+      }
     }
   });
 

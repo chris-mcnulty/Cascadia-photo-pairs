@@ -5,11 +5,12 @@ import BusinessDashboard from "./business/business-dashboard";
 import ProductManagement from "./business/product-management";
 import InventoryManagement from "./business/inventory-management";
 import SupplierManagement from "./business/supplier-management";
+import ProductSizesManagement from "./business/product-sizes-management";
 import ExpenseTracker from "./business/expense-tracker";
 import { CSVImport } from "./business/csv-import";
 
 export default function BusinessManagement() {
-  const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "products" | "inventory" | "suppliers" | "expenses" | "import">("dashboard");
+  const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "products" | "inventory" | "suppliers" | "sizes" | "expenses" | "import">("dashboard");
 
   return (
     <div className="space-y-6">
@@ -60,6 +61,16 @@ export default function BusinessManagement() {
           Suppliers
         </Button>
         <Button
+          variant={activeSubTab === "sizes" ? "default" : "outline"}
+          onClick={() => setActiveSubTab("sizes")}
+          className="flex items-center text-sm"
+          size="sm"
+          data-testid="button-sizes-subtab"
+        >
+          <Package2 className="w-4 h-4 mr-2" />
+          Sizes
+        </Button>
+        <Button
           variant={activeSubTab === "expenses" ? "default" : "outline"}
           onClick={() => setActiveSubTab("expenses")}
           className="flex items-center text-sm"
@@ -86,6 +97,7 @@ export default function BusinessManagement() {
       {activeSubTab === "products" && <ProductManagement />}
       {activeSubTab === "inventory" && <InventoryManagement />}
       {activeSubTab === "suppliers" && <SupplierManagement />}
+      {activeSubTab === "sizes" && <ProductSizesManagement />}
       {activeSubTab === "expenses" && <ExpenseTracker />}
       {activeSubTab === "import" && <CSVImport />}
     </div>

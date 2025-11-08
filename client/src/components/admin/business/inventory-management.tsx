@@ -196,14 +196,17 @@ export default function InventoryManagement() {
         open={dialogOpen}
         onClose={handleDialogClose}
         editingItem={editingItem ? {
-          ...editingItem,
-          originalDate: editingItem.originalDate ?? undefined,
-          purchaseDate: editingItem.purchaseDate ?? undefined,
-          receivedDate: editingItem.receivedDate ?? undefined,
-          soldDate: editingItem.soldDate ?? undefined,
-          shippedDate: editingItem.shippedDate ?? undefined,
+          id: editingItem.id,
+          productId: editingItem.productId,
+          productSKUId: editingItem.productSKUId,
+          supplierId: editingItem.supplierId,
+          mediaType: editingItem.mediaType,
+          productSizeId: editingItem.productSizeId,
+          acquisitionCost: editingItem.acquisitionCost,
+          listPrice: editingItem.listPrice,
+          status: editingItem.status,
           notes: editingItem.notes ?? undefined,
-        } as InventoryItem : null}
+        } : null}
       />
     </div>
   );

@@ -37,7 +37,6 @@ interface InventoryItem {
   productId: string;
   productSKUId: string | null;
   supplierId: string;
-  originalDate?: string;
   mediaType: string;
   productSizeId: string;
   acquisitionCost: number;
@@ -55,7 +54,6 @@ interface InventoryFormDialogProps {
 const inventorySchema = z.object({
   productId: z.string().min(1, "Product is required"),
   supplierId: z.string().min(1, "Supplier is required"),
-  originalDate: z.string().optional(),
   mediaType: z.string().min(1, "Media type is required"),
   productSizeId: z.string().min(1, "Size is required"),
   acquisitionCost: z.string().min(1, "Acquisition cost is required"),
@@ -100,7 +98,6 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
     defaultValues: {
       productId: "",
       supplierId: "",
-      originalDate: "",
       mediaType: "ChromaLuxe",
       productSizeId: "",
       acquisitionCost: "",
@@ -115,7 +112,6 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
       form.reset({
         productId: editingItem.productId,
         supplierId: editingItem.supplierId,
-        originalDate: editingItem.originalDate || "",
         mediaType: editingItem.mediaType,
         productSizeId: editingItem.productSizeId,
         acquisitionCost: (editingItem.acquisitionCost / 100).toFixed(2),
@@ -132,7 +128,6 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
       form.reset({
         productId: "",
         supplierId: "",
-        originalDate: "",
         mediaType: "ChromaLuxe",
         productSizeId: "",
         acquisitionCost: "",
@@ -285,43 +280,27 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="originalDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Original Date</FormLabel>
+            <FormField
+              control={form.control}
+              name="mediaType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Media Type</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <Input type="date" {...field} data-testid="input-original-date" />
+                      <SelectTrigger data-testid="select-media-type">
+                        <SelectValue />
+                      </SelectTrigger>
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="mediaType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Media Type</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-media-type">
-                          <SelectValue />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="ChromaLuxe">ChromaLuxe</SelectItem>
-                        <SelectItem value="Magnet">Magnet</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                    <SelectContent>
+                      <SelectItem value="ChromaLuxe">ChromaLuxe</SelectItem>
+                      <SelectItem value="Magnet">Magnet</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <FormField

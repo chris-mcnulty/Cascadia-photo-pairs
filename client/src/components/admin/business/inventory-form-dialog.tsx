@@ -23,6 +23,7 @@ interface Product {
 interface ProductSize {
   id: string;
   sizeLabel: string;
+  aspectRatio: string;
 }
 
 interface Supplier {
@@ -74,6 +75,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
   const [addSizeDialogOpen, setAddSizeDialogOpen] = useState(false);
   const [newSizeLabel, setNewSizeLabel] = useState("");
   const [isAddingSize, setIsAddingSize] = useState(false);
+  const [selectedProductAspectRatio, setSelectedProductAspectRatio] = useState<string | null>(null);
 
   const { data: products } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -89,6 +91,11 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
     queryKey: ["/api/admin/suppliers"],
     enabled: open,
   });
+
+  // Filter product sizes based on selected product's aspect ratio
+  const filteredProductSizes = selectedProductAspectRatio
+    ? productSizes?.filter(size => size.aspectRatio === selectedProductAspectRatio)
+    : productSizes;
 
   const form = useForm<InventoryFormData>({
     resolver: zodResolver(inventorySchema),
@@ -122,6 +129,11 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
         status: editingItem.status,
         notes: editingItem.notes || "",
       });
+      // Set the aspect ratio for the edited item's product
+      const product = products?.find(p => p.id === editingItem.productId);
+      if (product) {
+        setSelectedProductAspectRatio(product.aspectRatio);
+      }
     } else {
       form.reset({
         productId: "",
@@ -136,8 +148,9 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
         status: "ordered",
         notes: "",
       });
+      setSelectedProductAspectRatio(null);
     }
-  }, [editingItem, form, open]);
+  }, [editingItem, form, open, products]);
 
   const handleAddCustomSize = async () => {
     if (!newSizeLabel.trim()) {
@@ -223,7 +236,19 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Product</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select 
+                      onValueChange={(value) => {
+                        field.onChange(value);
+                        // Update the selected product's aspect ratio
+                        const product = products?.find(p => p.id === value);
+                        if (product) {
+                          setSelectedProductAspectRatio(product.aspectRatio);
+                          // Clear the size selection when product changes
+                          form.setValue("productSizeId", "");
+                        }
+                      }} 
+                      value={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger data-testid="select-product">
                           <SelectValue placeholder="Select a product" />
@@ -361,11 +386,19 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {productSizes?.map((size) => (
-                          <SelectItem key={size.id} value={size.id}>
-                            {size.sizeLabel}
-                          </SelectItem>
-                        ))}
+                        {filteredProductSizes?.length ? (
+                          filteredProductSizes.map((size) => (
+                            <SelectItem key={size.id} value={size.id}>
+                              {size.sizeLabel}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="px-2 py-4 text-sm text-muted-foreground text-center">
+                            {selectedProductAspectRatio 
+                              ? "No sizes available for this aspect ratio" 
+                              : "Please select a product first"}
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />

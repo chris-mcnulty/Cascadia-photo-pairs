@@ -9,27 +9,22 @@ import { Plus, Edit, Trash2 } from "lucide-react";
 import InventoryFormDialog from "./inventory-form-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import type { InventoryItem } from "@shared/schema";
 
-interface InventoryItem {
-  id: string;
-  photoId: string;
-  photoTitle: string;
+// Extended inventory item with additional display fields
+interface InventoryItemWithDetails extends InventoryItem {
+  productTitle?: string;
   photoImageUrl?: string;
-  title: string;
-  mediaType: string;
-  sizeLabel: string;
-  status: string;
-  acquisitionCost: number;
-  listPrice: number;
+  sizeLabel?: string;
 }
 
 export default function InventoryManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [editingItem, setEditingItem] = useState<InventoryItemWithDetails | null>(null);
   const { toast } = useToast();
 
-  const { data: inventory, isLoading } = useQuery<InventoryItem[]>({
+  const { data: inventory, isLoading } = useQuery<InventoryItemWithDetails[]>({
     queryKey: ["/api/admin/inventory", statusFilter !== "all" ? { status: statusFilter } : {}],
   });
 
@@ -55,7 +50,7 @@ export default function InventoryManagement() {
     }
   };
 
-  const handleEdit = (item: InventoryItem) => {
+  const handleEdit = (item: InventoryItemWithDetails) => {
     setEditingItem(item);
     setDialogOpen(true);
   };
@@ -196,7 +191,16 @@ export default function InventoryManagement() {
       <InventoryFormDialog
         open={dialogOpen}
         onClose={handleDialogClose}
-        editingItem={editingItem}
+        editingItem={editingItem ? {
+          ...editingItem,
+          description: editingItem.description ?? undefined,
+          originalDate: editingItem.originalDate ?? undefined,
+          purchaseDate: editingItem.purchaseDate ?? undefined,
+          receivedDate: editingItem.receivedDate ?? undefined,
+          soldDate: editingItem.soldDate ?? undefined,
+          shippedDate: editingItem.shippedDate ?? undefined,
+          notes: editingItem.notes ?? undefined,
+        } as InventoryItem : null}
       />
     </div>
   );

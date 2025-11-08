@@ -2872,7 +2872,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { status } = req.query;
       const items = await storage.getAllInventoryItems(status as string | undefined);
-      res.json(items);
+      
+      // Enhance items with photo data and size labels
+      const itemsWithDetails = await Promise.all(items.map(async (item) => {
+        // Get product, then photo through product
+        const product = item.productId ? await storage.getProduct(item.productId) : undefined;
+        const photo = product?.photoId ? await storage.getPhoto(product.photoId) : undefined;
+        const productSize = item.productSizeId ? await storage.getProductSize(item.productSizeId) : undefined;
+        
+        return {
+          ...item,
+          productTitle: product?.title,
+          photoImageUrl: photo?.imageUrl,
+          sizeLabel: productSize?.sizeLabel || 'Unknown Size'
+        };
+      }));
+      
+      res.json(itemsWithDetails);
     } catch (error) {
       console.error('Error fetching inventory:', error);
       res.status(500).json({ message: "Failed to fetch inventory" });

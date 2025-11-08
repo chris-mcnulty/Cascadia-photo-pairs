@@ -231,19 +231,38 @@ export default function ProductManagement() {
                 </TableCell>
               </TableRow>
             ) : (
-              products.map((product) => (
-                <TableRow key={product.id} data-testid={`row-product-${product.id}`}>
-                  <TableCell className="font-medium">
-                    <div className="flex items-center">
-                      {product.photoId ? (
-                        <Image className="w-4 h-4 mr-2 text-muted-foreground" />
-                      ) : (
-                        <Package2 className="w-4 h-4 mr-2 text-muted-foreground" />
-                      )}
-                      {product.title}
-                    </div>
-                  </TableCell>
-                  <TableCell>{getPhotoName(product.photoId)}</TableCell>
+              products.map((product) => {
+                const linkedPhoto = product.photoId ? photos.find(p => p.id === product.photoId) : null;
+                return (
+                  <TableRow key={product.id} data-testid={`row-product-${product.id}`}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center">
+                        {linkedPhoto?.imageUrl ? (
+                          <img
+                            src={linkedPhoto.imageUrl}
+                            alt={product.title}
+                            className="w-12 h-12 object-cover rounded mr-2"
+                            data-testid={`img-product-${product.id}`}
+                            onError={(e) => {
+                              // Fallback to icon if image fails to load
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const fallbackIcon = target.nextElementSibling as HTMLElement;
+                              if (fallbackIcon) fallbackIcon.style.display = 'block';
+                            }}
+                          />
+                        ) : null}
+                        <div style={{ display: linkedPhoto?.imageUrl ? 'none' : 'flex' }} className="w-12 h-12 bg-gray-100 rounded mr-2 items-center justify-center">
+                          {product.photoId ? (
+                            <Image className="w-6 h-6 text-muted-foreground" />
+                          ) : (
+                            <Package2 className="w-6 h-6 text-muted-foreground" />
+                          )}
+                        </div>
+                        <span>{product.title}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{getPhotoName(product.photoId)}</TableCell>
                   <TableCell>{product.aspectRatio}</TableCell>
                   <TableCell>
                     <span
@@ -277,7 +296,8 @@ export default function ProductManagement() {
                     </div>
                   </TableCell>
                 </TableRow>
-              ))
+                );
+              })
             )}
           </TableBody>
         </Table>

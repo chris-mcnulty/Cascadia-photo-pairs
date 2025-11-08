@@ -122,7 +122,7 @@ export default function InventoryManagement() {
                         {item.photoImageUrl ? (
                           <img
                             src={item.photoImageUrl}
-                            alt={item.title}
+                            alt={item.productTitle || "Product"}
                             className="w-16 h-16 object-cover rounded"
                             data-testid={`img-inventory-${item.id}`}
                           />
@@ -132,7 +132,7 @@ export default function InventoryManagement() {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="text-sm font-medium">{item.title}</TableCell>
+                      <TableCell className="text-sm font-medium">{item.productTitle || "Untitled"}</TableCell>
                       <TableCell className="text-sm">{item.sizeLabel}</TableCell>
                       <TableCell className="text-sm">{item.mediaType}</TableCell>
                       <TableCell className="text-sm">
@@ -193,7 +193,6 @@ export default function InventoryManagement() {
         onClose={handleDialogClose}
         editingItem={editingItem ? {
           ...editingItem,
-          description: editingItem.description ?? undefined,
           originalDate: editingItem.originalDate ?? undefined,
           purchaseDate: editingItem.purchaseDate ?? undefined,
           receivedDate: editingItem.receivedDate ?? undefined,

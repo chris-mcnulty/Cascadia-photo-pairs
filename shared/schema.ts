@@ -489,14 +489,12 @@ export const sales = pgTable("sales", {
 // Individual inventory items (each physical print)
 export const inventoryItems = pgTable("inventory_items", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  productSKUId: varchar("product_sku_id").notNull().references(() => productSKUs.id), // References master SKU
-  productId: varchar("product_id").notNull().references(() => products.id), // Keep for convenience
+  productSKUId: varchar("product_sku_id").references(() => productSKUs.id), // References master SKU (nullable for backward compat)
+  productId: varchar("product_id").notNull().references(() => products.id), // Product reference (has title/description)
   supplierId: varchar("supplier_id").notNull().references(() => suppliers.id), // Track supplier for each item
   saleId: varchar("sale_id").references(() => sales.id), // Link to sale when sold
   
-  // Print details (denormalized for convenience)
-  title: text("title").notNull(),
-  description: text("description"),
+  // Print details (no longer duplicate title/description - get from product)
   originalDate: timestamp("original_date"), // Date photo was taken
   mediaType: varchar("media_type").notNull(), // "ChromaLuxe", "Magnet"
   productSizeId: varchar("product_size_id").notNull().references(() => productSizes.id),

@@ -37,8 +37,6 @@ interface InventoryItem {
   productId: string;
   productSKUId: string | null;
   supplierId: string;
-  title: string;
-  description?: string;
   originalDate?: string;
   mediaType: string;
   productSizeId: string;
@@ -57,8 +55,6 @@ interface InventoryFormDialogProps {
 const inventorySchema = z.object({
   productId: z.string().min(1, "Product is required"),
   supplierId: z.string().min(1, "Supplier is required"),
-  title: z.string().min(1, "Title is required"),
-  description: z.string().optional(),
   originalDate: z.string().optional(),
   mediaType: z.string().min(1, "Media type is required"),
   productSizeId: z.string().min(1, "Size is required"),
@@ -102,8 +98,6 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
     defaultValues: {
       productId: "",
       supplierId: "",
-      title: "",
-      description: "",
       originalDate: "",
       mediaType: "ChromaLuxe",
       productSizeId: "",
@@ -119,8 +113,6 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
       form.reset({
         productId: editingItem.productId,
         supplierId: editingItem.supplierId,
-        title: editingItem.title,
-        description: editingItem.description || "",
         originalDate: editingItem.originalDate || "",
         mediaType: editingItem.mediaType,
         productSizeId: editingItem.productSizeId,
@@ -138,8 +130,6 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
       form.reset({
         productId: "",
         supplierId: "",
-        title: "",
-        description: "",
         originalDate: "",
         mediaType: "ChromaLuxe",
         productSizeId: "",
@@ -267,19 +257,6 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Title</FormLabel>
-                    <FormControl>
-                      <Input {...field} data-testid="input-title" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
             </div>
 
             <FormField
@@ -302,20 +279,6 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea {...field} data-testid="input-description" />
-                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

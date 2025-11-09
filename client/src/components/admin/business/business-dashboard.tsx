@@ -25,7 +25,7 @@ interface RecentSale {
 }
 
 interface BusinessDashboardProps {
-  onNavigateToTab?: (tab: string) => void;
+  onNavigateToTab?: (tab: "dashboard" | "products" | "inventory" | "suppliers" | "sizes" | "expenses" | "import") => void;
 }
 
 export default function BusinessDashboard({ onNavigateToTab }: BusinessDashboardProps) {

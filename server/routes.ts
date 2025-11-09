@@ -2564,6 +2564,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get product sizes with pricing data (avg supplier cost, retail price, margin)
+  app.get("/api/admin/product-sizes/pricing", isAuthenticated, async (req, res) => {
+    try {
+      const pricingData = await storage.getProductSizesWithPricing();
+      res.json(pricingData);
+    } catch (error) {
+      console.error('Error fetching product sizes with pricing:', error);
+      res.status(500).json({ message: "Failed to fetch product sizes with pricing" });
+    }
+  });
+
   // ============================================
   // SUPPLIER PRICES ROUTES
   // ============================================
@@ -2618,6 +2629,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error updating supplier price:', error);
       res.status(400).json({ message: "Failed to update supplier price" });
+    }
+  });
+
+  // ============================================
+  // RETAIL PRICES ROUTES
+  // ============================================
+
+  // Get current retail price for a size and media type
+  app.get("/api/admin/retail-prices/:productSizeId/:mediaType", isAuthenticated, async (req, res) => {
+    try {
+      const { productSizeId, mediaType } = req.params;
+      const price = await storage.getCurrentRetailPrice(productSizeId, mediaType);
+      res.json(price || null);
+    } catch (error) {
+      console.error('Error fetching retail price:', error);
+      res.status(500).json({ message: "Failed to fetch retail price" });
+    }
+  });
+
+  // Set retail price (closes old, creates new with versioning)
+  app.put("/api/admin/retail-prices", isAuthenticated, async (req, res) => {
+    try {
+      const { productSizeId, mediaType, retailPrice, notes } = req.body;
+      
+      if (!productSizeId || !mediaType || retailPrice === undefined) {
+        return res.status(400).json({ message: "Missing required fields: productSizeId, mediaType, retailPrice" });
+      }
+      
+      const price = await storage.setRetailPrice(productSizeId, mediaType, retailPrice, notes);
+      res.json(price);
+    } catch (error) {
+      console.error('Error setting retail price:', error);
+      res.status(400).json({ message: "Failed to set retail price" });
     }
   });
 

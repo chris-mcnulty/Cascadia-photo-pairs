@@ -106,6 +106,7 @@ export interface IStorage {
   getCurrentRetailPrice(productSizeId: string, mediaType: string): Promise<RetailPrice | undefined>;
   createRetailPrice(price: InsertRetailPrice): Promise<RetailPrice>;
   updateRetailPrice(id: string, updates: Partial<RetailPrice>): Promise<RetailPrice | undefined>;
+  setRetailPrice(productSizeId: string, mediaType: string, newPrice: number, notes?: string): Promise<RetailPrice>;
   
   // Sales Channels
   getAllSalesChannels(): Promise<SalesChannel[]>;
@@ -127,6 +128,13 @@ export interface IStorage {
   createProductSize(size: InsertProductSize): Promise<ProductSize>;
   updateProductSize(id: string, updates: Partial<ProductSize>): Promise<ProductSize | undefined>;
   deleteProductSize(id: string): Promise<boolean>;
+  getProductSizesWithPricing(): Promise<Array<{
+    size: ProductSize;
+    mediaType: string;
+    avgSupplierCost: number | null;
+    retailPrice: number | null;
+    marginPercent: number | null;
+  }>>;
   
   // Supplier Prices
   getCurrentSupplierPrices(supplierId?: string): Promise<SupplierPrice[]>;
@@ -732,6 +740,7 @@ export class MemStorage implements IStorage {
   async getCurrentRetailPrice(productSizeId: string, mediaType: string): Promise<RetailPrice | undefined> { return undefined; }
   async createRetailPrice(price: InsertRetailPrice): Promise<RetailPrice> { throw new Error('Not implemented in MemStorage'); }
   async updateRetailPrice(id: string, updates: Partial<RetailPrice>): Promise<RetailPrice | undefined> { return undefined; }
+  async setRetailPrice(productSizeId: string, mediaType: string, newPrice: number, notes?: string): Promise<RetailPrice> { throw new Error('Not implemented in MemStorage'); }
 
   // Inventory stub implementations for MemStorage
   async getAllSalesChannels(): Promise<SalesChannel[]> { return []; }
@@ -751,6 +760,13 @@ export class MemStorage implements IStorage {
   async createProductSize(size: InsertProductSize): Promise<ProductSize> { throw new Error('Not implemented in MemStorage'); }
   async updateProductSize(id: string, updates: Partial<ProductSize>): Promise<ProductSize | undefined> { return undefined; }
   async deleteProductSize(id: string): Promise<boolean> { return false; }
+  async getProductSizesWithPricing(): Promise<Array<{
+    size: ProductSize;
+    mediaType: string;
+    avgSupplierCost: number | null;
+    retailPrice: number | null;
+    marginPercent: number | null;
+  }>> { return []; }
   
   async getCurrentSupplierPrices(supplierId?: string): Promise<SupplierPrice[]> { return []; }
   async getSupplierPriceHistory(supplierId: string, productSizeId: string): Promise<SupplierPrice[]> { return []; }
@@ -2152,6 +2168,42 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  async setRetailPrice(
+    productSizeId: string,
+    mediaType: string,
+    newPrice: number,
+    notes?: string
+  ): Promise<RetailPrice> {
+    // Close the current price record by setting effectiveTo
+    await db
+      .update(retailPrices)
+      .set({ 
+        effectiveTo: new Date(),
+        isCurrent: false 
+      })
+      .where(and(
+        eq(retailPrices.productSizeId, productSizeId),
+        eq(retailPrices.mediaType, mediaType),
+        isNull(retailPrices.effectiveTo)
+      ));
+
+    // Create new price record
+    const [created] = await db
+      .insert(retailPrices)
+      .values({
+        productSizeId,
+        mediaType,
+        retailPrice: newPrice,
+        effectiveFrom: new Date(),
+        effectiveTo: null,
+        isCurrent: true,
+        notes: notes || null
+      })
+      .returning();
+
+    return created;
+  }
+
   // ============================================
   // SALES CHANNELS METHODS
   // ============================================
@@ -2246,6 +2298,85 @@ export class DatabaseStorage implements IStorage {
   async deleteProductSize(id: string): Promise<boolean> {
     const result = await db.delete(productSizes).where(eq(productSizes.id, id));
     return (result.rowCount || 0) > 0;
+  }
+
+  async getProductSizesWithPricing(): Promise<Array<{
+    size: ProductSize;
+    mediaType: string;
+    avgSupplierCost: number | null;
+    retailPrice: number | null;
+    marginPercent: number | null;
+  }>> {
+    const sizes = await this.getAllProductSizes();
+    
+    const currentSupplierPrices = await db
+      .select()
+      .from(supplierPrices)
+      .where(isNull(supplierPrices.effectiveTo));
+    
+    const currentRetailPrices = await db
+      .select()
+      .from(retailPrices)
+      .where(isNull(retailPrices.effectiveTo));
+    
+    // Define canonical media types so empty combinations show up
+    const canonicalMediaTypes = ['ChromaLuxe', 'Magnet', 'Framed Paper', 'Canvas'];
+    
+    // Also include any media types found in existing pricing data
+    const mediaTypesSet = new Set<string>(canonicalMediaTypes);
+    currentSupplierPrices.forEach(p => mediaTypesSet.add(p.mediaType));
+    currentRetailPrices.forEach(p => mediaTypesSet.add(p.mediaType));
+    
+    const results: Array<{
+      size: ProductSize;
+      mediaType: string;
+      avgSupplierCost: number | null;
+      retailPrice: number | null;
+      marginPercent: number | null;
+    }> = [];
+    
+    // Create entry for every size × media type combination
+    for (const size of sizes) {
+      for (const mediaType of Array.from(mediaTypesSet)) {
+        const supplierPricesForSize = currentSupplierPrices.filter(
+          p => p.productSizeId === size.id && p.mediaType === mediaType
+        );
+        
+        // Keep decimal precision, don't round prematurely
+        const avgSupplierCost = supplierPricesForSize.length > 0
+          ? supplierPricesForSize.reduce((sum, p) => sum + p.basePrice, 0) / 
+            supplierPricesForSize.length
+          : null;
+        
+        const retailPriceRecord = currentRetailPrices.find(
+          p => p.productSizeId === size.id && p.mediaType === mediaType
+        );
+        
+        const retailPrice = retailPriceRecord ? retailPriceRecord.retailPrice : null;
+        
+        // Explicit null checks instead of truthy checks
+        const marginPercent = 
+          avgSupplierCost !== null && retailPrice !== null && avgSupplierCost > 0
+            ? Math.round(((retailPrice - avgSupplierCost) / avgSupplierCost) * 100)
+            : null;
+        
+        // Include ALL combinations, even if both prices are null
+        results.push({
+          size,
+          mediaType,
+          avgSupplierCost: avgSupplierCost !== null ? Math.round(avgSupplierCost) : null,
+          retailPrice,
+          marginPercent
+        });
+      }
+    }
+    
+    return results.sort((a, b) => {
+      if (a.size.sizeLabel !== b.size.sizeLabel) {
+        return a.size.sizeLabel.localeCompare(b.size.sizeLabel);
+      }
+      return a.mediaType.localeCompare(b.mediaType);
+    });
   }
 
   // ============================================

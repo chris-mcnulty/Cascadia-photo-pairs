@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Image, Package2 } from "lucide-react";
+import { Plus, Edit, Trash2, Image, Package2, Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -35,6 +35,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -44,6 +57,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Product, Photo } from "@shared/schema";
+import { cn } from "@/lib/utils";
 
 // Form schema for product creation/editing
 const productFormSchema = z.object({
@@ -59,6 +73,7 @@ type ProductFormValues = z.infer<typeof productFormSchema>;
 export default function ProductManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [photoComboboxOpen, setPhotoComboboxOpen] = useState(false);
   const { toast } = useToast();
 
   // Fetch all products
@@ -179,11 +194,19 @@ export default function ProductManagement() {
     { value: "2x3", label: "2x3 (Portrait)" },
     { value: "4x3", label: "4x3 (Landscape)" },
     { value: "3x4", label: "3x4 (Portrait)" },
+    { value: "5x4", label: "5x4 (Portrait)" },
+    { value: "4x5", label: "4x5 (Landscape)" },
     { value: "16x9", label: "16x9 (Wide)" },
     { value: "1x1", label: "1x1 (Square)" },
     { value: "5x7", label: "5x7 (Standard)" },
     { value: "7x5", label: "7x5 (Standard Landscape)" },
   ];
+
+  // Sort photos alphabetically by title (memoized for performance)
+  const sortedPhotos = useMemo(
+    () => [...photos].sort((a, b) => (a.title || "").localeCompare(b.title || "")),
+    [photos]
+  );
 
   return (
     <div className="space-y-6">
@@ -349,28 +372,69 @@ export default function ProductManagement() {
                 control={form.control}
                 name="photoId"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Linked Photo (Optional)</FormLabel>
-                    <Select
-                      value={field.value || "none"}
-                      onValueChange={(value) =>
-                        field.onChange(value === "none" ? null : value)
-                      }
-                    >
-                      <FormControl>
-                        <SelectTrigger data-testid="select-photo">
-                          <SelectValue placeholder="Select a photo" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">No photo linked</SelectItem>
-                        {photos.map((photo) => (
-                          <SelectItem key={photo.id} value={photo.id}>
-                            {photo.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={photoComboboxOpen} onOpenChange={setPhotoComboboxOpen} modal={true}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={photoComboboxOpen}
+                            className="w-full justify-between"
+                            data-testid="select-photo"
+                          >
+                            {field.value
+                              ? sortedPhotos.find((photo) => photo.id === field.value)?.title || "Unknown photo"
+                              : "No photo linked"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search photos..." />
+                          <CommandList>
+                            <CommandEmpty>No photo found.</CommandEmpty>
+                            <CommandGroup>
+                              <CommandItem
+                                value="none"
+                                onSelect={() => {
+                                  field.onChange(null);
+                                  setPhotoComboboxOpen(false);
+                                }}
+                              >
+                                <Check
+                                  className={cn(
+                                    "mr-2 h-4 w-4",
+                                    !field.value ? "opacity-100" : "opacity-0"
+                                  )}
+                                />
+                                No photo linked
+                              </CommandItem>
+                              {sortedPhotos.map((photo) => (
+                                <CommandItem
+                                  key={photo.id}
+                                  value={photo.title}
+                                  onSelect={() => {
+                                    field.onChange(photo.id);
+                                    setPhotoComboboxOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      field.value === photo.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {photo.title}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <FormDescription>
                       Link this product to a specific photo from your gallery
                     </FormDescription>

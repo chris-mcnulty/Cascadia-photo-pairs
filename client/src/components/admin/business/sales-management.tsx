@@ -55,13 +55,12 @@ export default function SalesManagement() {
   const { toast } = useToast();
 
   // Build query params for filtering
-  const queryParams = new URLSearchParams();
-  if (startDate) queryParams.append("startDate", startDate);
-  if (endDate) queryParams.append("endDate", endDate);
-  const queryString = queryParams.toString();
+  const queryParams: Record<string, string> = {};
+  if (startDate) queryParams.startDate = startDate;
+  if (endDate) queryParams.endDate = endDate;
 
   const { data: allSales, isLoading: loadingSales } = useQuery<Sale[]>({
-    queryKey: ["/api/admin/sales", queryString ? { queryString } : {}],
+    queryKey: ["/api/admin/sales", Object.keys(queryParams).length > 0 ? queryParams : {}],
   });
 
   const { data: channels } = useQuery<SalesChannel[]>({

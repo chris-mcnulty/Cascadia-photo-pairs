@@ -93,7 +93,7 @@ export default function BusinessManagement() {
       </div>
 
       {/* Sub-tab Content */}
-      {activeSubTab === "dashboard" && <BusinessDashboard />}
+      {activeSubTab === "dashboard" && <BusinessDashboard onNavigateToTab={setActiveSubTab} />}
       {activeSubTab === "products" && <ProductManagement />}
       {activeSubTab === "inventory" && <InventoryManagement />}
       {activeSubTab === "suppliers" && <SupplierManagement />}

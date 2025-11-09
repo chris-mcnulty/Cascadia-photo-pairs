@@ -32,6 +32,20 @@ Preferred communication style: Simple, everyday language.
 - **User System**: Full user authentication (registration, login, password reset, email verification) secured with JWTs and bcrypt.
 - **Admin System**: Admin dashboard with JWT-based authentication. Features include an option to enable/disable user login, and a master admin system with role management for co-admins.
 
+### Admin Login Instructions
+**How to Access Admin Features:**
+1. **Register/Login**: Create an account at `/register` or login at `/login` with your email and password
+2. **Set Admin Status**: Admin privileges must be set directly in the database:
+   - Connect to the PostgreSQL database
+   - Run: `UPDATE users SET is_admin = true WHERE email = 'your-email@example.com';`
+   - For master admin (cannot be downgraded): `UPDATE users SET is_master_admin = true WHERE email = 'your-email@example.com';`
+3. **Access Admin Panel**: After setting admin status, refresh the page and click "Admin" in the navigation to access:
+   - Photo management and analytics
+   - User management
+   - Business management (inventory, sales, expenses, products, suppliers, etc.)
+   - Settings and configuration
+4. **Authentication**: Admin features use the same JWT token from your login - no separate admin login required
+
 ### Key Features
 - **Voting System**: Tournament-style photo pairing, intelligent pair selection (no duplicates, no consecutive pairs), and tracking of wins/losses. Supports "Pairs" for direct comparison of related photos.
 - **Admin Dashboard**: Analytics, ranking displays, data filtering, user/photo management, and bulk operations.

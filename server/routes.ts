@@ -3033,6 +3033,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get business dashboard statistics
+  app.get("/api/admin/business/stats", isAuthenticated, async (req, res) => {
+    try {
+      // Get all inventory items
+      const allInventory = await storage.getAllInventoryItems();
+      
+      // Calculate total inventory value (only unsold items)
+      const totalInventoryValue = allInventory
+        .filter(item => !item.saleId) // Only count items not yet sold
+        .reduce((sum, item) => sum + (item.acquisitionCost || 0), 0);
+      
+      // Get current month date range
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+      
+      // Get sales for current month
+      const monthlySalesData = await storage.getAllSales(monthStart, monthEnd);
+      const monthlySales = monthlySalesData.reduce((sum, sale) => sum + sale.soldPrice, 0);
+      
+      // Get pending drop-ship orders
+      const pendingOrdersData = await storage.getAllDropShipOrders('pending');
+      const pendingOrders = pendingOrdersData.length;
+      
+      // Get expenses for current month
+      const monthlyExpenses = await storage.getAllExpenses(monthStart, monthEnd);
+      const totalExpenses = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+      
+      res.json({
+        totalInventoryValue,
+        monthlySales,
+        pendingOrders,
+        totalExpenses
+      });
+    } catch (error) {
+      console.error('Error fetching business stats:', error);
+      res.status(500).json({ message: "Failed to fetch business statistics" });
+    }
+  });
+
   // Get single inventory item
   app.get("/api/admin/inventory/:id", isAuthenticated, async (req, res) => {
     try {

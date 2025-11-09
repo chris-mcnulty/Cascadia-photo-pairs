@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Package, DollarSign, ShoppingCart, Receipt } from "lucide-react";
 import { format } from "date-fns";
+import SalesFormDialog from "./sales-form-dialog";
 
 interface DashboardStats {
   totalInventoryValue: number;
@@ -22,9 +24,15 @@ interface RecentSale {
   buyerName?: string;
 }
 
-export default function BusinessDashboard() {
+interface BusinessDashboardProps {
+  onNavigateToTab?: (tab: string) => void;
+}
+
+export default function BusinessDashboard({ onNavigateToTab }: BusinessDashboardProps) {
+  const [salesDialogOpen, setSalesDialogOpen] = useState(false);
+
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
-    queryKey: ["/api/admin/inventory/details"],
+    queryKey: ["/api/admin/business/stats"],
   });
 
   const { data: recentSales, isLoading: salesLoading } = useQuery<RecentSale[]>({
@@ -193,21 +201,38 @@ export default function BusinessDashboard() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
-            <Button data-testid="button-add-product">
+            <Button
+              onClick={() => onNavigateToTab?.('products')}
+              data-testid="button-add-product"
+            >
               <Package className="w-4 h-4 mr-2" />
               Add Product
             </Button>
-            <Button variant="outline" data-testid="button-record-sale">
+            <Button
+              variant="outline"
+              onClick={() => setSalesDialogOpen(true)}
+              data-testid="button-record-sale"
+            >
               <DollarSign className="w-4 h-4 mr-2" />
               Record Sale
             </Button>
-            <Button variant="outline" data-testid="button-log-expense">
+            <Button
+              variant="outline"
+              onClick={() => onNavigateToTab?.('expenses')}
+              data-testid="button-log-expense"
+            >
               <Receipt className="w-4 h-4 mr-2" />
               Log Expense
             </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* Sales Form Dialog */}
+      <SalesFormDialog
+        open={salesDialogOpen}
+        onClose={() => setSalesDialogOpen(false)}
+      />
     </div>
   );
 }

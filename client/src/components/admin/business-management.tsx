@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Package, Package2, Building2, Receipt, Upload } from "lucide-react";
+import { LayoutDashboard, Package, Package2, Building2, Receipt, Upload, DollarSign } from "lucide-react";
 import BusinessDashboard from "./business/business-dashboard";
 import ProductManagement from "./business/product-management";
 import InventoryManagement from "./business/inventory-management";
 import SupplierManagement from "./business/supplier-management";
 import ProductSizesManagement from "./business/product-sizes-management";
 import ExpenseTracker from "./business/expense-tracker";
+import SalesManagement from "./business/sales-management";
 import { CSVImport } from "./business/csv-import";
 
 export default function BusinessManagement() {
-  const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "products" | "inventory" | "suppliers" | "sizes" | "expenses" | "import">("dashboard");
+  const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "products" | "inventory" | "suppliers" | "sizes" | "sales" | "expenses" | "import">("dashboard");
 
   return (
     <div className="space-y-6">
@@ -71,6 +72,16 @@ export default function BusinessManagement() {
           Sizes
         </Button>
         <Button
+          variant={activeSubTab === "sales" ? "default" : "outline"}
+          onClick={() => setActiveSubTab("sales")}
+          className="flex items-center text-sm"
+          size="sm"
+          data-testid="button-sales-subtab"
+        >
+          <DollarSign className="w-4 h-4 mr-2" />
+          Sales
+        </Button>
+        <Button
           variant={activeSubTab === "expenses" ? "default" : "outline"}
           onClick={() => setActiveSubTab("expenses")}
           className="flex items-center text-sm"
@@ -98,6 +109,7 @@ export default function BusinessManagement() {
       {activeSubTab === "inventory" && <InventoryManagement />}
       {activeSubTab === "suppliers" && <SupplierManagement />}
       {activeSubTab === "sizes" && <ProductSizesManagement />}
+      {activeSubTab === "sales" && <SalesManagement />}
       {activeSubTab === "expenses" && <ExpenseTracker />}
       {activeSubTab === "import" && <CSVImport />}
     </div>

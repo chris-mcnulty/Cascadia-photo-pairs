@@ -2510,8 +2510,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedData = insertProductSizeSchema.parse({
         sizeLabel: sizeLabel.trim(),
-        widthInches: Math.round(widthFloat),
-        heightInches: Math.round(heightFloat),
+        widthInches: widthFloat.toString(), // Store as string for numeric column
+        heightInches: heightFloat.toString(), // Store as string for numeric column
         aspectRatio,
       });
       

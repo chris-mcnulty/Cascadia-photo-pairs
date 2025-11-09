@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, index, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -417,12 +417,12 @@ export const suppliers = pgTable("suppliers", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// Product sizes (8x10, 11x14, 16x20, etc.) with aspect ratios
+// Product sizes (8x10, 11x14, 24x13.5, etc.) with aspect ratios
 export const productSizes = pgTable("product_sizes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sizeLabel: varchar("size_label").notNull(), // "8x10", "11x14", etc.
-  widthInches: integer("width_inches").notNull(),
-  heightInches: integer("height_inches").notNull(),
+  sizeLabel: varchar("size_label").notNull(), // "8x10", "11x14", "24x13.5", etc.
+  widthInches: numeric("width_inches", { precision: 5, scale: 2 }).notNull(), // Supports decimals like 13.5
+  heightInches: numeric("height_inches", { precision: 5, scale: 2 }).notNull(), // Supports decimals like 13.5
   aspectRatio: text("aspect_ratio").notNull(), // "3x2", "2x3", "16x9", etc. - orientation specific!
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [

@@ -166,7 +166,7 @@ export interface IStorage {
   updateInventoryItem(id: string, updates: Partial<InventoryItem>): Promise<InventoryItem | undefined>;
   deleteInventoryItem(id: string): Promise<boolean>;
   getInventoryByPhoto(photoId: string): Promise<InventoryItem[]>;
-  getInventoryWithDetails(): Promise<Array<InventoryItem & { photo?: Photo; productSize?: ProductSize; sale?: Sale }>>;
+  getInventoryWithDetails(): Promise<Array<InventoryItem & { productTitle?: string; photoImageUrl?: string; sizeLabel?: string }>>;
   
   // Drop Ship Orders
   getAllDropShipOrders(status?: string): Promise<DropShipOrder[]>;
@@ -803,7 +803,7 @@ export class MemStorage implements IStorage {
   async updateInventoryItem(id: string, updates: Partial<InventoryItem>): Promise<InventoryItem | undefined> { return undefined; }
   async deleteInventoryItem(id: string): Promise<boolean> { return false; }
   async getInventoryByPhoto(photoId: string): Promise<InventoryItem[]> { return []; }
-  async getInventoryWithDetails(): Promise<Array<InventoryItem & { photo?: Photo; productSize?: ProductSize; sale?: Sale }>> { return []; }
+  async getInventoryWithDetails(): Promise<Array<InventoryItem & { productTitle?: string; photoImageUrl?: string; sizeLabel?: string }>> { return []; }
   
   async getAllDropShipOrders(status?: string): Promise<DropShipOrder[]> { return []; }
   async getDropShipOrder(id: string): Promise<DropShipOrder | undefined> { return undefined; }
@@ -2630,7 +2630,7 @@ export class DatabaseStorage implements IStorage {
       .where(inArray(inventoryItems.productId, productIds));
   }
 
-  async getInventoryWithDetails(): Promise<Array<InventoryItem & { photo?: Photo; productSize?: ProductSize; sale?: Sale }>> {
+  async getInventoryWithDetails(): Promise<Array<InventoryItem & { productTitle?: string; photoImageUrl?: string; sizeLabel?: string }>> {
     const items = await db.select().from(inventoryItems);
     
     const itemsWithDetails = await Promise.all(
@@ -2639,13 +2639,12 @@ export class DatabaseStorage implements IStorage {
         const product = item.productId ? await this.getProduct(item.productId) : undefined;
         const photo = product?.photoId ? await this.getPhoto(product.photoId) : undefined;
         const productSize = item.productSizeId ? await this.getProductSize(item.productSizeId) : undefined;
-        const sale = item.saleId ? await this.getSale(item.saleId) : undefined;
         
         return {
           ...item,
-          photo,
-          productSize,
-          sale
+          productTitle: product?.title,
+          photoImageUrl: photo?.imageUrl,
+          sizeLabel: productSize?.sizeLabel || 'Unknown Size'
         };
       })
     );

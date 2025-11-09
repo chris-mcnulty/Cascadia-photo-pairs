@@ -94,7 +94,7 @@ export default function InventoryManagement() {
   
   const availableSizes = useMemo(() => {
     const sizes = new Set(inventoryData?.map(item => item.sizeLabel) || []);
-    return Array.from(sizes).filter(Boolean).sort();
+    return Array.from(sizes).filter((size): size is string => Boolean(size)).sort();
   }, [inventoryData]);
 
   const handleDelete = async (id: string) => {

@@ -349,12 +349,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const user = await authenticateUser(email, password);
       if (!user) {
-        // Special message for master admin to use admin login
-        if (email === 'cmcnulty2000@yahoo.com') {
-          return res.status(401).json({ 
-            message: "Master admin account requires secure login. Please access /admin-login directly." 
-          });
-        }
         return res.status(401).json({ message: "Invalid email or password" });
       }
       
@@ -2704,7 +2698,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create sale
   app.post("/api/admin/sales", isAuthenticated, async (req, res) => {
     try {
-      const validatedData = insertSaleSchema.parse(req.body);
+      // Convert date string to Date object
+      const dataWithDate = {
+        ...req.body,
+        saleDate: req.body.saleDate ? new Date(req.body.saleDate) : new Date(),
+      };
+      
+      const validatedData = insertSaleSchema.parse(dataWithDate);
       const sale = await storage.createSale(validatedData);
       res.status(201).json(sale);
     } catch (error) {
@@ -2717,7 +2717,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/sales/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
-      const sale = await storage.updateSale(id, req.body);
+      
+      // Convert date string to Date object if present
+      const dataWithDate = {
+        ...req.body,
+        saleDate: req.body.saleDate ? new Date(req.body.saleDate) : undefined,
+      };
+      
+      const sale = await storage.updateSale(id, dataWithDate);
       
       if (!sale) {
         return res.status(404).json({ message: "Sale not found" });

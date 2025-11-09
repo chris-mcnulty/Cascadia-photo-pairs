@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2 } from "lucide-react";
+import { Loader2, Package, Truck } from "lucide-react";
 
 interface Product {
   id: string;
@@ -22,6 +23,23 @@ interface SalesChannel {
   id: string;
   name: string;
   isActive: boolean;
+}
+
+interface Supplier {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+interface InventoryItem {
+  id: string;
+  productId: string;
+  productTitle?: string;
+  mediaType: string;
+  sizeLabel?: string;
+  status: string;
+  acquisitionCost: number;
+  listPrice: number;
 }
 
 interface Sale {
@@ -36,6 +54,9 @@ interface Sale {
   buyerPhone?: string | null;
   shippingAddress?: string | null;
   notes?: string | null;
+  saleType?: "inventory" | "dropship";
+  inventoryItemId?: string | null;
+  supplierId?: string | null;
 }
 
 interface SalesFormDialogProps {
@@ -45,7 +66,10 @@ interface SalesFormDialogProps {
 }
 
 const salesSchema = z.object({
+  saleType: z.enum(["inventory", "dropship"]).default("inventory"),
   productId: z.string().optional(),
+  inventoryItemId: z.string().optional(),
+  supplierId: z.string().optional(),
   channelId: z.string().min(1, "Sales channel is required"),
   saleDate: z.string().min(1, "Sale date is required"),
   soldPrice: z.string().min(1, "Sale price is required"),
@@ -55,12 +79,26 @@ const salesSchema = z.object({
   buyerPhone: z.string().optional(),
   shippingAddress: z.string().optional(),
   notes: z.string().optional(),
+}).refine((data) => {
+  // If sale type is inventory, must select an inventory item
+  if (data.saleType === "inventory" && !data.inventoryItemId) {
+    return false;
+  }
+  // If sale type is dropship, must select a supplier and product
+  if (data.saleType === "dropship" && (!data.supplierId || !data.productId)) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Please select an inventory item for inventory sales, or a product and supplier for drop ship sales",
+  path: ["saleType"],
 });
 
 type SalesFormData = z.infer<typeof salesSchema>;
 
 export default function SalesFormDialog({ open, onClose, editingSale }: SalesFormDialogProps) {
   const { toast } = useToast();
+  const [saleType, setSaleType] = useState<"inventory" | "dropship">("inventory");
 
   const { data: products } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -72,10 +110,23 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
     enabled: open,
   });
 
+  const { data: inventoryItems } = useQuery<InventoryItem[]>({
+    queryKey: ["/api/admin/inventory/available"],
+    enabled: open && saleType === "inventory",
+  });
+
+  const { data: suppliers } = useQuery<Supplier[]>({
+    queryKey: ["/api/suppliers"],
+    enabled: open && saleType === "dropship",
+  });
+
   const form = useForm<SalesFormData>({
     resolver: zodResolver(salesSchema),
     defaultValues: {
+      saleType: "inventory",
       productId: "",
+      inventoryItemId: "",
+      supplierId: "",
       channelId: "",
       saleDate: new Date().toISOString().split('T')[0],
       soldPrice: "",
@@ -91,7 +142,10 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
   useEffect(() => {
     if (editingSale) {
       form.reset({
+        saleType: editingSale.saleType || "inventory",
         productId: editingSale.productId || "",
+        inventoryItemId: editingSale.inventoryItemId || "",
+        supplierId: editingSale.supplierId || "",
         channelId: editingSale.channelId,
         saleDate: editingSale.saleDate.split('T')[0],
         soldPrice: (editingSale.soldPrice / 100).toFixed(2),
@@ -102,9 +156,13 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
         shippingAddress: editingSale.shippingAddress || "",
         notes: editingSale.notes || "",
       });
+      setSaleType(editingSale.saleType || "inventory");
     } else {
       form.reset({
+        saleType: "inventory",
         productId: "",
+        inventoryItemId: "",
+        supplierId: "",
         channelId: "",
         saleDate: new Date().toISOString().split('T')[0],
         soldPrice: "",
@@ -115,13 +173,42 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
         shippingAddress: "",
         notes: "",
       });
+      setSaleType("inventory");
     }
   }, [editingSale, form, open]);
+
+  // Watch sale type changes
+  const watchedSaleType = form.watch("saleType");
+  useEffect(() => {
+    setSaleType(watchedSaleType);
+    // Reset related fields when sale type changes
+    if (watchedSaleType === "inventory") {
+      form.setValue("supplierId", "");
+      form.setValue("productId", "");
+    } else if (watchedSaleType === "dropship") {
+      form.setValue("inventoryItemId", "");
+    }
+  }, [watchedSaleType, form]);
+
+  // Auto-fill price when inventory item is selected
+  const watchedInventoryItem = form.watch("inventoryItemId");
+  useEffect(() => {
+    if (watchedInventoryItem && inventoryItems) {
+      const item = inventoryItems.find(i => i.id === watchedInventoryItem);
+      if (item) {
+        form.setValue("soldPrice", (item.listPrice / 100).toFixed(2));
+        form.setValue("productId", item.productId);
+      }
+    }
+  }, [watchedInventoryItem, inventoryItems, form]);
 
   const createSaleMutation = useMutation({
     mutationFn: async (data: SalesFormData) => {
       const saleData = {
+        saleType: data.saleType,
         productId: data.productId || null,
+        inventoryItemId: data.inventoryItemId || null,
+        supplierId: data.supplierId || null,
         channelId: data.channelId,
         saleDate: new Date(data.saleDate).toISOString(),
         soldPrice: Math.round(parseFloat(data.soldPrice) * 100),
@@ -143,6 +230,8 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
       queryClient.invalidateQueries({ queryKey: ["/api/admin/sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/sales/recent"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/business/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory/details"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory/available"] });
       onClose();
     },
     onError: (error: Error) => {
@@ -159,7 +248,10 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
       if (!editingSale) throw new Error("No sale to update");
 
       const saleData = {
+        saleType: data.saleType,
         productId: data.productId || null,
+        inventoryItemId: data.inventoryItemId || null,
+        supplierId: data.supplierId || null,
         channelId: data.channelId,
         saleDate: new Date(data.saleDate).toISOString(),
         soldPrice: Math.round(parseFloat(data.soldPrice) * 100),
@@ -213,35 +305,131 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Sale Type Selection */}
+            <FormField
+              control={form.control}
+              name="saleType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Sale Type *</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      className="flex gap-6"
+                      data-testid="radio-sale-type"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="inventory" id="inventory" />
+                        <label htmlFor="inventory" className="flex items-center gap-2 cursor-pointer">
+                          <Package className="h-4 w-4" />
+                          Inventory Sale
+                        </label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="dropship" id="dropship" />
+                        <label htmlFor="dropship" className="flex items-center gap-2 cursor-pointer">
+                          <Truck className="h-4 w-4" />
+                          Drop Ship Sale
+                        </label>
+                      </div>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormDescription>
+                    {saleType === "inventory" 
+                      ? "Sell from your existing inventory stock" 
+                      : "Supplier ships directly to customer"}
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="productId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Product (Optional)</FormLabel>
-                    <Select value={field.value || "none"} onValueChange={(value) => field.onChange(value === "none" ? "" : value)}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-product">
-                          <SelectValue placeholder="Select product" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">No product linked</SelectItem>
-                        {products?.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Link to a product (optional for non-inventory sales)
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Conditional fields based on sale type */}
+              {saleType === "inventory" ? (
+                <FormField
+                  control={form.control}
+                  name="inventoryItemId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Inventory Item *</FormLabel>
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <FormControl>
+                          <SelectTrigger data-testid="select-inventory-item">
+                            <SelectValue placeholder="Select inventory item" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {inventoryItems?.filter(item => item.status === "in_stock").map((item) => (
+                            <SelectItem key={item.id} value={item.id}>
+                              {item.productTitle} - {item.mediaType} {item.sizeLabel} (${(item.listPrice / 100).toFixed(2)})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Select from available inventory
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="productId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Product *</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-product">
+                              <SelectValue placeholder="Select product" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {products?.map((product) => (
+                              <SelectItem key={product.id} value={product.id}>
+                                {product.title}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="supplierId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Supplier *</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-supplier">
+                              <SelectValue placeholder="Select supplier" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {suppliers?.filter(s => s.isActive).map((supplier) => (
+                              <SelectItem key={supplier.id} value={supplier.id}>
+                                {supplier.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormDescription>
+                          Supplier for drop shipment
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
 
               <FormField
                 control={form.control}

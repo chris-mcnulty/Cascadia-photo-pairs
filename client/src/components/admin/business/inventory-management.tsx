@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Edit, Trash2 } from "lucide-react";
 import InventoryFormDialog from "./inventory-form-dialog";
@@ -20,6 +21,11 @@ interface InventoryItemWithDetails extends InventoryItem {
 
 export default function InventoryManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [mediaTypeFilter, setMediaTypeFilter] = useState<string>("all");
+  const [sizeFilter, setSizeFilter] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [sortBy, setSortBy] = useState<"title" | "cost" | "price" | "status">("title");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItemWithDetails | null>(null);
   const { toast } = useToast();
@@ -28,10 +34,68 @@ export default function InventoryManagement() {
     queryKey: ["/api/admin/inventory/details"],
   });
   
-  // Filter inventory on the client side based on status
-  const inventory = inventoryData?.filter(item => 
-    statusFilter === "all" || item.status === statusFilter
-  );
+  // Filter and sort inventory
+  const filteredInventory = useMemo(() => {
+    let filtered = inventoryData || [];
+    
+    // Status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(item => item.status === statusFilter);
+    }
+    
+    // Media type filter
+    if (mediaTypeFilter !== "all") {
+      filtered = filtered.filter(item => item.mediaType === mediaTypeFilter);
+    }
+    
+    // Size filter
+    if (sizeFilter !== "all") {
+      filtered = filtered.filter(item => item.sizeLabel === sizeFilter);
+    }
+    
+    // Search filter (by product title)
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(item => 
+        (item.productTitle || "").toLowerCase().includes(search)
+      );
+    }
+    
+    // Sort
+    const sorted = [...filtered].sort((a, b) => {
+      let compareValue = 0;
+      
+      switch (sortBy) {
+        case "title":
+          compareValue = (a.productTitle || "").localeCompare(b.productTitle || "");
+          break;
+        case "cost":
+          compareValue = a.acquisitionCost - b.acquisitionCost;
+          break;
+        case "price":
+          compareValue = a.listPrice - b.listPrice;
+          break;
+        case "status":
+          compareValue = a.status.localeCompare(b.status);
+          break;
+      }
+      
+      return sortOrder === "asc" ? compareValue : -compareValue;
+    });
+    
+    return sorted;
+  }, [inventoryData, statusFilter, mediaTypeFilter, sizeFilter, searchTerm, sortBy, sortOrder]);
+
+  // Get unique media types and sizes
+  const availableMediaTypes = useMemo(() => {
+    const types = new Set(inventoryData?.map(item => item.mediaType) || []);
+    return Array.from(types).filter(Boolean).sort();
+  }, [inventoryData]);
+  
+  const availableSizes = useMemo(() => {
+    const sizes = new Set(inventoryData?.map(item => item.sizeLabel) || []);
+    return Array.from(sizes).filter(Boolean).sort();
+  }, [inventoryData]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this inventory item?")) return;
@@ -75,11 +139,27 @@ export default function InventoryManagement() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl font-semibold">Inventory Management</CardTitle>
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xl font-semibold">Inventory Management</CardTitle>
+              <Button onClick={() => setDialogOpen(true)} data-testid="button-add-inventory">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Inventory
+              </Button>
+            </div>
+            
+            {/* Filters */}
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              <Input
+                type="text"
+                placeholder="Search by title..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                data-testid="input-search-inventory"
+                className="md:col-span-2"
+              />
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
+                <SelectTrigger data-testid="select-status-filter">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -90,10 +170,57 @@ export default function InventoryManagement() {
                   <SelectItem value="shipped">Shipped</SelectItem>
                 </SelectContent>
               </Select>
-              <Button onClick={() => setDialogOpen(true)} data-testid="button-add-inventory">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Inventory
-              </Button>
+              <Select value={mediaTypeFilter} onValueChange={setMediaTypeFilter}>
+                <SelectTrigger data-testid="select-media-filter">
+                  <SelectValue placeholder="Media Type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Media</SelectItem>
+                  {availableMediaTypes.map(type => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={sizeFilter} onValueChange={setSizeFilter}>
+                <SelectTrigger data-testid="select-size-filter">
+                  <SelectValue placeholder="Size" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Sizes</SelectItem>
+                  {availableSizes.map(size => (
+                    <SelectItem key={size} value={size}>
+                      {size}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Sorting Options */}
+            <div className="flex items-center gap-4">
+              <label className="text-sm font-medium text-gray-700">Sort by:</label>
+              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <SelectTrigger className="w-[150px]" data-testid="select-sort-by">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="title">Title</SelectItem>
+                  <SelectItem value="cost">Cost</SelectItem>
+                  <SelectItem value="price">List Price</SelectItem>
+                  <SelectItem value="status">Status</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sortOrder} onValueChange={(value: any) => setSortOrder(value)}>
+                <SelectTrigger className="w-[150px]" data-testid="select-sort-order">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="asc">Ascending</SelectItem>
+                  <SelectItem value="desc">Descending</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </CardHeader>
@@ -119,8 +246,8 @@ export default function InventoryManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {inventory && inventory.length > 0 ? (
-                  inventory.map((item) => (
+                {filteredInventory.length > 0 ? (
+                  filteredInventory.map((item) => (
                     <TableRow key={item.id} data-testid={`row-inventory-${item.id}`}>
                       <TableCell>
                         {item.photoImageUrl ? (

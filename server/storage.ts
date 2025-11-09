@@ -2002,8 +2002,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteProduct(id: string): Promise<boolean> {
-    const result = await db.delete(products).where(eq(products.id, id));
-    return (result.rowCount || 0) > 0;
+    try {
+      // Delete in reverse order of dependencies
+      
+      // 1. Delete inventory items that reference this product
+      await db.delete(inventoryItems).where(eq(inventoryItems.productId, id));
+      
+      // 2. Set sales.productId to null for sales referencing this product
+      await db.update(sales).set({ productId: null }).where(eq(sales.productId, id));
+      
+      // 3. Get all product SKUs for this product to delete channel SKUs
+      const productSKUsList = await db.select().from(productSKUs).where(eq(productSKUs.productId, id));
+      
+      // 4. Delete channel SKUs for each product SKU
+      for (const sku of productSKUsList) {
+        await db.delete(channelSKUs).where(eq(channelSKUs.masterSKUId, sku.id));
+      }
+      
+      // 5. Delete product SKUs
+      await db.delete(productSKUs).where(eq(productSKUs.productId, id));
+      
+      // 6. Delete product variants
+      await db.delete(productVariants).where(eq(productVariants.productId, id));
+      
+      // 7. Finally delete the product itself
+      const result = await db.delete(products).where(eq(products.id, id));
+      
+      return (result.rowCount || 0) > 0;
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      return false;
+    }
   }
 
   async getProductsByPhoto(photoId: string): Promise<Product[]> {

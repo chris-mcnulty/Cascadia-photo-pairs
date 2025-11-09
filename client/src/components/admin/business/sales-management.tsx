@@ -50,6 +50,8 @@ export default function SalesManagement() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [sortBy, setSortBy] = useState<"date" | "price" | "buyer" | "channel">("date");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const { toast } = useToast();
@@ -107,7 +109,7 @@ export default function SalesManagement() {
     }).format(cents / 100);
   };
 
-  // Apply filters
+  // Apply filters and sorting
   const filteredSales = allSales?.filter((sale) => {
     // Channel filter
     if (channelFilter !== "all" && sale.channelId !== channelFilter) return false;
@@ -123,10 +125,34 @@ export default function SalesManagement() {
     return true;
   }) || [];
 
+  // Apply sorting
+  const sortedSales = [...filteredSales].sort((a, b) => {
+    let compareValue = 0;
+    
+    switch (sortBy) {
+      case "date":
+        compareValue = new Date(a.saleDate).getTime() - new Date(b.saleDate).getTime();
+        break;
+      case "price":
+        compareValue = a.soldPrice - b.soldPrice;
+        break;
+      case "buyer":
+        compareValue = (a.buyerName || "").localeCompare(b.buyerName || "");
+        break;
+      case "channel":
+        const channelA = channels?.find(c => c.id === a.channelId)?.name || "";
+        const channelB = channels?.find(c => c.id === b.channelId)?.name || "";
+        compareValue = channelA.localeCompare(channelB);
+        break;
+    }
+    
+    return sortOrder === "asc" ? compareValue : -compareValue;
+  });
+
   // Calculate statistics
-  const totalSales = filteredSales.reduce((sum, sale) => sum + sale.soldPrice, 0);
-  const totalTax = filteredSales.reduce((sum, sale) => sum + sale.taxCollected, 0);
-  const numberOfSales = filteredSales.length;
+  const totalSales = sortedSales.reduce((sum, sale) => sum + sale.soldPrice, 0);
+  const totalTax = sortedSales.reduce((sum, sale) => sum + sale.taxCollected, 0);
+  const numberOfSales = sortedSales.length;
   const averageSale = numberOfSales > 0 ? totalSales / numberOfSales : 0;
 
   return (
@@ -249,6 +275,31 @@ export default function SalesManagement() {
                 />
               </div>
             </div>
+            
+            {/* Sorting Options */}
+            <div className="flex items-center gap-4 pt-2">
+              <label className="text-sm font-medium text-gray-700">Sort by:</label>
+              <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                <SelectTrigger className="w-[150px]" data-testid="select-sort-by">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date">Date</SelectItem>
+                  <SelectItem value="price">Price</SelectItem>
+                  <SelectItem value="buyer">Buyer</SelectItem>
+                  <SelectItem value="channel">Channel</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={sortOrder} onValueChange={(value: any) => setSortOrder(value)}>
+                <SelectTrigger className="w-[150px]" data-testid="select-sort-order">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="desc">Newest First</SelectItem>
+                  <SelectItem value="asc">Oldest First</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -272,8 +323,8 @@ export default function SalesManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredSales.length > 0 ? (
-                  filteredSales.map((sale) => {
+                {sortedSales.length > 0 ? (
+                  sortedSales.map((sale) => {
                     const channel = channels?.find(c => c.id === sale.channelId);
                     return (
                       <TableRow key={sale.id} data-testid={`row-sale-${sale.id}`}>

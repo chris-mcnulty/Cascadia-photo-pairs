@@ -74,6 +74,12 @@ export default function ProductManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [photoComboboxOpen, setPhotoComboboxOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">("all");
+  const [aspectFilter, setAspectFilter] = useState<string>("all");
+  const [photoFilter, setPhotoFilter] = useState<"all" | "with-photo" | "no-photo">("all");
+  const [sortBy, setSortBy] = useState<"title" | "aspectRatio" | "created">("title");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const { toast } = useToast();
 
   // Fetch all products
@@ -208,24 +214,156 @@ export default function ProductManagement() {
     [photos]
   );
 
+  // Filter and sort products
+  const filteredProducts = useMemo(() => {
+    let filtered = products;
+
+    // Search filter
+    if (searchTerm) {
+      const search = searchTerm.toLowerCase();
+      filtered = filtered.filter(p => 
+        p.title.toLowerCase().includes(search) ||
+        (p.description && p.description.toLowerCase().includes(search))
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== "all") {
+      filtered = filtered.filter(p => 
+        statusFilter === "active" ? p.isActive : !p.isActive
+      );
+    }
+
+    // Aspect ratio filter
+    if (aspectFilter !== "all") {
+      filtered = filtered.filter(p => p.aspectRatio === aspectFilter);
+    }
+
+    // Photo filter
+    if (photoFilter === "with-photo") {
+      filtered = filtered.filter(p => p.photoId !== null);
+    } else if (photoFilter === "no-photo") {
+      filtered = filtered.filter(p => p.photoId === null);
+    }
+
+    // Sort
+    const sorted = [...filtered].sort((a, b) => {
+      let compareValue = 0;
+      
+      switch (sortBy) {
+        case "title":
+          compareValue = a.title.localeCompare(b.title);
+          break;
+        case "aspectRatio":
+          compareValue = a.aspectRatio.localeCompare(b.aspectRatio);
+          break;
+        case "created":
+          // Note: If createdAt doesn't exist, we'll sort by id as a proxy
+          compareValue = a.id.localeCompare(b.id);
+          break;
+      }
+      
+      return sortOrder === "asc" ? compareValue : -compareValue;
+    });
+
+    return sorted;
+  }, [products, searchTerm, statusFilter, aspectFilter, photoFilter, sortBy, sortOrder]);
+
+  // Get unique aspect ratios from products
+  const availableAspectRatios = useMemo(() => {
+    const ratios = new Set(products.map(p => p.aspectRatio));
+    return Array.from(ratios).sort();
+  }, [products]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="text-lg font-medium">Product Management</h3>
-          <p className="text-sm text-muted-foreground">
-            Manage your product catalog. Products can be linked to photos or exist independently.
-          </p>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-medium">Product Management</h3>
+            <p className="text-sm text-muted-foreground">
+              Manage your product catalog. Products can be linked to photos or exist independently.
+            </p>
+          </div>
+          <Button
+            onClick={() => setIsAddDialogOpen(true)}
+            className="flex items-center"
+            data-testid="button-add-product"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Add Product
+          </Button>
         </div>
-        <Button
-          onClick={() => setIsAddDialogOpen(true)}
-          className="flex items-center"
-          data-testid="button-add-product"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Product
-        </Button>
+
+        {/* Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <Input
+            type="text"
+            placeholder="Search products..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            data-testid="input-search-products"
+            className="md:col-span-2"
+          />
+          <Select value={statusFilter} onValueChange={(value: any) => setStatusFilter(value)}>
+            <SelectTrigger data-testid="select-status-filter">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Status</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={aspectFilter} onValueChange={setAspectFilter}>
+            <SelectTrigger data-testid="select-aspect-filter">
+              <SelectValue placeholder="Aspect Ratio" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Ratios</SelectItem>
+              {availableAspectRatios.map(ratio => (
+                <SelectItem key={ratio} value={ratio}>
+                  {ratio}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={photoFilter} onValueChange={(value: any) => setPhotoFilter(value)}>
+            <SelectTrigger data-testid="select-photo-filter">
+              <SelectValue placeholder="Photo Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Products</SelectItem>
+              <SelectItem value="with-photo">With Photo</SelectItem>
+              <SelectItem value="no-photo">No Photo</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Sorting Options */}
+        <div className="flex items-center gap-4">
+          <label className="text-sm font-medium text-gray-700">Sort by:</label>
+          <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+            <SelectTrigger className="w-[150px]" data-testid="select-sort-by">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="title">Title</SelectItem>
+              <SelectItem value="aspectRatio">Aspect Ratio</SelectItem>
+              <SelectItem value="created">Created</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={sortOrder} onValueChange={(value: any) => setSortOrder(value)}>
+            <SelectTrigger className="w-[150px]" data-testid="select-sort-order">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="asc">A-Z</SelectItem>
+              <SelectItem value="desc">Z-A</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Products Table */}
@@ -247,14 +385,14 @@ export default function ProductManagement() {
                   Loading products...
                 </TableCell>
               </TableRow>
-            ) : products.length === 0 ? (
+            ) : filteredProducts.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={6} className="text-center text-muted-foreground">
-                  No products yet. Add your first product to get started.
+                  {products.length === 0 ? "No products yet. Add your first product to get started." : "No products match your filters"}
                 </TableCell>
               </TableRow>
             ) : (
-              products.map((product) => {
+              filteredProducts.map((product) => {
                 const linkedPhoto = product.photoId ? photos.find(p => p.id === product.photoId) : null;
                 return (
                   <TableRow key={product.id} data-testid={`row-product-${product.id}`}>

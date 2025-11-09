@@ -224,8 +224,11 @@ export async function importWixProducts(csvContent: string): Promise<{
   let skipped = 0;
   
   try {
+    // Remove UTF-8 BOM if present
+    const cleanContent = csvContent.replace(/^\uFEFF/, '');
+    
     // Parse CSV
-    const records = parse(csvContent, {
+    const records = parse(cleanContent, {
       columns: true,
       skip_empty_lines: true,
       trim: true,
@@ -313,8 +316,11 @@ export async function importWixOrders(csvContent: string): Promise<{
   const processedOrders = new Set<string>();
   
   try {
+    // Remove UTF-8 BOM if present
+    const cleanContent = csvContent.replace(/^\uFEFF/, '');
+    
     // Parse CSV
-    const records = parse(csvContent, {
+    const records = parse(cleanContent, {
       columns: true,
       skip_empty_lines: true,
       trim: true,

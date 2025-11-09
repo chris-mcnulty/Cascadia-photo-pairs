@@ -2364,6 +2364,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // SUPPLIERS ROUTES
   // ============================================
   
+  // Get active suppliers (for forms/dropdowns)
+  app.get("/api/suppliers", isAuthenticated, async (req, res) => {
+    try {
+      const allSuppliers = await storage.getAllSuppliers();
+      // Filter for active suppliers only
+      const activeSuppliers = allSuppliers.filter(s => s.isActive);
+      res.json(activeSuppliers);
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+      res.status(500).json({ message: "Failed to fetch suppliers" });
+    }
+  });
+
   // Get all suppliers
   app.get("/api/admin/suppliers", isAuthenticated, async (req, res) => {
     try {
@@ -2707,17 +2720,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create sale
+  // Create sale (handles both inventory and drop ship sales)
   app.post("/api/admin/sales", isAuthenticated, async (req, res) => {
     try {
+      const { saleType, inventoryItemId, supplierId, ...saleData } = req.body;
+      
       // Convert date string to Date object
       const dataWithDate = {
-        ...req.body,
-        saleDate: req.body.saleDate ? new Date(req.body.saleDate) : new Date(),
+        ...saleData,
+        saleDate: saleData.saleDate ? new Date(saleData.saleDate) : new Date(),
       };
       
-      const validatedData = insertSaleSchema.parse(dataWithDate);
-      const sale = await storage.createSale(validatedData);
+      let sale;
+      
+      if (saleType === "inventory" && inventoryItemId) {
+        // Handle inventory sale
+        // 1. Validate inventory item is available
+        const inventoryItem = await storage.getInventoryItem(inventoryItemId);
+        if (!inventoryItem || inventoryItem.status !== "in_stock") {
+          return res.status(400).json({ message: "Inventory item is not available" });
+        }
+        
+        // 2. Create sale with inventory item reference
+        const saleWithInventory = {
+          ...dataWithDate,
+          productId: inventoryItem.productId,
+        };
+        sale = await storage.createSale(saleWithInventory);
+        
+        // 3. Update inventory item status to sold and link to sale
+        await storage.updateInventoryItem(inventoryItemId, { 
+          status: "sold",
+          saleId: sale.id,
+          soldDate: new Date()
+        });
+        
+      } else if (saleType === "dropship" && supplierId) {
+        // Handle drop ship sale
+        // 1. Create the sale
+        sale = await storage.createSale(dataWithDate);
+        
+        // 2. Create drop ship order
+        await storage.createDropShipOrder({
+          saleId: sale.id,
+          supplierId,
+          fulfillmentStatus: "pending",
+          orderDate: new Date()
+        });
+        
+      } else {
+        // Regular sale without inventory or drop ship
+        sale = await storage.createSale(dataWithDate);
+      }
+      
       res.status(201).json(sale);
     } catch (error) {
       console.error('Error creating sale:', error);
@@ -3049,6 +3104,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching inventory details:', error);
       res.status(500).json({ message: "Failed to fetch inventory details" });
+    }
+  });
+
+  // Get available inventory items (in_stock status)
+  app.get("/api/admin/inventory/available", isAuthenticated, async (req, res) => {
+    try {
+      const items = await storage.getInventoryWithDetails();
+      // Filter for in_stock items
+      const availableItems = items.filter(item => item.status === "in_stock");
+      res.json(availableItems);
+    } catch (error) {
+      console.error('Error fetching available inventory:', error);
+      res.status(500).json({ message: "Failed to fetch available inventory" });
     }
   });
 

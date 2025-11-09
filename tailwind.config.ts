@@ -6,9 +6,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        'heading': ['Epilogue', 'system-ui', 'sans-serif'],
-        'body': ['Poppins', 'system-ui', 'sans-serif'],
-        'sans': ['Poppins', 'system-ui', 'sans-serif'],
+        'heading': ['MetroNova', 'system-ui', 'sans-serif'],
+        'body': ['MetroNova', 'system-ui', 'sans-serif'],
+        'sans': ['MetroNova', 'system-ui', 'sans-serif'],
       },
       borderRadius: {
         lg: "var(--radius)",

@@ -61,8 +61,11 @@ export default function SalesManagement() {
   if (startDate) queryParams.startDate = startDate;
   if (endDate) queryParams.endDate = endDate;
 
+  // Build query URL with parameters
+  const queryUrl = `/api/admin/sales${Object.keys(queryParams).length > 0 ? `?${new URLSearchParams(queryParams).toString()}` : ''}`;
+
   const { data: allSales, isLoading: loadingSales } = useQuery<Sale[]>({
-    queryKey: ["/api/admin/sales", Object.keys(queryParams).length > 0 ? queryParams : {}],
+    queryKey: [queryUrl],
   });
 
   const { data: channels } = useQuery<SalesChannel[]>({

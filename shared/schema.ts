@@ -473,6 +473,11 @@ export const sales = pgTable("sales", {
   soldPrice: integer("sold_price").notNull(), // Price in cents - can override standard pricing
   taxCollected: integer("tax_collected").default(0).notNull(), // Tax in cents
   
+  // Sale type and item tracking
+  saleType: varchar("sale_type").default("inventory"), // "inventory" or "dropship"
+  inventoryItemId: varchar("inventory_item_id"), // Reference to specific inventory item (for inventory sales)
+  supplierId: varchar("supplier_id").references(() => suppliers.id), // Supplier reference (for dropship sales)
+  
   // Legacy buyer information (for backward compatibility)
   buyerName: varchar("buyer_name"),
   buyerEmail: varchar("buyer_email"),
@@ -486,6 +491,8 @@ export const sales = pgTable("sales", {
   index("idx_sales_channel").on(table.channelId),
   index("idx_sales_customer").on(table.customerId),
   index("idx_sales_date").on(table.saleDate),
+  index("idx_sales_inventory_item").on(table.inventoryItemId),
+  index("idx_sales_supplier").on(table.supplierId),
 ]);
 
 // Individual inventory items (each physical print)

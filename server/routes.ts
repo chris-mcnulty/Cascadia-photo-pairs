@@ -2287,7 +2287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
   
   // Get all sales channels
-  app.get("/api/admin/sales-channels", isAuthenticated, async (req, res) => {
+  app.get("/api/admin/sales-channels", checkAdminAuth, async (req, res) => {
     try {
       const channels = await storage.getAllSalesChannels();
       res.json(channels);
@@ -2298,7 +2298,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get single sales channel
-  app.get("/api/admin/sales-channels/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/admin/sales-channels/:id", checkAdminAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const channel = await storage.getSalesChannel(id);
@@ -2315,7 +2315,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create sales channel
-  app.post("/api/admin/sales-channels", isAuthenticated, async (req, res) => {
+  app.post("/api/admin/sales-channels", checkAdminAuth, async (req, res) => {
     try {
       const validatedData = insertSalesChannelSchema.parse(req.body);
       const channel = await storage.createSalesChannel(validatedData);
@@ -2327,7 +2327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update sales channel
-  app.put("/api/admin/sales-channels/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/admin/sales-channels/:id", checkAdminAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const channel = await storage.updateSalesChannel(id, req.body);
@@ -2344,7 +2344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete sales channel
-  app.delete("/api/admin/sales-channels/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/admin/sales-channels/:id", checkAdminAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteSalesChannel(id);
@@ -2677,7 +2677,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
   
   // Get all sales
-  app.get("/api/admin/sales", isAuthenticated, async (req, res) => {
+  app.get("/api/admin/sales", checkAdminAuth, async (req, res) => {
     try {
       const { startDate, endDate } = req.query;
       const start = startDate ? new Date(startDate as string) : undefined;
@@ -2692,7 +2692,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get recent sales with joined data
-  app.get("/api/admin/sales/recent", isAuthenticated, async (req, res) => {
+  app.get("/api/admin/sales/recent", checkAdminAuth, async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
       const recentSales = await storage.getRecentSales(limit);
@@ -2704,7 +2704,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get single sale
-  app.get("/api/admin/sales/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/admin/sales/:id", checkAdminAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const sale = await storage.getSale(id);
@@ -2721,7 +2721,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create sale (handles both inventory and drop ship sales)
-  app.post("/api/admin/sales", isAuthenticated, async (req, res) => {
+  app.post("/api/admin/sales", checkAdminAuth, async (req, res) => {
     try {
       const { saleType, inventoryItemId, supplierId, ...saleData } = req.body;
       
@@ -2781,7 +2781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update sale
-  app.put("/api/admin/sales/:id", isAuthenticated, async (req, res) => {
+  app.put("/api/admin/sales/:id", checkAdminAuth, async (req, res) => {
     try {
       const { id } = req.params;
       
@@ -2805,7 +2805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete sale
-  app.delete("/api/admin/sales/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/admin/sales/:id", checkAdminAuth, async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteSale(id);
@@ -2822,7 +2822,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get sales by channel
-  app.get("/api/admin/sales/by-channel/:channelId", isAuthenticated, async (req, res) => {
+  app.get("/api/admin/sales/by-channel/:channelId", checkAdminAuth, async (req, res) => {
     try {
       const { channelId } = req.params;
       const sales = await storage.getSalesByChannel(channelId);
@@ -2834,7 +2834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get sales by photo
-  app.get("/api/admin/sales/by-photo/:photoId", isAuthenticated, async (req, res) => {
+  app.get("/api/admin/sales/by-photo/:photoId", checkAdminAuth, async (req, res) => {
     try {
       const { photoId } = req.params;
       const sales = await storage.getSalesByPhoto(photoId);

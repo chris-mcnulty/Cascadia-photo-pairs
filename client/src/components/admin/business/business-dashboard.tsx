@@ -31,12 +31,12 @@ interface BusinessDashboardProps {
 export default function BusinessDashboard({ onNavigateToTab }: BusinessDashboardProps) {
   const [salesDialogOpen, setSalesDialogOpen] = useState(false);
 
-  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
+  const { data: stats, isLoading: statsLoading} = useQuery<DashboardStats>({
     queryKey: ["/api/admin/business/stats"],
   });
 
   const { data: recentSales, isLoading: salesLoading } = useQuery<RecentSale[]>({
-    queryKey: ["/api/admin/sales/recent", { limit: 5 }],
+    queryKey: ["/api/admin/sales/recent?limit=5"],
   });
 
   const formatCurrency = (cents: number) => {

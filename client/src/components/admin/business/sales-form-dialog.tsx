@@ -141,6 +141,7 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
         description: "Sale recorded successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/sales/recent"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/business/stats"] });
       onClose();
     },
@@ -178,6 +179,7 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
         description: "Sale updated successfully",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/sales/recent"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/business/stats"] });
       onClose();
     },
@@ -218,14 +220,14 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Product (Optional)</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
+                    <Select value={field.value || "none"} onValueChange={(value) => field.onChange(value === "none" ? "" : value)}>
                       <FormControl>
                         <SelectTrigger data-testid="select-product">
                           <SelectValue placeholder="Select product" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">No product linked</SelectItem>
+                        <SelectItem value="none">No product linked</SelectItem>
                         {products?.map((product) => (
                           <SelectItem key={product.id} value={product.id}>
                             {product.title}

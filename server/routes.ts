@@ -2678,6 +2678,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get recent sales with joined data
+  app.get("/api/admin/sales/recent", isAuthenticated, async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
+      const recentSales = await storage.getRecentSales(limit);
+      res.json(recentSales);
+    } catch (error) {
+      console.error('Error fetching recent sales:', error);
+      res.status(500).json({ message: "Failed to fetch recent sales" });
+    }
+  });
+
   // Get single sale
   app.get("/api/admin/sales/:id", isAuthenticated, async (req, res) => {
     try {

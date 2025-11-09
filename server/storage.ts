@@ -150,6 +150,14 @@ export interface IStorage {
   deleteSale(id: string): Promise<boolean>;
   getSalesByChannel(channelId: string): Promise<Sale[]>;
   getSalesByPhoto(photoId: string): Promise<Sale[]>;
+  getRecentSales(limit?: number): Promise<Array<{
+    id: string;
+    photoTitle: string | null;
+    soldPrice: number;
+    saleDate: string;
+    channelName: string;
+    buyerName: string | null;
+  }>>;
   
   // Inventory Items
   getAllInventoryItems(status?: string): Promise<InventoryItem[]>;
@@ -780,6 +788,14 @@ export class MemStorage implements IStorage {
   async deleteSale(id: string): Promise<boolean> { return false; }
   async getSalesByChannel(channelId: string): Promise<Sale[]> { return []; }
   async getSalesByPhoto(photoId: string): Promise<Sale[]> { return []; }
+  async getRecentSales(limit: number = 5): Promise<Array<{
+    id: string;
+    photoTitle: string | null;
+    soldPrice: number;
+    saleDate: string;
+    channelName: string;
+    buyerName: string | null;
+  }>> { return []; }
   
   async getAllInventoryItems(status?: string): Promise<InventoryItem[]> { return []; }
   async getInventoryItem(id: string): Promise<InventoryItem | undefined> { return undefined; }
@@ -2526,6 +2542,39 @@ export class DatabaseStorage implements IStorage {
       .from(sales)
       .where(inArray(sales.productId, productIds))
       .orderBy(desc(sales.saleDate));
+  }
+
+  async getRecentSales(limit: number = 5): Promise<Array<{
+    id: string;
+    photoTitle: string | null;
+    soldPrice: number;
+    saleDate: string;
+    channelName: string;
+    buyerName: string | null;
+  }>> {
+    const results = await db
+      .select({
+        id: sales.id,
+        productTitle: products.title,
+        soldPrice: sales.soldPrice,
+        saleDate: sales.saleDate,
+        channelName: salesChannels.name,
+        buyerName: sales.buyerName,
+      })
+      .from(sales)
+      .leftJoin(products, eq(sales.productId, products.id))
+      .leftJoin(salesChannels, eq(sales.channelId, salesChannels.id))
+      .orderBy(desc(sales.createdAt))
+      .limit(limit);
+
+    return results.map(row => ({
+      id: row.id,
+      photoTitle: row.productTitle || "Unlinked sale",
+      soldPrice: row.soldPrice,
+      saleDate: row.saleDate.toISOString(),
+      channelName: row.channelName || "Unknown",
+      buyerName: row.buyerName,
+    }));
   }
 
   // ============================================

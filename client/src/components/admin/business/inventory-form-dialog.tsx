@@ -42,6 +42,8 @@ interface InventoryItem {
   acquisitionCost: number;
   listPrice: number;
   status: string;
+  purchaseDate?: string | null;
+  soldDate?: string | null;
   notes?: string;
 }
 
@@ -59,6 +61,8 @@ const inventorySchema = z.object({
   acquisitionCost: z.string().min(1, "Acquisition cost is required"),
   listPrice: z.string().min(1, "List price is required"),
   status: z.string().min(1, "Status is required"),
+  purchaseDate: z.string().optional(),
+  soldDate: z.string().optional(),
   notes: z.string().optional(),
 });
 
@@ -103,6 +107,8 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
       acquisitionCost: "",
       listPrice: "",
       status: "ordered",
+      purchaseDate: "",
+      soldDate: "",
       notes: "",
     },
   });
@@ -117,6 +123,8 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
         acquisitionCost: (editingItem.acquisitionCost / 100).toFixed(2),
         listPrice: (editingItem.listPrice / 100).toFixed(2),
         status: editingItem.status,
+        purchaseDate: editingItem.purchaseDate ? new Date(editingItem.purchaseDate).toISOString().split('T')[0] : "",
+        soldDate: editingItem.soldDate ? new Date(editingItem.soldDate).toISOString().split('T')[0] : "",
         notes: editingItem.notes || "",
       });
       // Set the aspect ratio for the edited item's product
@@ -133,6 +141,8 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
         acquisitionCost: "",
         listPrice: "",
         status: "ordered",
+        purchaseDate: "",
+        soldDate: "",
         notes: "",
       });
       setSelectedProductAspectRatio(null);
@@ -181,6 +191,8 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
         ...data,
         acquisitionCost: Math.round(parseFloat(data.acquisitionCost) * 100),
         listPrice: Math.round(parseFloat(data.listPrice) * 100),
+        purchaseDate: data.purchaseDate && data.purchaseDate.trim() !== "" ? data.purchaseDate : undefined,
+        soldDate: data.soldDate && data.soldDate.trim() !== "" ? data.soldDate : undefined,
       };
 
       if (editingItem) {
@@ -368,6 +380,44 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
                         <SelectItem value="shipped">Shipped</SelectItem>
                       </SelectContent>
                     </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="purchaseDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Acquisition Date (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        {...field}
+                        data-testid="input-purchase-date"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="soldDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sale Date (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        {...field}
+                        data-testid="input-sold-date"
+                      />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}

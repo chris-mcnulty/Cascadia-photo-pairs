@@ -120,9 +120,13 @@ export default function SKUManagement() {
     const selectedProduct = products.find(p => p.id === selectedProductId);
     if (!selectedProduct) return productSizes;
     
+    // Normalize aspect ratio for comparison (handle both "3:2" and "3x2" formats)
+    const normalizeAspectRatio = (ratio: string) => ratio.toLowerCase().replace(/[x×]/g, ':');
+    const productRatio = normalizeAspectRatio(selectedProduct.aspectRatio);
+    
     // Filter sizes that match the product's aspect ratio
     return productSizes.filter(size => 
-      size.aspectRatio === selectedProduct.aspectRatio
+      normalizeAspectRatio(size.aspectRatio) === productRatio
     );
   }, [productSizes, selectedProductId, products]);
 
@@ -810,9 +814,12 @@ export default function SKUManagement() {
                                     if (currentSize) {
                                       const selectedProduct = products?.find(p => p.id === product.id);
                                       const currentSizeObj = productSizes?.find(s => s.id === currentSize);
-                                      if (selectedProduct && currentSizeObj && 
-                                          currentSizeObj.aspectRatio !== selectedProduct.aspectRatio) {
-                                        productSKUForm.setValue("productSizeId", "");
+                                      if (selectedProduct && currentSizeObj) {
+                                        // Normalize aspect ratios for comparison (handle both "3:2" and "3x2")
+                                        const normalizeRatio = (ratio: string) => ratio.toLowerCase().replace(/[x×]/g, ':');
+                                        if (normalizeRatio(currentSizeObj.aspectRatio) !== normalizeRatio(selectedProduct.aspectRatio)) {
+                                          productSKUForm.setValue("productSizeId", "");
+                                        }
                                       }
                                     }
                                     

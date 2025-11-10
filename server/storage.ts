@@ -90,7 +90,7 @@ export interface IStorage {
   
   // Product SKUs
   getAllProductSKUs(): Promise<ProductSKU[]>;
-  getAllProductSKUsWithDetails(): Promise<Array<ProductSKU & { productTitle: string; sizeLabel: string }>>;
+  getAllProductSKUsWithDetails(): Promise<Array<ProductSKU & { productTitle: string; productExternalId: string | null; sizeLabel: string }>>;
   getProductSKU(id: string): Promise<ProductSKU | undefined>;
   createProductSKU(sku: InsertProductSKU): Promise<ProductSKU>;
   updateProductSKU(id: string, updates: Partial<ProductSKU>): Promise<ProductSKU | undefined>;
@@ -746,7 +746,7 @@ export class MemStorage implements IStorage {
   async deleteProductVariant(id: string): Promise<boolean> { return false; }
   
   async getAllProductSKUs(): Promise<ProductSKU[]> { return []; }
-  async getAllProductSKUsWithDetails(): Promise<Array<ProductSKU & { productTitle: string; sizeLabel: string }>> { return []; }
+  async getAllProductSKUsWithDetails(): Promise<Array<ProductSKU & { productTitle: string; productExternalId: string | null; sizeLabel: string }>> { return []; }
   async getProductSKU(id: string): Promise<ProductSKU | undefined> { return undefined; }
   async createProductSKU(sku: InsertProductSKU): Promise<ProductSKU> { throw new Error('Not implemented in MemStorage'); }
   async updateProductSKU(id: string, updates: Partial<ProductSKU>): Promise<ProductSKU | undefined> { return undefined; }
@@ -2120,7 +2120,7 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(productSKUs);
   }
 
-  async getAllProductSKUsWithDetails(): Promise<Array<ProductSKU & { productTitle: string; sizeLabel: string }>> {
+  async getAllProductSKUsWithDetails(): Promise<Array<ProductSKU & { productTitle: string; productExternalId: string | null; sizeLabel: string }>> {
     const result = await db
       .select({
         id: productSKUs.id,
@@ -2132,6 +2132,7 @@ export class DatabaseStorage implements IStorage {
         createdAt: productSKUs.createdAt,
         updatedAt: productSKUs.updatedAt,
         productTitle: products.title,
+        productExternalId: products.externalId,
         sizeLabel: productSizes.sizeLabel
       })
       .from(productSKUs)

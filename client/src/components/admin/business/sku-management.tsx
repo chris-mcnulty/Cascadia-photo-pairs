@@ -61,6 +61,8 @@ export default function SKUManagement() {
   const [productSKUSearch, setProductSKUSearch] = useState("");
   const [channelSKUSearch, setChannelSKUSearch] = useState("");
   const [productComboboxOpen, setProductComboboxOpen] = useState(false);
+  const [productFilter, setProductFilter] = useState<string>("all");
+  const [sizeFilter, setSizeFilter] = useState<string>("all");
 
   const { data: productSKUs, isLoading: loadingProductSKUs } = useQuery<ProductSKUWithDetails[]>({
     queryKey: ["/api/admin/product-skus"],
@@ -262,17 +264,33 @@ export default function SKUManagement() {
 
   const filteredProductSKUs = useMemo(() => {
     if (!productSKUs) return [];
-    if (!productSKUSearch) return productSKUs;
     
-    const search = productSKUSearch.toLowerCase();
-    return productSKUs.filter(
-      (sku) =>
-        sku.sku.toLowerCase().includes(search) ||
-        sku.productTitle?.toLowerCase().includes(search) ||
-        sku.mediaType.toLowerCase().includes(search) ||
-        sku.sizeLabel?.toLowerCase().includes(search)
-    );
-  }, [productSKUs, productSKUSearch]);
+    let filtered = productSKUs;
+    
+    // Apply search filter
+    if (productSKUSearch) {
+      const search = productSKUSearch.toLowerCase();
+      filtered = filtered.filter(
+        (sku) =>
+          sku.sku.toLowerCase().includes(search) ||
+          sku.productTitle?.toLowerCase().includes(search) ||
+          sku.mediaType.toLowerCase().includes(search) ||
+          sku.sizeLabel?.toLowerCase().includes(search)
+      );
+    }
+    
+    // Apply product filter
+    if (productFilter !== "all") {
+      filtered = filtered.filter((sku) => sku.productId === productFilter);
+    }
+    
+    // Apply size filter
+    if (sizeFilter !== "all") {
+      filtered = filtered.filter((sku) => sku.productSizeId === sizeFilter);
+    }
+    
+    return filtered;
+  }, [productSKUs, productSKUSearch, productFilter, sizeFilter]);
 
   const filteredChannelSKUs = useMemo(() => {
     if (!channelSKUs) return [];
@@ -329,17 +347,18 @@ export default function SKUManagement() {
     const yearMatch = product.title.match(/(\d{2})(?!.*\d{2})/);
     const yearSuffix = yearMatch ? yearMatch[1] : "";
     
-    // Get media code
+    // Get media code (already uppercase)
     const mediaCode = getMediaCode(mediaType);
     
-    // Get size code (remove spaces and quotes, convert X to uppercase)
+    // Get size code (remove ALL spaces, quotes, and special characters, uppercase everything)
     const sizeCode = size.sizeLabel
-      .replace(/\s/g, "")
-      .replace(/["']/g, "")
-      .replace(/x/gi, "X");
+      .replace(/\s+/g, "")
+      .replace(/["'`]/g, "")
+      .toUpperCase();
 
-    // Format: FIRST5-YY-MTL-36X48
-    const generatedSKU = `${productPrefix}-${yearSuffix}-${mediaCode}-${sizeCode}`;
+    // Format: FIRST5YY-MTL-36X48 (no spaces, all uppercase)
+    const parts = [productPrefix + yearSuffix, mediaCode, sizeCode];
+    const generatedSKU = parts.join("-").replace(/\s+/g, "");
     productSKUForm.setValue("sku", generatedSKU);
   };
 
@@ -438,7 +457,7 @@ export default function SKUManagement() {
             </TabsList>
 
             <TabsContent value="product-skus" className="space-y-4">
-              <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex items-center gap-4 flex-wrap">
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
@@ -449,7 +468,33 @@ export default function SKUManagement() {
                     data-testid="input-search-product-skus"
                   />
                 </div>
-                <div className="flex items-center gap-2">
+                <Select value={productFilter} onValueChange={setProductFilter}>
+                  <SelectTrigger className="w-[200px]" data-testid="select-product-filter">
+                    <SelectValue placeholder="All Products" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Products</SelectItem>
+                    {sortedProducts?.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={sizeFilter} onValueChange={setSizeFilter}>
+                  <SelectTrigger className="w-[180px]" data-testid="select-size-filter">
+                    <SelectValue placeholder="All Sizes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Sizes</SelectItem>
+                    {productSizes?.map((size) => (
+                      <SelectItem key={size.id} value={size.id}>
+                        {size.sizeLabel}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="flex items-center gap-2 ml-auto">
                   <Button
                     variant="outline"
                     size="sm"

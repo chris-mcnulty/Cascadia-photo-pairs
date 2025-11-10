@@ -2680,10 +2680,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // PRODUCT SKU ROUTES
   // ============================================
 
-  // Get all product SKUs
+  // Get all product SKUs with details (product title, size label)
   app.get("/api/admin/product-skus", isAuthenticated, async (req, res) => {
     try {
-      const skus = await storage.getAllProductSKUs();
+      const skus = await storage.getAllProductSKUsWithDetails();
       res.json(skus);
     } catch (error) {
       console.error('Error fetching product SKUs:', error);

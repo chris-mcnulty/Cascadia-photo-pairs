@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Edit, Trash2, Wand2, Search } from "lucide-react";
+import { Plus, Edit, Trash2, Wand2, Search, Download, Upload } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
@@ -390,7 +390,7 @@ export default function SKUManagement() {
             </TabsList>
 
             <TabsContent value="product-skus" className="space-y-4">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
@@ -401,10 +401,91 @@ export default function SKUManagement() {
                     data-testid="input-search-product-skus"
                   />
                 </div>
-                <Button onClick={handleAddProductSKU} data-testid="button-add-product-sku">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Product SKU
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const response = await fetch('/api/admin/product-skus/export', {
+                          headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+                          }
+                        });
+                        if (!response.ok) throw new Error('Export failed');
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'product-skus.csv';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        toast({
+                          title: 'Export Complete',
+                          description: 'Product SKUs exported successfully'
+                        });
+                      } catch (error) {
+                        toast({
+                          title: 'Export Failed',
+                          description: error instanceof Error ? error.message : 'Unknown error',
+                          variant: 'destructive'
+                        });
+                      }
+                    }}
+                    data-testid="button-export-product-skus"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export CSV
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = '.csv';
+                      input.onchange = async (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) {
+                          const formData = new FormData();
+                          formData.append('file', file);
+                          try {
+                            const response = await fetch('/api/admin/product-skus/import', {
+                              method: 'POST',
+                              headers: {
+                                'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+                              },
+                              body: formData
+                            });
+                            const result = await response.json();
+                            queryClient.invalidateQueries({ queryKey: ['/api/admin/product-skus'] });
+                            toast({
+                              title: 'Import Complete',
+                              description: `Imported: ${result.imported}, Skipped: ${result.skipped}, Errors: ${result.errors?.length || 0}`
+                            });
+                          } catch (error) {
+                            toast({
+                              title: 'Import Failed',
+                              description: error instanceof Error ? error.message : 'Unknown error',
+                              variant: 'destructive'
+                            });
+                          }
+                        }
+                      };
+                      input.click();
+                    }}
+                    data-testid="button-import-product-skus"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Import CSV
+                  </Button>
+                  <Button onClick={handleAddProductSKU} data-testid="button-add-product-sku">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add
+                  </Button>
+                </div>
               </div>
 
               {loadingProductSKUs ? (
@@ -480,7 +561,7 @@ export default function SKUManagement() {
             </TabsContent>
 
             <TabsContent value="channel-skus" className="space-y-4">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="relative flex-1 max-w-md">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                   <Input
@@ -491,10 +572,91 @@ export default function SKUManagement() {
                     data-testid="input-search-channel-skus"
                   />
                 </div>
-                <Button onClick={handleAddChannelSKU} data-testid="button-add-channel-sku">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Channel SKU
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      try {
+                        const response = await fetch('/api/admin/channel-skus/export', {
+                          headers: {
+                            'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+                          }
+                        });
+                        if (!response.ok) throw new Error('Export failed');
+                        const blob = await response.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'channel-skus.csv';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        toast({
+                          title: 'Export Complete',
+                          description: 'Channel SKUs exported successfully'
+                        });
+                      } catch (error) {
+                        toast({
+                          title: 'Export Failed',
+                          description: error instanceof Error ? error.message : 'Unknown error',
+                          variant: 'destructive'
+                        });
+                      }
+                    }}
+                    data-testid="button-export-channel-skus"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export CSV
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const input = document.createElement('input');
+                      input.type = 'file';
+                      input.accept = '.csv';
+                      input.onchange = async (e) => {
+                        const file = (e.target as HTMLInputElement).files?.[0];
+                        if (file) {
+                          const formData = new FormData();
+                          formData.append('file', file);
+                          try {
+                            const response = await fetch('/api/admin/channel-skus/import', {
+                              method: 'POST',
+                              headers: {
+                                'Authorization': `Bearer ${localStorage.getItem('auth-token')}`
+                              },
+                              body: formData
+                            });
+                            const result = await response.json();
+                            queryClient.invalidateQueries({ queryKey: ['/api/admin/channel-skus'] });
+                            toast({
+                              title: 'Import Complete',
+                              description: `Imported: ${result.imported}, Skipped: ${result.skipped}, Errors: ${result.errors?.length || 0}`
+                            });
+                          } catch (error) {
+                            toast({
+                              title: 'Import Failed',
+                              description: error instanceof Error ? error.message : 'Unknown error',
+                              variant: 'destructive'
+                            });
+                          }
+                        }
+                      };
+                      input.click();
+                    }}
+                    data-testid="button-import-channel-skus"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Import CSV
+                  </Button>
+                  <Button onClick={handleAddChannelSKU} data-testid="button-add-channel-sku">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add
+                  </Button>
+                </div>
               </div>
 
               {loadingChannelSKUs ? (

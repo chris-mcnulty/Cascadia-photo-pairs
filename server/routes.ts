@@ -3273,6 +3273,262 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+
+  // Export product SKUs to CSV
+  app.get("/api/admin/product-skus/export", isAuthenticated, async (req, res) => {
+    try {
+      const { stringify } = await import('csv-stringify/sync');
+      const skus = await storage.getAllProductSKUs();
+      
+      // Convert to records format for csv-stringify
+      const records = skus.map(sku => ({
+        'SKU': sku.sku,
+        'Product Title': sku.productTitle || '',
+        'Media Type': sku.mediaType,
+        'Size Label': sku.sizeLabel || '',
+        'Active': sku.isActive ? 'Yes' : 'No'
+      }));
+      
+      // Generate CSV with proper escaping
+      const csvContent = stringify(records, {
+        header: true,
+        quoted_string: true,
+      });
+      
+      // Set headers for CSV download
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="product-skus.csv"');
+      
+      // Send UTF-8 BOM + CSV content
+      res.send('\uFEFF' + csvContent);
+    } catch (error) {
+      console.error('Error exporting product SKUs:', error);
+      res.status(500).json({ message: "Failed to export product SKUs" });
+    }
+  });
+
+  // Import product SKUs from CSV
+  app.post("/api/admin/product-skus/import", isAuthenticated, csvUpload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { parse } = await import('csv-parse/sync');
+      
+      // Remove UTF-8 BOM if present
+      const fileContent = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
+      
+      // Parse CSV using robust library
+      const records = parse(fileContent, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        relax_quotes: true,
+        relax_column_count: true,
+      });
+
+      const results = {
+        imported: 0,
+        skipped: 0,
+        errors: [] as string[]
+      };
+
+      // Get products and sizes for validation
+      const products = await storage.getAllProducts();
+      const sizes = await storage.getAllProductSizes();
+      const existingSKUs = await storage.getAllProductSKUs();
+      const existingSKUSet = new Set(existingSKUs.map(s => s.sku));
+
+      for (let i = 0; i < records.length; i++) {
+        try {
+          const record = records[i];
+          const sku = record['SKU']?.trim();
+          const productTitle = record['Product Title']?.trim();
+          const mediaType = record['Media Type']?.trim();
+          const sizeLabel = record['Size Label']?.trim();
+          const active = record['Active']?.trim();
+
+          if (!sku || !productTitle || !mediaType || !sizeLabel) {
+            results.errors.push(`Row ${i + 2}: Missing required fields`);
+            results.skipped++;
+            continue;
+          }
+
+          // Check for duplicate SKU
+          if (existingSKUSet.has(sku)) {
+            console.log(`SKU already exists: ${sku}`);
+            results.skipped++;
+            continue;
+          }
+
+          // Find matching product and size
+          const product = products.find(p => p.title === productTitle);
+          const size = sizes.find(s => s.sizeLabel === sizeLabel);
+
+          if (!product) {
+            results.errors.push(`Row ${i + 2}: Product "${productTitle}" not found`);
+            results.skipped++;
+            continue;
+          }
+
+          if (!size) {
+            results.errors.push(`Row ${i + 2}: Size "${sizeLabel}" not found`);
+            results.skipped++;
+            continue;
+          }
+
+          const skuData = {
+            sku,
+            productId: product.id,
+            mediaType,
+            productSizeId: size.id,
+            isActive: active === 'Yes'
+          };
+
+          await storage.createProductSKU(skuData);
+          existingSKUSet.add(sku); // Track newly created SKU
+          results.imported++;
+        } catch (error) {
+          results.errors.push(`Row ${i + 2}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          results.skipped++;
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error('Error importing product SKUs:', error);
+      res.status(500).json({ message: "Failed to import product SKUs" });
+    }
+  });
+
+  // Export channel SKUs to CSV
+  app.get("/api/admin/channel-skus/export", isAuthenticated, async (req, res) => {
+    try {
+      const { stringify } = await import('csv-stringify/sync');
+      const skus = await storage.getAllChannelSKUs();
+      
+      // Convert to records format for csv-stringify
+      const records = skus.map(sku => ({
+        'Channel SKU': sku.channelSKU,
+        'Master SKU': sku.masterSKU || '',
+        'Channel Name': sku.channelName || '',
+        'Listing ID': sku.channelListingId || '',
+        'Active': sku.isActive ? 'Yes' : 'No'
+      }));
+      
+      // Generate CSV with proper escaping
+      const csvContent = stringify(records, {
+        header: true,
+        quoted_string: true,
+      });
+      
+      // Set headers for CSV download
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="channel-skus.csv"');
+      
+      // Send UTF-8 BOM + CSV content
+      res.send('\uFEFF' + csvContent);
+    } catch (error) {
+      console.error('Error exporting channel SKUs:', error);
+      res.status(500).json({ message: "Failed to export channel SKUs" });
+    }
+  });
+
+  // Import channel SKUs from CSV
+  app.post("/api/admin/channel-skus/import", isAuthenticated, csvUpload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { parse } = await import('csv-parse/sync');
+      
+      // Remove UTF-8 BOM if present
+      const fileContent = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
+      
+      // Parse CSV using robust library
+      const records = parse(fileContent, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        relax_quotes: true,
+        relax_column_count: true,
+      });
+
+      const results = {
+        imported: 0,
+        skipped: 0,
+        errors: [] as string[]
+      };
+
+      // Get master SKUs and channels for validation
+      const masterSKUs = await storage.getAllProductSKUs();
+      const channels = await storage.getAllSalesChannels();
+      const existingChannelSKUs = await storage.getAllChannelSKUs();
+      const existingChannelSKUSet = new Set(existingChannelSKUs.map(s => s.channelSKU));
+
+      for (let i = 0; i < records.length; i++) {
+        try {
+          const record = records[i];
+          const channelSKU = record['Channel SKU']?.trim();
+          const masterSKU = record['Master SKU']?.trim();
+          const channelName = record['Channel Name']?.trim();
+          const listingId = record['Listing ID']?.trim();
+          const active = record['Active']?.trim();
+
+          if (!channelSKU || !masterSKU || !channelName) {
+            results.errors.push(`Row ${i + 2}: Missing required fields`);
+            results.skipped++;
+            continue;
+          }
+
+          // Check for duplicate Channel SKU
+          if (existingChannelSKUSet.has(channelSKU)) {
+            console.log(`Channel SKU already exists: ${channelSKU}`);
+            results.skipped++;
+            continue;
+          }
+
+          // Find matching master SKU and channel
+          const masterSKURecord = masterSKUs.find(s => s.sku === masterSKU);
+          const channel = channels.find(c => c.name === channelName);
+
+          if (!masterSKURecord) {
+            results.errors.push(`Row ${i + 2}: Master SKU "${masterSKU}" not found`);
+            results.skipped++;
+            continue;
+          }
+
+          if (!channel) {
+            results.errors.push(`Row ${i + 2}: Channel "${channelName}" not found`);
+            results.skipped++;
+            continue;
+          }
+
+          const channelSKUData = {
+            channelSKU,
+            masterSKUId: masterSKURecord.id,
+            channelId: channel.id,
+            channelListingId: listingId || null,
+            isActive: active === 'Yes'
+          };
+
+          await storage.createChannelSKU(channelSKUData);
+          existingChannelSKUSet.add(channelSKU); // Track newly created Channel SKU
+          results.imported++;
+        } catch (error) {
+          results.errors.push(`Row ${i + 2}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          results.skipped++;
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error('Error importing channel SKUs:', error);
+      res.status(500).json({ message: "Failed to import channel SKUs" });
+    }
+  });
   
   // ============================================
   // INVENTORY ITEMS ROUTES

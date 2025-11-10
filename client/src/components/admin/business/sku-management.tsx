@@ -347,9 +347,10 @@ export default function SKUManagement() {
       productName = product.title.substring(0, product.title.indexOf(yearMatch[0]));
     }
     
-    // Clean product name: remove spaces and special characters, convert to uppercase
+    // Extract ONLY letters (no digits, no special chars), take first 5, convert to uppercase
     const productPrefix = productName
-      .replace(/[^a-zA-Z0-9]/g, "")
+      .replace(/[^a-zA-Z]/g, "")
+      .substring(0, 5)
       .toUpperCase();
     
     // Get media code (already uppercase)

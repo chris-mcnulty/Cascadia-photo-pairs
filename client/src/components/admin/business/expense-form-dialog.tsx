@@ -97,7 +97,7 @@ export default function ExpenseFormDialog({ open, onClose, editingExpense }: Exp
       const payload = {
         vendor: data.vendor,
         amount: Math.round(parseFloat(data.amount) * 100),
-        expenseDate: data.date, // Map date to expenseDate for the API
+        expenseDate: data.date, // Map date to expenseDate as string (server will convert)
         categoryId: data.categoryId,
         purpose: data.purpose || "",
         receiptUrl: data.receiptUrl || "",

@@ -3505,7 +3505,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create expense
   app.post("/api/admin/expenses", isAuthenticated, async (req, res) => {
     try {
-      const validatedData = insertExpenseSchema.parse(req.body);
+      // Convert expenseDate string to Date object for the schema validation
+      const dataWithDate = {
+        ...req.body,
+        expenseDate: req.body.expenseDate ? new Date(req.body.expenseDate) : undefined,
+      };
+      const validatedData = insertExpenseSchema.parse(dataWithDate);
       const expense = await storage.createExpense(validatedData);
       res.status(201).json(expense);
     } catch (error) {

@@ -10,7 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Edit, Trash2, Wand2, Search, Download, Upload } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Plus, Edit, Trash2, Wand2, Search, Download, Upload, Check, ChevronsUpDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useForm } from "react-hook-form";
@@ -58,6 +60,7 @@ export default function SKUManagement() {
   const [editingChannelSKU, setEditingChannelSKU] = useState<ChannelSKU | null>(null);
   const [productSKUSearch, setProductSKUSearch] = useState("");
   const [channelSKUSearch, setChannelSKUSearch] = useState("");
+  const [productComboboxOpen, setProductComboboxOpen] = useState(false);
 
   const { data: productSKUs, isLoading: loadingProductSKUs } = useQuery<ProductSKUWithDetails[]>({
     queryKey: ["/api/admin/product-skus"],
@@ -78,6 +81,12 @@ export default function SKUManagement() {
   const { data: salesChannels } = useQuery<SalesChannel[]>({
     queryKey: ["/api/admin/sales-channels"],
   });
+
+  // Memoized sorted products list
+  const sortedProducts = useMemo(() => {
+    if (!products) return [];
+    return [...products].sort((a, b) => a.title.localeCompare(b.title));
+  }, [products]);
 
   const productSKUForm = useForm<ProductSKUFormData>({
     resolver: zodResolver(productSKUFormSchema),
@@ -100,6 +109,22 @@ export default function SKUManagement() {
       isActive: true,
     },
   });
+
+  // Watch the selected product ID
+  const selectedProductId = productSKUForm.watch("productId");
+  
+  // Filter sizes based on selected product's aspect ratio
+  const eligibleSizes = useMemo(() => {
+    if (!productSizes || !selectedProductId || !products) return productSizes || [];
+    
+    const selectedProduct = products.find(p => p.id === selectedProductId);
+    if (!selectedProduct) return productSizes;
+    
+    // Filter sizes that match the product's aspect ratio
+    return productSizes.filter(size => 
+      size.aspectRatio === selectedProduct.aspectRatio
+    );
+  }, [productSizes, selectedProductId, products]);
 
   const createProductSKUMutation = useMutation({
     mutationFn: async (data: ProductSKUFormData) => {
@@ -749,22 +774,64 @@ export default function SKUManagement() {
                 control={productSKUForm.control}
                 name="productId"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Product</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-product">
-                          <SelectValue placeholder="Select a product" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {products?.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={productComboboxOpen} onOpenChange={setProductComboboxOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className="justify-between"
+                            data-testid="select-product"
+                          >
+                            {field.value
+                              ? sortedProducts.find((product) => product.id === field.value)?.title
+                              : "Select a product"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Search products..." />
+                          <CommandList>
+                            <CommandEmpty>No product found.</CommandEmpty>
+                            <CommandGroup>
+                              {sortedProducts.map((product) => (
+                                <CommandItem
+                                  key={product.id}
+                                  value={product.title}
+                                  onSelect={() => {
+                                    const currentSize = productSKUForm.getValues("productSizeId");
+                                    field.onChange(product.id);
+                                    
+                                    // Clear size if it's not eligible for the new product
+                                    if (currentSize) {
+                                      const selectedProduct = products?.find(p => p.id === product.id);
+                                      const currentSizeObj = productSizes?.find(s => s.id === currentSize);
+                                      if (selectedProduct && currentSizeObj && 
+                                          currentSizeObj.aspectRatio !== selectedProduct.aspectRatio) {
+                                        productSKUForm.setValue("productSizeId", "");
+                                      }
+                                    }
+                                    
+                                    setProductComboboxOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={`mr-2 h-4 w-4 ${
+                                      field.value === product.id ? "opacity-100" : "opacity-0"
+                                    }`}
+                                  />
+                                  {product.title}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -800,19 +867,29 @@ export default function SKUManagement() {
                 name="productSizeId"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Product Size</FormLabel>
+                    <FormLabel>Product Size {selectedProductId && eligibleSizes.length > 0 && `(${eligibleSizes.length} matching)`}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger data-testid="select-product-size">
-                          <SelectValue placeholder="Select a size" />
+                          <SelectValue placeholder={selectedProductId ? "Select a size" : "Select a product first"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {productSizes?.map((size) => (
-                          <SelectItem key={size.id} value={size.id}>
-                            {size.sizeLabel} ({size.widthInches}" × {size.heightInches}")
-                          </SelectItem>
-                        ))}
+                        {eligibleSizes.length > 0 ? (
+                          eligibleSizes.map((size) => (
+                            <SelectItem key={size.id} value={size.id}>
+                              {size.sizeLabel} ({size.widthInches}" × {size.heightInches}")
+                            </SelectItem>
+                          ))
+                        ) : selectedProductId ? (
+                          <div className="px-2 py-1.5 text-sm text-gray-500">
+                            No sizes match this product's aspect ratio
+                          </div>
+                        ) : (
+                          <div className="px-2 py-1.5 text-sm text-gray-500">
+                            Please select a product first
+                          </div>
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />

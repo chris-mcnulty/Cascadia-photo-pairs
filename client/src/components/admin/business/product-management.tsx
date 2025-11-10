@@ -65,6 +65,7 @@ const productFormSchema = z.object({
   photoId: z.string().nullable(),
   aspectRatio: z.string().min(1, "Aspect ratio is required"),
   description: z.string().optional(),
+  externalId: z.string().optional(),
   isActive: z.boolean(),
 });
 
@@ -99,6 +100,7 @@ export default function ProductManagement() {
       photoId: null,
       aspectRatio: "3x2",
       description: "",
+      externalId: "",
       isActive: true,
     },
   });
@@ -179,6 +181,7 @@ export default function ProductManagement() {
       photoId: product.photoId,
       aspectRatio: product.aspectRatio,
       description: product.description || "",
+      externalId: product.externalId || "",
       isActive: product.isActive,
     });
   };
@@ -374,6 +377,7 @@ export default function ProductManagement() {
               <TableHead>Title</TableHead>
               <TableHead>Photo</TableHead>
               <TableHead>Aspect Ratio</TableHead>
+              <TableHead>External ID</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -381,13 +385,13 @@ export default function ProductManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center">
+                <TableCell colSpan={7} className="text-center">
                   Loading products...
                 </TableCell>
               </TableRow>
             ) : filteredProducts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                <TableCell colSpan={7} className="text-center text-muted-foreground">
                   {products.length === 0 ? "No products yet. Add your first product to get started." : "No products match your filters"}
                 </TableCell>
               </TableRow>
@@ -424,7 +428,12 @@ export default function ProductManagement() {
                       </div>
                     </TableCell>
                     <TableCell>{getPhotoName(product.photoId)}</TableCell>
-                  <TableCell>{product.aspectRatio}</TableCell>
+                    <TableCell>{product.aspectRatio}</TableCell>
+                    <TableCell>
+                      <span className="text-sm text-muted-foreground font-mono">
+                        {product.externalId || "-"}
+                      </span>
+                    </TableCell>
                   <TableCell>
                     <span
                       className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
@@ -623,6 +632,27 @@ export default function ProductManagement() {
                         data-testid="textarea-description"
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="externalId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>External ID (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., WIX-12345, ETSY-ABC123"
+                        {...field}
+                        data-testid="input-external-id"
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Unique identifier for integration with external systems (Etsy, Amazon, etc.)
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -210,39 +210,75 @@ function AdminDashboard() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuItem onClick={() => handleBusinessTabClick("dashboard")} data-testid="menu-business-dashboard">
+              <DropdownMenuItem 
+                onClick={() => handleBusinessTabClick("dashboard")} 
+                data-testid="menu-business-dashboard"
+                className={businessSubTab === "dashboard" ? "bg-accent" : ""}
+              >
                 <LayoutDashboard className="w-4 h-4 mr-2" />
                 Dashboard
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBusinessTabClick("products")} data-testid="menu-business-products">
+              <DropdownMenuItem 
+                onClick={() => handleBusinessTabClick("products")} 
+                data-testid="menu-business-products"
+                className={businessSubTab === "products" ? "bg-accent" : ""}
+              >
                 <Package2 className="w-4 h-4 mr-2" />
                 Products
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBusinessTabClick("skus")} data-testid="menu-business-skus">
+              <DropdownMenuItem 
+                onClick={() => handleBusinessTabClick("skus")} 
+                data-testid="menu-business-skus"
+                className={businessSubTab === "skus" ? "bg-accent" : ""}
+              >
                 <Tag className="w-4 h-4 mr-2" />
                 SKUs
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBusinessTabClick("inventory")} data-testid="menu-business-inventory">
+              <DropdownMenuItem 
+                onClick={() => handleBusinessTabClick("inventory")} 
+                data-testid="menu-business-inventory"
+                className={businessSubTab === "inventory" ? "bg-accent" : ""}
+              >
                 <Package className="w-4 h-4 mr-2" />
                 Inventory
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBusinessTabClick("sales")} data-testid="menu-business-sales">
+              <DropdownMenuItem 
+                onClick={() => handleBusinessTabClick("sales")} 
+                data-testid="menu-business-sales"
+                className={businessSubTab === "sales" ? "bg-accent" : ""}
+              >
                 <DollarSign className="w-4 h-4 mr-2" />
                 Sales
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBusinessTabClick("suppliers")} data-testid="menu-business-suppliers">
+              <DropdownMenuItem 
+                onClick={() => handleBusinessTabClick("suppliers")} 
+                data-testid="menu-business-suppliers"
+                className={businessSubTab === "suppliers" ? "bg-accent" : ""}
+              >
                 <Building2 className="w-4 h-4 mr-2" />
                 Suppliers
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBusinessTabClick("sizes")} data-testid="menu-business-sizes">
+              <DropdownMenuItem 
+                onClick={() => handleBusinessTabClick("sizes")} 
+                data-testid="menu-business-sizes"
+                className={businessSubTab === "sizes" ? "bg-accent" : ""}
+              >
                 <Package2 className="w-4 h-4 mr-2" />
                 Sizes
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBusinessTabClick("expenses")} data-testid="menu-business-expenses">
+              <DropdownMenuItem 
+                onClick={() => handleBusinessTabClick("expenses")} 
+                data-testid="menu-business-expenses"
+                className={businessSubTab === "expenses" ? "bg-accent" : ""}
+              >
                 <Receipt className="w-4 h-4 mr-2" />
                 Expenses
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleBusinessTabClick("import")} data-testid="menu-business-import">
+              <DropdownMenuItem 
+                onClick={() => handleBusinessTabClick("import")} 
+                data-testid="menu-business-import"
+                className={businessSubTab === "import" ? "bg-accent" : ""}
+              >
                 <Upload className="w-4 h-4 mr-2" />
                 Import Data
               </DropdownMenuItem>

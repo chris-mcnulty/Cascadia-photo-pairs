@@ -2467,6 +2467,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get product sizes with pricing data (avg supplier cost, retail price, margin)
+  // MUST come before /:id route to avoid "pricing" being matched as an id
+  app.get("/api/admin/product-sizes/pricing", isAuthenticated, async (req, res) => {
+    try {
+      const pricingData = await storage.getProductSizesWithPricing();
+      res.json(pricingData);
+    } catch (error) {
+      console.error('Error fetching product sizes with pricing:', error);
+      res.status(500).json({ message: "Failed to fetch product sizes with pricing" });
+    }
+  });
+
   // Get single product size
   app.get("/api/admin/product-sizes/:id", isAuthenticated, async (req, res) => {
     try {
@@ -2569,17 +2581,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting product size:', error);
       res.status(500).json({ message: "Failed to delete product size" });
-    }
-  });
-
-  // Get product sizes with pricing data (avg supplier cost, retail price, margin)
-  app.get("/api/admin/product-sizes/pricing", isAuthenticated, async (req, res) => {
-    try {
-      const pricingData = await storage.getProductSizesWithPricing();
-      res.json(pricingData);
-    } catch (error) {
-      console.error('Error fetching product sizes with pricing:', error);
-      res.status(500).json({ message: "Failed to fetch product sizes with pricing" });
     }
   });
 

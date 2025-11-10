@@ -2767,7 +2767,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create sale (handles both inventory and drop ship sales)
-  app.post("/api/admin/sales", checkAdminAuth, async (req, res) => {
+  app.post("/api/admin/sales", isAuthenticated, async (req, res) => {
     try {
       const { saleType, inventoryItemId, supplierId, ...saleData } = req.body;
       

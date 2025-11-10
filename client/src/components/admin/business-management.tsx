@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { LayoutDashboard, Package, Package2, Building2, Receipt, Upload, DollarSign } from "lucide-react";
+import { LayoutDashboard, Package, Package2, Building2, Receipt, Upload, DollarSign, Tag } from "lucide-react";
 import BusinessDashboard from "./business/business-dashboard";
 import ProductManagement from "./business/product-management";
 import InventoryManagement from "./business/inventory-management";
@@ -9,9 +9,10 @@ import ProductSizesManagement from "./business/product-sizes-management";
 import ExpenseTracker from "./business/expense-tracker";
 import SalesManagement from "./business/sales-management";
 import { CSVImport } from "./business/csv-import";
+import SKUManagement from "./business/sku-management";
 
 export default function BusinessManagement() {
-  const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "products" | "inventory" | "suppliers" | "sizes" | "sales" | "expenses" | "import">("dashboard");
+  const [activeSubTab, setActiveSubTab] = useState<"dashboard" | "products" | "skus" | "inventory" | "suppliers" | "sizes" | "sales" | "expenses" | "import">("dashboard");
 
   return (
     <div className="space-y-6">
@@ -40,6 +41,16 @@ export default function BusinessManagement() {
         >
           <Package2 className="w-4 h-4 mr-2" />
           Products
+        </Button>
+        <Button
+          variant={activeSubTab === "skus" ? "default" : "outline"}
+          onClick={() => setActiveSubTab("skus")}
+          className="flex items-center text-sm"
+          size="sm"
+          data-testid="button-skus-subtab"
+        >
+          <Tag className="w-4 h-4 mr-2" />
+          SKUs
         </Button>
         <Button
           variant={activeSubTab === "inventory" ? "default" : "outline"}
@@ -106,6 +117,7 @@ export default function BusinessManagement() {
       {/* Sub-tab Content */}
       {activeSubTab === "dashboard" && <BusinessDashboard onNavigateToTab={setActiveSubTab} />}
       {activeSubTab === "products" && <ProductManagement />}
+      {activeSubTab === "skus" && <SKUManagement />}
       {activeSubTab === "inventory" && <InventoryManagement />}
       {activeSubTab === "suppliers" && <SupplierManagement />}
       {activeSubTab === "sizes" && <ProductSizesManagement />}

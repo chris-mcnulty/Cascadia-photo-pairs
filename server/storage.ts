@@ -2371,7 +2371,8 @@ export class DatabaseStorage implements IStorage {
       .where(isNull(retailPrices.effectiveTo));
     
     // Define canonical media types so empty combinations show up
-    const canonicalMediaTypes = ['ChromaLuxe', 'Magnet', 'Framed Paper', 'Canvas'];
+    // Only include ChromaLuxe by default (user's default media type)
+    const canonicalMediaTypes = ['ChromaLuxe'];
     
     // Also include any media types found in existing pricing data
     const mediaTypesSet = new Set<string>(canonicalMediaTypes);

@@ -36,7 +36,7 @@ export default function BusinessDashboard({ onNavigateToTab }: BusinessDashboard
   });
 
   const { data: recentSales, isLoading: salesLoading } = useQuery<RecentSale[]>({
-    queryKey: ["/api", "admin", "sales", "recent?limit=5"],
+    queryKey: ["/api/admin/sales/recent?limit=5"],
   });
 
   console.log("[BusinessDashboard] recentSales query state:", { 

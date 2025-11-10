@@ -2471,8 +2471,11 @@ export class DatabaseStorage implements IStorage {
   // ============================================
   
   async getAllSales(startDate?: Date, endDate?: Date): Promise<Sale[]> {
+    console.log('[Storage.getAllSales] Called with:', { startDate, endDate });
+    let result: Sale[];
+    
     if (startDate && endDate) {
-      return await db
+      result = await db
         .select()
         .from(sales)
         .where(and(
@@ -2481,19 +2484,26 @@ export class DatabaseStorage implements IStorage {
         ))
         .orderBy(desc(sales.saleDate));
     } else if (startDate) {
-      return await db
+      result = await db
         .select()
         .from(sales)
         .where(gte(sales.saleDate, startDate))
         .orderBy(desc(sales.saleDate));
     } else if (endDate) {
-      return await db
+      result = await db
         .select()
         .from(sales)
         .where(lte(sales.saleDate, endDate))
         .orderBy(desc(sales.saleDate));
+    } else {
+      result = await db.select().from(sales).orderBy(desc(sales.saleDate));
     }
-    return await db.select().from(sales).orderBy(desc(sales.saleDate));
+    
+    console.log('[Storage.getAllSales] Returning:', result?.length || 0, 'sales');
+    if (result && result.length > 0) {
+      console.log('[Storage.getAllSales] First sale:', result[0]);
+    }
+    return result;
   }
 
   async getSale(id: string): Promise<Sale | undefined> {
@@ -2552,6 +2562,8 @@ export class DatabaseStorage implements IStorage {
     channelName: string;
     buyerName: string | null;
   }>> {
+    console.log('[Storage.getRecentSales] Called with limit:', limit);
+    
     const results = await db
       .select({
         id: sales.id,
@@ -2567,7 +2579,12 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(sales.createdAt))
       .limit(limit);
 
-    return results.map(row => ({
+    console.log('[Storage.getRecentSales] Query returned:', results?.length || 0, 'records');
+    if (results && results.length > 0) {
+      console.log('[Storage.getRecentSales] First record:', results[0]);
+    }
+
+    const mapped = results.map(row => ({
       id: row.id,
       photoTitle: row.productTitle || "Unlinked sale",
       soldPrice: row.soldPrice,
@@ -2575,6 +2592,9 @@ export class DatabaseStorage implements IStorage {
       channelName: row.channelName || "Unknown",
       buyerName: row.buyerName,
     }));
+    
+    console.log('[Storage.getRecentSales] Returning mapped data:', mapped);
+    return mapped;
   }
 
   // ============================================

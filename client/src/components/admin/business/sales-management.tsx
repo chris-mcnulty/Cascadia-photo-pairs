@@ -65,7 +65,7 @@ export default function SalesManagement() {
   const queryString = Object.keys(queryParams).length > 0 ? `?${new URLSearchParams(queryParams).toString()}` : '';
 
   const { data: allSales, isLoading: loadingSales } = useQuery<Sale[]>({
-    queryKey: ["/api", "admin", `sales${queryString}`],
+    queryKey: [`/api/admin/sales${queryString}`],
   });
 
   console.log("[SalesManagement] sales query state:", { 

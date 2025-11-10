@@ -2683,7 +2683,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const start = startDate ? new Date(startDate as string) : undefined;
       const end = endDate ? new Date(endDate as string) : undefined;
       
+      console.log('[API /api/admin/sales] Fetching sales with params:', { startDate, endDate, start, end });
       const sales = await storage.getAllSales(start, end);
+      console.log('[API /api/admin/sales] Retrieved sales:', sales?.length || 0, 'records');
       res.json(sales);
     } catch (error) {
       console.error('Error fetching sales:', error);
@@ -2695,7 +2697,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/sales/recent", checkAdminAuth, async (req, res) => {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 5;
+      console.log('[API /api/admin/sales/recent] Fetching recent sales with limit:', limit);
       const recentSales = await storage.getRecentSales(limit);
+      console.log('[API /api/admin/sales/recent] Retrieved recent sales:', recentSales?.length || 0, 'records');
       res.json(recentSales);
     } catch (error) {
       console.error('Error fetching recent sales:', error);

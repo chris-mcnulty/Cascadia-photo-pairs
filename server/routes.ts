@@ -2695,13 +2695,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/admin/product-skus/export", isAuthenticated, async (req, res) => {
     try {
       const { stringify } = await import('csv-stringify/sync');
-      const skus = await storage.getAllProductSKUs();
+      const skus = await storage.getAllProductSKUsWithDetails();
       
       const records = skus.map(sku => ({
         'SKU': sku.sku,
-        'Product Title': sku.productTitle || '',
+        'Product Title': sku.productTitle,
         'Media Type': sku.mediaType,
-        'Size Label': sku.sizeLabel || '',
+        'Size Label': sku.sizeLabel,
         'Active': sku.isActive ? 'Yes' : 'No'
       }));
       

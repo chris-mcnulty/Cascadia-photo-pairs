@@ -31,7 +31,9 @@ import {
   insertDropShipOrderSchema,
   insertExpenseCategorySchema,
   insertExpenseSchema,
-  insertProductSchema
+  insertProductSchema,
+  insertProductSKUSchema,
+  insertChannelSKUSchema
 } from "@shared/schema";
 import { 
   createUser, 
@@ -2671,6 +2673,186 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error setting retail price:', error);
       res.status(400).json({ message: "Failed to set retail price" });
+    }
+  });
+
+  // ============================================
+  // PRODUCT SKU ROUTES
+  // ============================================
+
+  // Get all product SKUs
+  app.get("/api/admin/product-skus", isAuthenticated, async (req, res) => {
+    try {
+      const skus = await storage.getAllProductSKUs();
+      res.json(skus);
+    } catch (error) {
+      console.error('Error fetching product SKUs:', error);
+      res.status(500).json({ message: "Failed to fetch product SKUs" });
+    }
+  });
+
+  // Get single product SKU
+  app.get("/api/admin/product-skus/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const sku = await storage.getProductSKU(id);
+      
+      if (!sku) {
+        return res.status(404).json({ message: "Product SKU not found" });
+      }
+      
+      res.json(sku);
+    } catch (error) {
+      console.error('Error fetching product SKU:', error);
+      res.status(500).json({ message: "Failed to fetch product SKU" });
+    }
+  });
+
+  // Get product SKUs by product
+  app.get("/api/admin/product-skus/by-product/:productId", isAuthenticated, async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const skus = await storage.getProductSKUsByProduct(productId);
+      res.json(skus);
+    } catch (error) {
+      console.error('Error fetching product SKUs by product:', error);
+      res.status(500).json({ message: "Failed to fetch product SKUs" });
+    }
+  });
+
+  // Create product SKU
+  app.post("/api/admin/product-skus", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertProductSKUSchema.parse(req.body);
+      const sku = await storage.createProductSKU(validatedData);
+      res.status(201).json(sku);
+    } catch (error) {
+      console.error('Error creating product SKU:', error);
+      res.status(400).json({ message: "Failed to create product SKU", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Update product SKU
+  app.put("/api/admin/product-skus/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const sku = await storage.updateProductSKU(id, req.body);
+      
+      if (!sku) {
+        return res.status(404).json({ message: "Product SKU not found" });
+      }
+      
+      res.json(sku);
+    } catch (error) {
+      console.error('Error updating product SKU:', error);
+      res.status(400).json({ message: "Failed to update product SKU" });
+    }
+  });
+
+  // Delete product SKU
+  app.delete("/api/admin/product-skus/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteProductSKU(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Product SKU not found" });
+      }
+      
+      res.json({ message: "Product SKU deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting product SKU:', error);
+      res.status(500).json({ message: "Failed to delete product SKU" });
+    }
+  });
+
+  // ============================================
+  // CHANNEL SKU ROUTES
+  // ============================================
+
+  // Get all channel SKUs
+  app.get("/api/admin/channel-skus", isAuthenticated, async (req, res) => {
+    try {
+      const skus = await storage.getAllChannelSKUs();
+      res.json(skus);
+    } catch (error) {
+      console.error('Error fetching channel SKUs:', error);
+      res.status(500).json({ message: "Failed to fetch channel SKUs" });
+    }
+  });
+
+  // Get single channel SKU
+  app.get("/api/admin/channel-skus/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const sku = await storage.getChannelSKU(id);
+      
+      if (!sku) {
+        return res.status(404).json({ message: "Channel SKU not found" });
+      }
+      
+      res.json(sku);
+    } catch (error) {
+      console.error('Error fetching channel SKU:', error);
+      res.status(500).json({ message: "Failed to fetch channel SKU" });
+    }
+  });
+
+  // Get channel SKUs by master SKU
+  app.get("/api/admin/channel-skus/by-master/:masterSKUId", isAuthenticated, async (req, res) => {
+    try {
+      const { masterSKUId } = req.params;
+      const skus = await storage.getChannelSKUsByMaster(masterSKUId);
+      res.json(skus);
+    } catch (error) {
+      console.error('Error fetching channel SKUs by master:', error);
+      res.status(500).json({ message: "Failed to fetch channel SKUs" });
+    }
+  });
+
+  // Create channel SKU
+  app.post("/api/admin/channel-skus", isAuthenticated, async (req, res) => {
+    try {
+      const validatedData = insertChannelSKUSchema.parse(req.body);
+      const sku = await storage.createChannelSKU(validatedData);
+      res.status(201).json(sku);
+    } catch (error) {
+      console.error('Error creating channel SKU:', error);
+      res.status(400).json({ message: "Failed to create channel SKU", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Update channel SKU
+  app.put("/api/admin/channel-skus/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const sku = await storage.updateChannelSKU(id, req.body);
+      
+      if (!sku) {
+        return res.status(404).json({ message: "Channel SKU not found" });
+      }
+      
+      res.json(sku);
+    } catch (error) {
+      console.error('Error updating channel SKU:', error);
+      res.status(400).json({ message: "Failed to update channel SKU" });
+    }
+  });
+
+  // Delete channel SKU
+  app.delete("/api/admin/channel-skus/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteChannelSKU(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Channel SKU not found" });
+      }
+      
+      res.json({ message: "Channel SKU deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting channel SKU:', error);
+      res.status(500).json({ message: "Failed to delete channel SKU" });
     }
   });
 

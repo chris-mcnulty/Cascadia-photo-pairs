@@ -96,7 +96,10 @@ export interface IStorage {
   getProductSKUsByProduct(productId: string): Promise<ProductSKU[]>;
   
   // Channel SKUs
+  getAllChannelSKUs(): Promise<ChannelSKU[]>;
+  getChannelSKU(id: string): Promise<ChannelSKU | undefined>;
   getChannelSKUs(masterSKUId: string): Promise<ChannelSKU[]>;
+  getChannelSKUsByMaster(masterSKUId: string): Promise<ChannelSKU[]>;
   createChannelSKU(sku: InsertChannelSKU): Promise<ChannelSKU>;
   updateChannelSKU(id: string, updates: Partial<ChannelSKU>): Promise<ChannelSKU | undefined>;
   deleteChannelSKU(id: string): Promise<boolean>;
@@ -739,7 +742,10 @@ export class MemStorage implements IStorage {
   async deleteProductSKU(id: string): Promise<boolean> { return false; }
   async getProductSKUsByProduct(productId: string): Promise<ProductSKU[]> { return []; }
   
+  async getAllChannelSKUs(): Promise<ChannelSKU[]> { return []; }
+  async getChannelSKU(id: string): Promise<ChannelSKU | undefined> { return undefined; }
   async getChannelSKUs(masterSKUId: string): Promise<ChannelSKU[]> { return []; }
+  async getChannelSKUsByMaster(masterSKUId: string): Promise<ChannelSKU[]> { return []; }
   async createChannelSKU(sku: InsertChannelSKU): Promise<ChannelSKU> { throw new Error('Not implemented in MemStorage'); }
   async updateChannelSKU(id: string, updates: Partial<ChannelSKU>): Promise<ChannelSKU | undefined> { return undefined; }
   async deleteChannelSKU(id: string): Promise<boolean> { return false; }
@@ -2121,7 +2127,20 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Channel SKUs
+  async getAllChannelSKUs(): Promise<ChannelSKU[]> {
+    return await db.select().from(channelSKUs);
+  }
+
+  async getChannelSKU(id: string): Promise<ChannelSKU | undefined> {
+    const [sku] = await db.select().from(channelSKUs).where(eq(channelSKUs.id, id));
+    return sku;
+  }
+
   async getChannelSKUs(masterSKUId: string): Promise<ChannelSKU[]> {
+    return await db.select().from(channelSKUs).where(eq(channelSKUs.masterSKUId, masterSKUId));
+  }
+
+  async getChannelSKUsByMaster(masterSKUId: string): Promise<ChannelSKU[]> {
     return await db.select().from(channelSKUs).where(eq(channelSKUs.masterSKUId, masterSKUId));
   }
 

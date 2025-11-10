@@ -463,7 +463,64 @@ export const customers = pgTable("customers", {
   index("idx_customers_email").on(table.email),
 ]);
 
-// Sales records with buyer information
+// Orders table - represents a purchase with potentially multiple items
+export const orders = pgTable("orders", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderNumber: varchar("order_number"), // Optional external order number (e.g., from Etsy, Amazon)
+  channelId: varchar("channel_id").notNull().references(() => salesChannels.id),
+  customerId: varchar("customer_id").references(() => customers.id),
+  
+  // Order-level totals
+  orderDate: timestamp("order_date").notNull().defaultNow(),
+  subtotal: integer("subtotal").notNull(), // Sum of all item prices in cents
+  taxCollected: integer("tax_collected").default(0).notNull(), // Total tax in cents
+  totalAmount: integer("total_amount").notNull(), // Subtotal + tax in cents
+  
+  // Legacy buyer information (for backward compatibility when customerId is null)
+  buyerName: varchar("buyer_name"),
+  buyerEmail: varchar("buyer_email"),
+  buyerPhone: varchar("buyer_phone"),
+  shippingAddress: text("shipping_address"),
+  
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_orders_number").on(table.orderNumber),
+  index("idx_orders_channel").on(table.channelId),
+  index("idx_orders_customer").on(table.customerId),
+  index("idx_orders_date").on(table.orderDate),
+]);
+
+// Order items - individual line items within an order
+export const orderItems = pgTable("order_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").notNull().references(() => orders.id),
+  productId: varchar("product_id").references(() => products.id),
+  productSKUId: varchar("product_sku_id").references(() => productSKUs.id), // Optional SKU reference
+  
+  // Item details
+  saleType: varchar("sale_type").default("inventory"), // "inventory" or "dropship"
+  inventoryItemId: varchar("inventory_item_id"), // Reference to specific inventory item (for inventory sales)
+  supplierId: varchar("supplier_id").references(() => suppliers.id), // Supplier reference (for dropship sales)
+  
+  // Pricing
+  quantity: integer("quantity").default(1).notNull(),
+  unitPrice: integer("unit_price").notNull(), // Price per unit in cents
+  taxAmount: integer("tax_amount").default(0).notNull(), // Tax for this line item in cents
+  lineTotal: integer("line_total").notNull(), // (unitPrice * quantity) + taxAmount in cents
+  
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_order_items_order").on(table.orderId),
+  index("idx_order_items_product").on(table.productId),
+  index("idx_order_items_sku").on(table.productSKUId),
+  index("idx_order_items_inventory").on(table.inventoryItemId),
+  index("idx_order_items_supplier").on(table.supplierId),
+]);
+
+// Sales records with buyer information (LEGACY - will be replaced by orders + order_items)
 export const sales = pgTable("sales", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   productId: varchar("product_id").references(() => products.id), // Changed from photoId
@@ -501,7 +558,7 @@ export const inventoryItems = pgTable("inventory_items", {
   productSKUId: varchar("product_sku_id").references(() => productSKUs.id), // References master SKU (nullable for backward compat)
   productId: varchar("product_id").notNull().references(() => products.id), // Product reference (has title/description)
   supplierId: varchar("supplier_id").notNull().references(() => suppliers.id), // Track supplier for each item
-  saleId: varchar("sale_id").references(() => sales.id), // Link to sale when sold
+  orderItemId: varchar("order_item_id").references(() => orderItems.id), // Link to order item when sold
   
   // Print details (no longer duplicate title/description/originalDate - get from product)
   mediaType: varchar("media_type").notNull(), // "ChromaLuxe", "Magnet"
@@ -526,13 +583,13 @@ export const inventoryItems = pgTable("inventory_items", {
   index("idx_inventory_items_product").on(table.productId),
   index("idx_inventory_items_supplier").on(table.supplierId),
   index("idx_inventory_items_status").on(table.status),
-  index("idx_inventory_items_sale").on(table.saleId),
+  index("idx_inventory_items_order_item").on(table.orderItemId),
 ]);
 
 // Drop-ship orders for online sales (ordered before inventory arrives)
 export const dropShipOrders = pgTable("drop_ship_orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  saleId: varchar("sale_id").notNull().references(() => sales.id),
+  orderItemId: varchar("order_item_id").notNull().references(() => orderItems.id),
   inventoryItemId: varchar("inventory_item_id").references(() => inventoryItems.id),
   supplierId: varchar("supplier_id").notNull().references(() => suppliers.id),
   
@@ -548,7 +605,7 @@ export const dropShipOrders = pgTable("drop_ship_orders", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
-  index("idx_drop_ship_sale").on(table.saleId),
+  index("idx_drop_ship_order_item").on(table.orderItemId),
   index("idx_drop_ship_status").on(table.fulfillmentStatus),
 ]);
 
@@ -631,6 +688,17 @@ export const insertSupplierPriceSchema = createInsertSchema(supplierPrices).omit
   createdAt: true,
 });
 
+export const insertOrderSchema = createInsertSchema(orders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
+  id: true,
+  createdAt: true,
+});
+
 export const insertSaleSchema = createInsertSchema(sales).omit({
   id: true,
   createdAt: true,
@@ -678,6 +746,10 @@ export type ProductSize = typeof productSizes.$inferSelect;
 export type InsertProductSize = z.infer<typeof insertProductSizeSchema>;
 export type SupplierPrice = typeof supplierPrices.$inferSelect;
 export type InsertSupplierPrice = z.infer<typeof insertSupplierPriceSchema>;
+export type Order = typeof orders.$inferSelect;
+export type InsertOrder = z.infer<typeof insertOrderSchema>;
+export type OrderItem = typeof orderItems.$inferSelect;
+export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 export type Sale = typeof sales.$inferSelect;
 export type InsertSale = z.infer<typeof insertSaleSchema>;
 export type InventoryItem = typeof inventoryItems.$inferSelect;

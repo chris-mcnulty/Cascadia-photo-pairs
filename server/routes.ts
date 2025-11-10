@@ -3428,9 +3428,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (let i = 0; i < records.length; i++) {
         try {
-          const record = records[i];
+          const record = records[i] as Record<string, string>;
           const sku = record['SKU']?.trim();
           const productTitle = record['Product Title']?.trim();
+          const productExternalId = record['Product External ID']?.trim(); // Informational field (denormalized)
           const mediaType = record['Media Type']?.trim();
           const sizeLabel = record['Size Label']?.trim();
           const active = record['Active']?.trim();
@@ -3448,8 +3449,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
-          // Find matching product and size
-          const product = products.find(p => p.title === productTitle);
+          // Find matching product by title (or optionally by externalId if provided)
+          let product = products.find(p => p.title === productTitle);
+          
+          // If not found by title and externalId is provided, try matching by externalId
+          if (!product && productExternalId) {
+            product = products.find(p => p.externalId === productExternalId);
+          }
+          
           const size = sizes.find(s => s.sizeLabel === sizeLabel);
 
           if (!product) {

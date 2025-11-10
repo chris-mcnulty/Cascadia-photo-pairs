@@ -2288,7 +2288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
   
   // Get all sales channels
-  app.get("/api/admin/sales-channels", checkAdminAuth, async (req, res) => {
+  app.get("/api/admin/sales-channels", isAuthenticated, async (req, res) => {
     try {
       const channels = await storage.getAllSalesChannels();
       res.json(channels);

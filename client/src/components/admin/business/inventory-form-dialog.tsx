@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -8,10 +8,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface Product {
   id: string;
@@ -74,6 +77,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
   const [newSizeLabel, setNewSizeLabel] = useState("");
   const [isAddingSize, setIsAddingSize] = useState(false);
   const [selectedProductAspectRatio, setSelectedProductAspectRatio] = useState<string | null>(null);
+  const [productSearchOpen, setProductSearchOpen] = useState(false);
 
   const { data: products } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -89,6 +93,12 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
     queryKey: ["/api/admin/suppliers"],
     enabled: open,
   });
+
+  // Sort products by name/title alphabetically
+  const sortedProducts = useMemo(() => {
+    if (!products) return [];
+    return [...products].sort((a, b) => a.title.localeCompare(b.title));
+  }, [products]);
 
   // Filter product sizes based on selected product's aspect ratio
   // Convert product aspectRatio format (e.g., "3x2") to match product_sizes format (e.g., "3:2")
@@ -232,34 +242,60 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
                 control={form.control}
                 name="productId"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="flex flex-col">
                     <FormLabel>Product</FormLabel>
-                    <Select 
-                      onValueChange={(value) => {
-                        field.onChange(value);
-                        // Update the selected product's aspect ratio
-                        const product = products?.find(p => p.id === value);
-                        if (product) {
-                          setSelectedProductAspectRatio(product.aspectRatio);
-                          // Clear the size selection when product changes
-                          form.setValue("productSizeId", "");
-                        }
-                      }} 
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger data-testid="select-product">
-                          <SelectValue placeholder="Select a product" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {products?.map((product) => (
-                          <SelectItem key={product.id} value={product.id}>
-                            {product.title} ({product.aspectRatio})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={productSearchOpen} onOpenChange={setProductSearchOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            aria-expanded={productSearchOpen}
+                            className={cn(
+                              "w-full justify-between",
+                              !field.value && "text-muted-foreground"
+                            )}
+                            data-testid="select-product"
+                          >
+                            {field.value
+                              ? sortedProducts.find((product) => product.id === field.value)?.title
+                              : "Select a product"}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Search products..." />
+                          <CommandList>
+                            <CommandEmpty>No product found.</CommandEmpty>
+                            <CommandGroup>
+                              {sortedProducts.map((product) => (
+                                <CommandItem
+                                  key={product.id}
+                                  value={product.title}
+                                  onSelect={() => {
+                                    field.onChange(product.id);
+                                    setSelectedProductAspectRatio(product.aspectRatio);
+                                    form.setValue("productSizeId", "");
+                                    setProductSearchOpen(false);
+                                  }}
+                                  data-testid={`product-option-${product.id}`}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      field.value === product.id ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {product.title} ({product.aspectRatio})
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}

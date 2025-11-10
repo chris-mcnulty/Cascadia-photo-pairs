@@ -3005,7 +3005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create sale (handles both inventory and drop ship sales)
+  // Create sale (LEGACY - inventory/dropship now handled by orders system)
   app.post("/api/admin/sales", isAuthenticated, async (req, res) => {
     try {
       const { saleType, inventoryItemId, supplierId, ...saleData } = req.body;
@@ -3016,47 +3016,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         saleDate: saleData.saleDate ? new Date(saleData.saleDate) : new Date(),
       };
       
-      let sale;
-      
-      if (saleType === "inventory" && inventoryItemId) {
-        // Handle inventory sale
-        // 1. Validate inventory item is available
-        const inventoryItem = await storage.getInventoryItem(inventoryItemId);
-        if (!inventoryItem || inventoryItem.status !== "in_stock") {
-          return res.status(400).json({ message: "Inventory item is not available" });
-        }
-        
-        // 2. Create sale with inventory item reference
-        const saleWithInventory = {
-          ...dataWithDate,
-          productId: inventoryItem.productId,
-        };
-        sale = await storage.createSale(saleWithInventory);
-        
-        // 3. Update inventory item status to sold and link to sale
-        await storage.updateInventoryItem(inventoryItemId, { 
-          status: "sold",
-          saleId: sale.id,
-          soldDate: new Date()
-        });
-        
-      } else if (saleType === "dropship" && supplierId) {
-        // Handle drop ship sale
-        // 1. Create the sale
-        sale = await storage.createSale(dataWithDate);
-        
-        // 2. Create drop ship order
-        await storage.createDropShipOrder({
-          saleId: sale.id,
-          supplierId,
-          fulfillmentStatus: "pending",
-          orderDate: new Date()
-        });
-        
-      } else {
-        // Regular sale without inventory or drop ship
-        sale = await storage.createSale(dataWithDate);
-      }
+      // NOTE: Inventory and dropship handling removed - use orders system instead
+      // This endpoint now only creates simple sales records for backward compatibility
+      const sale = await storage.createSale(dataWithDate);
       
       res.status(201).json(sale);
     } catch (error) {
@@ -3703,7 +3665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Calculate total inventory value (only unsold items)
       const totalInventoryValue = allInventory
-        .filter(item => !item.saleId) // Only count items not yet sold
+        .filter(item => !item.orderItemId) // Only count items not yet sold
         .reduce((sum, item) => sum + (item.acquisitionCost || 0), 0);
       
       // Get all-time sales (no date filter) 
@@ -3905,12 +3867,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get drop ship orders by sale
+  // DEPRECATED: Get drop ship orders by sale (legacy route - use by-order-item instead)
+  // TODO: Update to use order_item_id once frontend is migrated
   app.get("/api/admin/dropship/by-sale/:saleId", isAuthenticated, async (req, res) => {
     try {
-      const { saleId } = req.params;
-      const orders = await storage.getDropShipOrdersBySale(saleId);
-      res.json(orders);
+      // Legacy route - return empty array for now
+      // Frontend should be updated to use the new orders system
+      res.json([]);
     } catch (error) {
       console.error('Error fetching drop ship orders by sale:', error);
       res.status(500).json({ message: "Failed to fetch drop ship orders by sale" });

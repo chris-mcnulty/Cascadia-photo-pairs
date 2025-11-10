@@ -62,6 +62,22 @@ export default function ProductSizesManagement() {
     });
   }, [pricingData, filterAspectRatio, filterMediaType]);
 
+  // Determine which row should show the delete button for each size
+  // Prefer ChromaLuxe (default media type), otherwise use first media type
+  const shouldShowDeleteButton = (sizeId: string, mediaType: string) => {
+    const sizeRows = filteredData.filter(row => row.size.id === sizeId);
+    if (sizeRows.length === 0) return false;
+    
+    // Check if ChromaLuxe exists for this size
+    const chromaLuxeRow = sizeRows.find(row => row.mediaType === "ChromaLuxe");
+    if (chromaLuxeRow) {
+      return mediaType === "ChromaLuxe";
+    }
+    
+    // If no ChromaLuxe, show on the first media type
+    return sizeRows[0].mediaType === mediaType;
+  };
+
   const setRetailPriceMutation = useMutation({
     mutationFn: async (params: { productSizeId: string; mediaType: string; retailPrice: number }) => {
       return await apiRequest("PUT", "/api/admin/retail-prices", {
@@ -365,13 +381,14 @@ export default function ProductSizesManagement() {
                               >
                                 <Edit className="w-4 h-4 text-blue-600" />
                               </Button>
-                              {/* Only show delete button for the first media type of each size */}
-                              {filteredData.findIndex(p => p.size.id === row.size.id) === filteredData.findIndex(p => p.size.id === row.size.id && p.mediaType === row.mediaType) && (
+                              {/* Show delete button on ChromaLuxe row (default media) or first media type */}
+                              {shouldShowDeleteButton(row.size.id, row.mediaType) && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => handleDeleteSize(row.size.id, row.size.sizeLabel)}
                                   data-testid={`button-delete-${row.size.id}`}
+                                  title="Delete this size (removes all media types)"
                                 >
                                   <Trash2 className="w-4 h-4 text-red-600" />
                                 </Button>

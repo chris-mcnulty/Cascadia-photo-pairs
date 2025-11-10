@@ -95,8 +95,13 @@ export default function ExpenseFormDialog({ open, onClose, editingExpense }: Exp
   const onSubmit = async (data: ExpenseFormData) => {
     try {
       const payload = {
-        ...data,
+        vendor: data.vendor,
         amount: Math.round(parseFloat(data.amount) * 100),
+        expenseDate: data.date, // Map date to expenseDate for the API
+        categoryId: data.categoryId,
+        purpose: data.purpose || "",
+        receiptUrl: data.receiptUrl || "",
+        notes: data.notes || "",
       };
 
       if (editingExpense) {

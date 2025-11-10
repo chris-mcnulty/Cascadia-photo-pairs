@@ -95,7 +95,7 @@ export default function BusinessDashboard({ onNavigateToTab }: BusinessDashboard
                   {formatCurrency(stats?.monthlySales || 0)}
                 </div>
                 <div className="text-xs font-medium uppercase tracking-wider text-gray-500 mt-2">
-                  Monthly Sales
+                  Total Sales
                 </div>
               </>
             )}

@@ -3177,26 +3177,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .filter(item => !item.saleId) // Only count items not yet sold
         .reduce((sum, item) => sum + (item.acquisitionCost || 0), 0);
       
-      // Get current month date range
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-      
-      // Get sales for current month
-      const monthlySalesData = await storage.getAllSales(monthStart, monthEnd);
-      const monthlySales = monthlySalesData.reduce((sum, sale) => sum + sale.soldPrice, 0);
+      // Get all-time sales (no date filter) 
+      const allSalesData = await storage.getAllSales();
+      const totalSales = allSalesData.reduce((sum, sale) => sum + sale.soldPrice, 0);
       
       // Get pending drop-ship orders
       const pendingOrdersData = await storage.getAllDropShipOrders('pending');
       const pendingOrders = pendingOrdersData.length;
       
-      // Get expenses for current month
-      const monthlyExpenses = await storage.getAllExpenses(monthStart, monthEnd);
-      const totalExpenses = monthlyExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+      // Get all-time expenses
+      const allExpenses = await storage.getAllExpenses();
+      const totalExpenses = allExpenses.reduce((sum, expense) => sum + expense.amount, 0);
       
       res.json({
         totalInventoryValue,
-        monthlySales,
+        monthlySales: totalSales, // Keep the same field name for compatibility, but show all-time sales
         pendingOrders,
         totalExpenses
       });

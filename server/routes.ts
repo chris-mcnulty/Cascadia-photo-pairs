@@ -2851,7 +2851,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete sale
-  app.delete("/api/admin/sales/:id", checkAdminAuth, async (req, res) => {
+  app.delete("/api/admin/sales/:id", isAuthenticated, async (req, res) => {
     try {
       const { id } = req.params;
       const success = await storage.deleteSale(id);

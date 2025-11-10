@@ -2,6 +2,12 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import AdminSettings from "@/components/admin-settings";
 import PhotoManager from "@/components/photo-manager";
 import AdminLogin from "@/components/admin-login";
@@ -12,15 +18,31 @@ import ContestReport from "@/components/admin/contest-report";
 import AnnouncementSettings from "@/components/admin/announcement-settings";
 import NewsManagement from "@/components/admin/news-management";
 import { PairsManagement } from "@/components/admin/pairs-management";
-import BusinessManagement from "@/components/admin/business-management";
-import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell, MessageSquare, Link2, Briefcase } from "lucide-react";
+import BusinessDashboard from "@/components/admin/business/business-dashboard";
+import ProductManagement from "@/components/admin/business/product-management";
+import SKUManagement from "@/components/admin/business/sku-management";
+import InventoryManagement from "@/components/admin/business/inventory-management";
+import SupplierManagement from "@/components/admin/business/supplier-management";
+import ProductSizesManagement from "@/components/admin/business/product-sizes-management";
+import SalesManagement from "@/components/admin/business/sales-management";
+import ExpenseTracker from "@/components/admin/business/expense-tracker";
+import { CSVImport } from "@/components/admin/business/csv-import";
+import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell, MessageSquare, Link2, Briefcase, ChevronDown, LayoutDashboard, Package, Package2, Building2, Receipt, Upload, DollarSign, Tag } from "lucide-react";
 import { Link } from "wouter";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
 
+type BusinessSubTab = "dashboard" | "products" | "skus" | "inventory" | "suppliers" | "sizes" | "sales" | "expenses" | "import";
+
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"analytics" | "photos" | "pairs" | "users" | "communication" | "settings" | "business">("analytics");
+  const [businessSubTab, setBusinessSubTab] = useState<BusinessSubTab>("dashboard");
   const { logout, isAuthenticated, sessionId } = useAuth();
+  
+  const handleBusinessTabClick = (subTab: BusinessSubTab) => {
+    setBusinessSubTab(subTab);
+    setActiveTab("business");
+  };
 
   const { data: stats } = useQuery<{
     totalVotes: number;
@@ -121,7 +143,7 @@ function AdminDashboard() {
           </div>
         )}
 
-        {/* Tabs - Reorganized into logical groups with responsive design */}
+        {/* Hierarchical Navigation - Top level with Business dropdown */}
         <div className="flex flex-wrap gap-2 mb-8">
           <Button
             variant={activeTab === "analytics" ? "default" : "outline"}
@@ -171,17 +193,62 @@ function AdminDashboard() {
             <span className="hidden sm:inline">Communication</span>
             <span className="sm:hidden">Comm</span>
           </Button>
-          <Button
-            variant={activeTab === "business" ? "default" : "outline"}
-            onClick={() => setActiveTab("business")}
-            className="flex items-center text-sm"
-            size="sm"
-            data-testid="button-business-tab"
-          >
-            <Briefcase className="w-4 h-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">Business</span>
-            <span className="sm:hidden">Sales</span>
-          </Button>
+          
+          {/* Business Dropdown Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant={activeTab === "business" ? "default" : "outline"}
+                className="flex items-center text-sm"
+                size="sm"
+                data-testid="button-business-tab"
+              >
+                <Briefcase className="w-4 h-4 mr-1 sm:mr-2" />
+                <span className="hidden sm:inline">Business</span>
+                <span className="sm:hidden">Sales</span>
+                <ChevronDown className="w-3 h-3 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-48">
+              <DropdownMenuItem onClick={() => handleBusinessTabClick("dashboard")} data-testid="menu-business-dashboard">
+                <LayoutDashboard className="w-4 h-4 mr-2" />
+                Dashboard
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBusinessTabClick("products")} data-testid="menu-business-products">
+                <Package2 className="w-4 h-4 mr-2" />
+                Products
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBusinessTabClick("skus")} data-testid="menu-business-skus">
+                <Tag className="w-4 h-4 mr-2" />
+                SKUs
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBusinessTabClick("inventory")} data-testid="menu-business-inventory">
+                <Package className="w-4 h-4 mr-2" />
+                Inventory
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBusinessTabClick("sales")} data-testid="menu-business-sales">
+                <DollarSign className="w-4 h-4 mr-2" />
+                Sales
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBusinessTabClick("suppliers")} data-testid="menu-business-suppliers">
+                <Building2 className="w-4 h-4 mr-2" />
+                Suppliers
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBusinessTabClick("sizes")} data-testid="menu-business-sizes">
+                <Package2 className="w-4 h-4 mr-2" />
+                Sizes
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBusinessTabClick("expenses")} data-testid="menu-business-expenses">
+                <Receipt className="w-4 h-4 mr-2" />
+                Expenses
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleBusinessTabClick("import")} data-testid="menu-business-import">
+                <Upload className="w-4 h-4 mr-2" />
+                Import Data
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
           <Button
             variant={activeTab === "settings" ? "default" : "outline"}
             onClick={() => setActiveTab("settings")}
@@ -206,7 +273,26 @@ function AdminDashboard() {
             <NewsManagement />
           </div>
         )}
-        {activeTab === "business" && <BusinessManagement />}
+        {activeTab === "business" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-medium text-gray-900">
+                Business Management
+                {businessSubTab !== "dashboard" && ` - ${businessSubTab.charAt(0).toUpperCase() + businessSubTab.slice(1)}`}
+              </h2>
+            </div>
+            
+            {businessSubTab === "dashboard" && <BusinessDashboard onNavigateToTab={setBusinessSubTab} />}
+            {businessSubTab === "products" && <ProductManagement />}
+            {businessSubTab === "skus" && <SKUManagement />}
+            {businessSubTab === "inventory" && <InventoryManagement />}
+            {businessSubTab === "suppliers" && <SupplierManagement />}
+            {businessSubTab === "sizes" && <ProductSizesManagement />}
+            {businessSubTab === "sales" && <SalesManagement />}
+            {businessSubTab === "expenses" && <ExpenseTracker />}
+            {businessSubTab === "import" && <CSVImport />}
+          </div>
+        )}
         {activeTab === "settings" && <AdminSettings />}
       </div>
     </div>

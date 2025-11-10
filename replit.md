@@ -66,10 +66,33 @@ Preferred communication style: Simple, everyday language.
    - Settings and configuration
 4. **Authentication**: Admin features use the same JWT token from your login - no separate admin login required
 
+### Admin Navigation
+- **Hierarchical Menu Structure**: Top-level navigation includes Analytics, Photos, Pairs, Users, Communication, Business (dropdown), and Settings
+- **Business Dropdown**: Clicking the Business button reveals a dropdown menu with:
+  - Dashboard: Business overview and statistics
+  - Products: Product management with photos and descriptions
+  - SKUs: Master SKU and Channel SKU management with CSV import/export
+  - Inventory: Individual print tracking with acquisition/sale dates
+  - Sales: Multi-channel sales tracking and management
+  - Suppliers: Supplier management with pricing history
+  - Sizes: Product size definitions with aspect ratios
+  - Expenses: Expense tracking with SharePoint receipt integration
+  - Import Data: CSV import utility for Wix historical data
+
 ### Key Features
 - **Voting System**: Tournament-style photo pairing, intelligent pair selection (no duplicates, no consecutive pairs), and tracking of wins/losses. Supports "Pairs" for direct comparison of related photos.
 - **Admin Dashboard**: Analytics, ranking displays, data filtering, user/photo management, and bulk operations.
-- **Business Management**: Integrated system for inventory, sales, and financial tracking. Includes supplier pricing (with historical versioning), individual print tracking (acquisition/sale dates), drop-ship order fulfillment, expense tracking (with SharePoint integration), sales tax calculation, and multi-channel sales support (Website, Art Shows, Amazon, Etsy). Supports both online sales (sale-first) and art show (inventory-first) workflows. Features CSV import for Wix data and comprehensive product architecture separating products from photos.
+- **Business Management**: Integrated system for inventory, sales, and financial tracking. Includes:
+  - **SKU Management**: Master SKU system (product + media + size) with channel-specific SKUs for each sales platform. Auto-generate SKU codes from product data. Search and filter across all SKUs.
+  - **Supplier Pricing**: Historical versioning with effective dates
+  - **Inventory Tracking**: Individual print tracking (acquisition/sale dates)
+  - **Drop-ship Orders**: Fulfillment tracking
+  - **Expense Tracking**: SharePoint integration for receipt storage
+  - **Sales Tax Calculation**: Automated tax calculations
+  - **Multi-channel Sales**: Support for Website, Art Shows, Amazon, Etsy
+  - **Dual Workflows**: Both online sales (sale-first) and art show (inventory-first) workflows
+  - **CSV Import**: Wix historical data import with UTF-8 BOM handling
+  - **Product Architecture**: Comprehensive system separating products from photos, with variants, SKUs, and channel SKUs
 - **User Features**: Personalized statistics, contest entry, favorites, purchase history, and client-side personal leaderboard.
 - **Photo Management**: Inline editing, drag-and-drop uploads, and smart handling of photo sources.
 - **Collections**: Organization of photos into themed groups.

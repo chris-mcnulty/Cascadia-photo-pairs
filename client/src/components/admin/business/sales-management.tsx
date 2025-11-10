@@ -56,13 +56,20 @@ export default function SalesManagement() {
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
   const { toast } = useToast();
 
-  // Build query params for filtering
+  // Build query params for filtering - only add if dates are explicitly set
   const queryParams: Record<string, string> = {};
-  if (startDate) queryParams.startDate = startDate;
-  if (endDate) queryParams.endDate = endDate;
+  if (startDate && startDate.trim() !== "") queryParams.startDate = startDate;
+  if (endDate && endDate.trim() !== "") queryParams.endDate = endDate;
 
   // Build query URL with parameters
   const queryString = Object.keys(queryParams).length > 0 ? `?${new URLSearchParams(queryParams).toString()}` : '';
+
+  console.log("[SalesManagement] Date filter state:", { 
+    startDate,
+    endDate,
+    queryParams,
+    queryString 
+  });
 
   const { data: allSales, isLoading: loadingSales } = useQuery<Sale[]>({
     queryKey: [`/api/admin/sales${queryString}`],

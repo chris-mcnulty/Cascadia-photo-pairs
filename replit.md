@@ -24,7 +24,7 @@ Preferred communication style: Simple, everyday language.
 ### Data Storage
 - **Database**: PostgreSQL with Drizzle ORM for schema management (migrations via Drizzle Kit).
 - **Hosting**: Compatible with Neon Database serverless PostgreSQL.
-- **Schema**: Comprehensive, including tables for photos, votes, users, user stats, contest entries, user favorites, and an extensive business management system (inventoryItems, sales, dropShipOrders, salesChannels, suppliers, supplierPrices, productSizes, expenses, expenseCategories, products, productVariants, productSKUs, channelSKUs, retailPrices).
+- **Schema**: Comprehensive, including tables for photos, votes, users, user stats, contest entries, user favorites, and an extensive business management system (orders, orderItems, inventoryItems, sales [legacy], dropShipOrders, salesChannels, suppliers, supplierPrices, productSizes, expenses, expenseCategories, products, productVariants, productSKUs, channelSKUs, retailPrices).
 - **Session Management**: Persistent session storage using `connect-pg-simple`.
 - **SharePoint Integration**: For receipt storage linked to business expenses.
 
@@ -83,16 +83,18 @@ Preferred communication style: Simple, everyday language.
 - **Voting System**: Tournament-style photo pairing, intelligent pair selection (no duplicates, no consecutive pairs), and tracking of wins/losses. Supports "Pairs" for direct comparison of related photos.
 - **Admin Dashboard**: Analytics, ranking displays, data filtering, user/photo management, and bulk operations.
 - **Business Management**: Integrated system for inventory, sales, and financial tracking. Includes:
+  - **Orders System**: Multi-item order support with orders and order_items tables. Each order can contain multiple line items (products/SKUs), with order-level totals and per-item pricing/tax. Optional order numbers for external platform integration (Etsy, Amazon, etc.)
   - **SKU Management**: Master SKU system (product + media + size) with channel-specific SKUs for each sales platform. Auto-generate SKU codes from product data. Search and filter across all SKUs.
   - **Supplier Pricing**: Historical versioning with effective dates
-  - **Inventory Tracking**: Individual print tracking (acquisition/sale dates)
-  - **Drop-ship Orders**: Fulfillment tracking
+  - **Inventory Tracking**: Individual print tracking (acquisition/sale dates), linked to order items
+  - **Drop-ship Orders**: Fulfillment tracking, linked to specific order items
   - **Expense Tracking**: SharePoint integration for receipt storage
-  - **Sales Tax Calculation**: Automated tax calculations
+  - **Sales Tax Calculation**: Automated tax calculations at order and line-item levels
   - **Multi-channel Sales**: Support for Website, Art Shows, Amazon, Etsy
   - **Dual Workflows**: Both online sales (sale-first) and art show (inventory-first) workflows
   - **CSV Import**: Wix historical data import with UTF-8 BOM handling
   - **Product Architecture**: Comprehensive system separating products from photos, with variants, SKUs, and channel SKUs
+  - **Data Migration**: Legacy sales table preserved for backward compatibility; existing sales migrated to orders+order_items structure
 - **User Features**: Personalized statistics, contest entry, favorites, purchase history, and client-side personal leaderboard.
 - **Photo Management**: Inline editing, drag-and-drop uploads, and smart handling of photo sources.
 - **Collections**: Organization of photos into themed groups.

@@ -6,13 +6,14 @@ import {
   type RetailPrice, type InsertRetailPrice,
   type SalesChannel, type InsertSalesChannel, type Supplier, type InsertSupplier,
   type ProductSize, type InsertProductSize, type SupplierPrice, type InsertSupplierPrice,
-  type Sale, type InsertSale, type InventoryItem, type InsertInventoryItem,
+  type Sale, type InsertSale, type Order, type InsertOrder, type OrderItem, type InsertOrderItem,
+  type InventoryItem, type InsertInventoryItem,
   type DropShipOrder, type InsertDropShipOrder, type ExpenseCategory, type InsertExpenseCategory,
   type Expense, type InsertExpense
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { photos, votes, settings, collections, photoPairs, pairVotes, products, productVariants, productSKUs, channelSKUs, retailPrices, salesChannels, suppliers, productSizes, supplierPrices, sales, inventoryItems, dropShipOrders, expenseCategories, expenses } from "@shared/schema";
+import { photos, votes, settings, collections, photoPairs, pairVotes, products, productVariants, productSKUs, channelSKUs, retailPrices, salesChannels, suppliers, productSizes, supplierPrices, sales, orders, orderItems, inventoryItems, dropShipOrders, expenseCategories, expenses } from "@shared/schema";
 import { eq, sql, inArray, and, or, gte, lte, isNull, desc } from "drizzle-orm";
 
 export interface IStorage {
@@ -161,6 +162,14 @@ export interface IStorage {
     channelName: string;
     buyerName: string | null;
   }>>;
+  
+  // Orders (multi-item purchases)
+  getAllOrders(startDate?: Date, endDate?: Date): Promise<Order[]>;
+  getOrder(id: string): Promise<Order | undefined>;
+  getOrderWithItems(id: string): Promise<(Order & { items: OrderItem[] }) | undefined>;
+  createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order>;
+  updateOrder(id: string, updates: Partial<Order>): Promise<Order | undefined>;
+  deleteOrder(id: string): Promise<boolean>;
   
   // Inventory Items
   getAllInventoryItems(status?: string): Promise<InventoryItem[]>;
@@ -802,6 +811,13 @@ export class MemStorage implements IStorage {
     channelName: string;
     buyerName: string | null;
   }>> { return []; }
+  
+  async getAllOrders(startDate?: Date, endDate?: Date): Promise<Order[]> { return []; }
+  async getOrder(id: string): Promise<Order | undefined> { return undefined; }
+  async getOrderWithItems(id: string): Promise<(Order & { items: OrderItem[] }) | undefined> { return undefined; }
+  async createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order> { throw new Error('Not implemented in MemStorage'); }
+  async updateOrder(id: string, updates: Partial<Order>): Promise<Order | undefined> { return undefined; }
+  async deleteOrder(id: string): Promise<boolean> { return false; }
   
   async getAllInventoryItems(status?: string): Promise<InventoryItem[]> { return []; }
   async getInventoryItem(id: string): Promise<InventoryItem | undefined> { return undefined; }
@@ -2614,6 +2630,55 @@ export class DatabaseStorage implements IStorage {
     
     console.log('[Storage.getRecentSales] Returning mapped data:', mapped);
     return mapped;
+  }
+
+  // ============================================
+  // ORDERS METHODS (MVP - To be fully implemented)
+  // ============================================
+  
+  async getAllOrders(startDate?: Date, endDate?: Date): Promise<Order[]> {
+    // TODO: Implement filtering by date
+    return await db.select().from(orders).orderBy(desc(orders.orderDate));
+  }
+
+  async getOrder(id: string): Promise<Order | undefined> {
+    const result = await db.select().from(orders).where(eq(orders.id, id)).limit(1);
+    return result[0];
+  }
+
+  async getOrderWithItems(id: string): Promise<(Order & { items: OrderItem[] }) | undefined> {
+    const order = await this.getOrder(id);
+    if (!order) return undefined;
+    
+    const items = await db.select().from(orderItems).where(eq(orderItems.orderId, id));
+    return { ...order, items };
+  }
+
+  async createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order> {
+    // Create order and items in a transaction
+    const [newOrder] = await db.insert(orders).values(order).returning();
+    
+    // Insert order items
+    if (items.length > 0) {
+      await db.insert(orderItems).values(
+        items.map(item => ({ ...item, orderId: newOrder.id }))
+      );
+    }
+    
+    return newOrder;
+  }
+
+  async updateOrder(id: string, updates: Partial<Order>): Promise<Order | undefined> {
+    const result = await db.update(orders).set(updates).where(eq(orders.id, id)).returning();
+    return result[0];
+  }
+
+  async deleteOrder(id: string): Promise<boolean> {
+    // Delete order items first
+    await db.delete(orderItems).where(eq(orderItems.orderId, id));
+    // Then delete order
+    const result = await db.delete(orders).where(eq(orders.id, id));
+    return (result.rowCount || 0) > 0;
   }
 
   // ============================================

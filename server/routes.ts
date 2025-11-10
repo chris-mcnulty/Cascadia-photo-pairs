@@ -12,7 +12,8 @@ import {
   userStats, 
   newsItems as newsItemsTable,
   contestEntries,
-  userFavorites
+  userFavorites,
+  sales
 } from "@shared/schema";
 import { eq, sql, and, or, inArray, gte, lte, desc, isNull } from "drizzle-orm";
 import { storage } from "./storage";
@@ -2676,8 +2677,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // SALES ROUTES
   // ============================================
   
+  // Test endpoint to debug sales
+  app.get("/api/admin/sales/debug", checkAdminAuth, async (req, res) => {
+    try {
+      console.log('[DEBUG] Testing sales query...');
+      
+      // Direct database query
+      const directQuery = await db.select().from(sales);
+      console.log('[DEBUG] Direct query result count:', directQuery.length);
+      console.log('[DEBUG] Direct query first result:', directQuery[0]);
+      
+      // Storage method query
+      const storageQuery = await storage.getAllSales();
+      console.log('[DEBUG] Storage query result count:', storageQuery.length);
+      console.log('[DEBUG] Storage query first result:', storageQuery[0]);
+      
+      res.json({
+        directCount: directQuery.length,
+        directFirst: directQuery[0],
+        storageCount: storageQuery.length,
+        storageFirst: storageQuery[0]
+      });
+    } catch (error) {
+      console.error('[DEBUG] Error in debug endpoint:', error);
+      res.status(500).json({ error: String(error) });
+    }
+  });
+  
   // Get all sales
   app.get("/api/admin/sales", checkAdminAuth, async (req, res) => {
+    console.log('[API /api/admin/sales] Endpoint hit!');
+    
+    // Add direct database test first
+    try {
+      const directTest = await db.select().from(sales);
+      console.log('[API /api/admin/sales] Direct DB test found', directTest.length, 'sales');
+      if (directTest.length > 0) {
+        console.log('[API /api/admin/sales] First sale:', directTest[0]);
+      }
+    } catch (err) {
+      console.error('[API /api/admin/sales] Direct DB test error:', err);
+    }
+    
     try {
       const { startDate, endDate } = req.query;
       const start = startDate ? new Date(startDate as string) : undefined;
@@ -2686,6 +2727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[API /api/admin/sales] Fetching sales with params:', { startDate, endDate, start, end });
       const sales = await storage.getAllSales(start, end);
       console.log('[API /api/admin/sales] Retrieved sales:', sales?.length || 0, 'records');
+      console.log('[API /api/admin/sales] First sale (if any):', sales?.[0]);
       res.json(sales);
     } catch (error) {
       console.error('Error fetching sales:', error);

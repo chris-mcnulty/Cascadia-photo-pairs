@@ -117,7 +117,9 @@ export const getQueryFn: <T>(options: {
     }
 
     await throwIfResNotOk(res);
-    return await res.json();
+    const data = await res.json();
+    console.log('[QueryFn] Response data:', data);
+    return data;
   };
 
 export const queryClient = new QueryClient({

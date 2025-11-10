@@ -2705,7 +2705,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get all sales
-  app.get("/api/admin/sales", checkAdminAuth, async (req, res) => {
+  app.get("/api/admin/sales", isAuthenticated, async (req, res) => {
     console.log('[API /api/admin/sales] Endpoint hit!');
     
     // Add direct database test first

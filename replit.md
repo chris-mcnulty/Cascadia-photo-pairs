@@ -32,6 +32,26 @@ Preferred communication style: Simple, everyday language.
 - **User System**: Full user authentication (registration, login, password reset, email verification) secured with JWTs and bcrypt.
 - **Admin System**: Admin dashboard with JWT-based authentication. Features include an option to enable/disable user login, and a master admin system with role management for co-admins.
 
+**CRITICAL: Authentication Middleware Pattern**
+- **ALWAYS use `isAuthenticated` middleware for ALL admin routes** (routes starting with `/api/admin/`)
+- **NEVER use `checkAdminAuth` as middleware** - it is a helper function, not Express middleware
+- `checkAdminAuth` should ONLY be called inside route handlers to get admin status (e.g., `const adminStatus = await checkAdminAuth(req);`)
+- **Pattern to follow:**
+  ```typescript
+  // ✅ CORRECT: Use isAuthenticated as middleware
+  app.get("/api/admin/some-route", isAuthenticated, async (req, res) => {
+    // Inside handler, you can optionally call checkAdminAuth if you need admin status
+    const adminStatus = await checkAdminAuth(req);
+    // ...
+  });
+  
+  // ❌ WRONG: Using checkAdminAuth as middleware
+  app.get("/api/admin/some-route", checkAdminAuth, async (req, res) => {
+    // This will cause 401 authentication errors
+  });
+  ```
+- **Routes requiring this pattern:** All CRUD operations on sales, sales channels, suppliers, products, inventory, expenses, etc.
+
 ### Admin Login Instructions
 **How to Access Admin Features:**
 1. **Register/Login**: Create an account at `/register` or login at `/login` with your email and password

@@ -3131,6 +3131,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============================================
+  // ORDERS ROUTES (Multi-item orders system)
+  // ============================================
+
+  // Get all orders
+  app.get("/api/admin/orders", isAuthenticated, async (req, res) => {
+    try {
+      const { startDate, endDate } = req.query;
+      const start = startDate ? new Date(startDate as string) : undefined;
+      const end = endDate ? new Date(endDate as string) : undefined;
+      
+      const orders = await storage.getAllOrders(start, end);
+      res.json(orders);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      res.status(500).json({ message: "Failed to fetch orders" });
+    }
+  });
+
+  // Get single order with items
+  app.get("/api/admin/orders/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const order = await storage.getOrderWithItems(id);
+      
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      res.json(order);
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      res.status(500).json({ message: "Failed to fetch order" });
+    }
+  });
+
+  // Create order with items
+  app.post("/api/admin/orders", isAuthenticated, async (req, res) => {
+    try {
+      const { order, items } = req.body;
+      
+      if (!order || !items || !Array.isArray(items)) {
+        return res.status(400).json({ message: "Invalid request: order and items array required" });
+      }
+      
+      // Convert date string to Date object
+      const orderWithDate = {
+        ...order,
+        orderDate: order.orderDate ? new Date(order.orderDate) : new Date(),
+      };
+      
+      const newOrder = await storage.createOrder(orderWithDate, items);
+      res.status(201).json(newOrder);
+    } catch (error) {
+      console.error('Error creating order:', error);
+      res.status(400).json({ message: "Failed to create order", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+
+  // Update order
+  app.put("/api/admin/orders/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      // Convert date string to Date object if present
+      const dataWithDate = {
+        ...req.body,
+        orderDate: req.body.orderDate ? new Date(req.body.orderDate) : undefined,
+      };
+      
+      const order = await storage.updateOrder(id, dataWithDate);
+      
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      res.json(order);
+    } catch (error) {
+      console.error('Error updating order:', error);
+      res.status(500).json({ message: "Failed to update order" });
+    }
+  });
+
+  // Delete order
+  app.delete("/api/admin/orders/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const success = await storage.deleteOrder(id);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      
+      res.json({ message: "Order deleted successfully" });
+    } catch (error) {
+      console.error('Error deleting order:', error);
+      res.status(500).json({ message: "Failed to delete order" });
+    }
+  });
+
+  // ============================================
   // PRODUCT ROUTES
   // ============================================
 

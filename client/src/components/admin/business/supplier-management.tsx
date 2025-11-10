@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Edit, Trash2, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -21,6 +22,9 @@ interface Supplier {
 interface ProductSize {
   id: string;
   sizeLabel: string;
+  aspectRatio: string;
+  widthInches: number;
+  heightInches: number;
 }
 
 interface SupplierPrice {
@@ -36,6 +40,7 @@ export default function SupplierManagement() {
   const [editingPrices, setEditingPrices] = useState<Record<string, string>>({});
   const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
+  const [aspectRatioFilter, setAspectRatioFilter] = useState<string>("all");
 
   const { data: suppliers, isLoading: loadingSuppliers } = useQuery<Supplier[]>({
     queryKey: ["/api/admin/suppliers"],
@@ -48,6 +53,28 @@ export default function SupplierManagement() {
   const { data: supplierPrices, isLoading: loadingPrices } = useQuery<SupplierPrice[]>({
     queryKey: ["/api/admin/supplier-prices"],
   });
+
+  const uniqueAspectRatios = useMemo(() => {
+    if (!productSizes) return [];
+    const ratios = new Set(productSizes.map(size => size.aspectRatio));
+    return Array.from(ratios).sort();
+  }, [productSizes]);
+
+  const filteredAndSortedSizes = useMemo(() => {
+    if (!productSizes) return [];
+    
+    let filtered = productSizes;
+    
+    if (aspectRatioFilter !== "all") {
+      filtered = productSizes.filter(size => size.aspectRatio === aspectRatioFilter);
+    }
+    
+    return filtered.sort((a, b) => {
+      const aWidth = typeof a.widthInches === 'string' ? parseFloat(a.widthInches) : a.widthInches;
+      const bWidth = typeof b.widthInches === 'string' ? parseFloat(b.widthInches) : b.widthInches;
+      return aWidth - bWidth;
+    });
+  }, [productSizes, aspectRatioFilter]);
 
   const handleDeleteSupplier = async (id: string) => {
     if (!confirm("Are you sure you want to delete this supplier?")) return;
@@ -244,7 +271,25 @@ export default function SupplierManagement() {
       {/* Pricing Matrix Section */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl font-semibold">Pricing Matrix (ChromaLuxe)</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl font-semibold">Pricing Matrix (ChromaLuxe)</CardTitle>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Aspect Ratio:</span>
+              <Select value={aspectRatioFilter} onValueChange={setAspectRatioFilter}>
+                <SelectTrigger className="w-32" data-testid="select-aspect-ratio">
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {uniqueAspectRatios.map((ratio) => (
+                    <SelectItem key={ratio} value={ratio}>
+                      {ratio}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {loadingSizes || loadingPrices || loadingSuppliers ? (
@@ -268,11 +313,12 @@ export default function SupplierManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {productSizes?.map((size) => (
-                    <TableRow key={size.id}>
-                      <TableCell className="text-sm font-medium sticky left-0 bg-white">
-                        {size.sizeLabel}
-                      </TableCell>
+                  {filteredAndSortedSizes.length > 0 ? (
+                    filteredAndSortedSizes.map((size) => (
+                      <TableRow key={size.id}>
+                        <TableCell className="text-sm font-medium sticky left-0 bg-white">
+                          {size.sizeLabel}
+                        </TableCell>
                       {suppliers?.map((supplier) => {
                         const key = `${supplier.id}-${size.id}-ChromaLuxe`;
                         const currentPrice = getPriceForSupplierAndSize(supplier.id, size.id, "ChromaLuxe");
@@ -304,7 +350,16 @@ export default function SupplierManagement() {
                         );
                       })}
                     </TableRow>
-                  ))}
+                  ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={suppliers && suppliers.length > 0 ? suppliers.length + 1 : 2} className="text-center text-gray-500 py-8">
+                        {aspectRatioFilter !== "all" 
+                          ? `No sizes found for aspect ratio ${aspectRatioFilter}`
+                          : "No sizes found"}
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>

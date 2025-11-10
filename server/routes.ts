@@ -2691,6 +2691,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Export product SKUs to CSV (must be before /:id route)
+  app.get("/api/admin/product-skus/export", isAuthenticated, async (req, res) => {
+    try {
+      const { stringify } = await import('csv-stringify/sync');
+      const skus = await storage.getAllProductSKUs();
+      
+      const records = skus.map(sku => ({
+        'SKU': sku.sku,
+        'Product Title': sku.productTitle || '',
+        'Media Type': sku.mediaType,
+        'Size Label': sku.sizeLabel || '',
+        'Active': sku.isActive ? 'Yes' : 'No'
+      }));
+      
+      const csvContent = stringify(records, {
+        header: true,
+        quoted_string: true,
+      });
+      
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="product-skus.csv"');
+      res.send('\uFEFF' + csvContent);
+    } catch (error) {
+      console.error('Error exporting product SKUs:', error);
+      res.status(500).json({ message: "Failed to export product SKUs" });
+    }
+  });
+
   // Get single product SKU
   app.get("/api/admin/product-skus/:id", isAuthenticated, async (req, res) => {
     try {
@@ -2778,6 +2806,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching channel SKUs:', error);
       res.status(500).json({ message: "Failed to fetch channel SKUs" });
+    }
+  });
+
+  // Export channel SKUs to CSV (must be before /:id route)
+  app.get("/api/admin/channel-skus/export", isAuthenticated, async (req, res) => {
+    try {
+      const { stringify } = await import('csv-stringify/sync');
+      const skus = await storage.getAllChannelSKUs();
+      
+      const records = skus.map(sku => ({
+        'Channel SKU': sku.channelSKU,
+        'Master SKU': sku.masterSKU || '',
+        'Channel Name': sku.channelName || '',
+        'Listing ID': sku.channelListingId || '',
+        'Active': sku.isActive ? 'Yes' : 'No'
+      }));
+      
+      const csvContent = stringify(records, {
+        header: true,
+        quoted_string: true,
+      });
+      
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader('Content-Disposition', 'attachment; filename="channel-skus.csv"');
+      res.send('\uFEFF' + csvContent);
+    } catch (error) {
+      console.error('Error exporting channel SKUs:', error);
+      res.status(500).json({ message: "Failed to export channel SKUs" });
+    }
+  });
+
+  // Import channel SKUs from CSV (must be before /:id route)
+  app.post("/api/admin/channel-skus/import", isAuthenticated, csvUpload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      const { parse } = await import('csv-parse/sync');
+      const fileContent = req.file.buffer.toString('utf-8').replace(/^\uFEFF/, '');
+      
+      const records = parse(fileContent, {
+        columns: true,
+        skip_empty_lines: true,
+        trim: true,
+        relax_quotes: true,
+        relax_column_count: true,
+      });
+
+      const results = { imported: 0, skipped: 0, errors: [] as string[] };
+      const masterSKUs = await storage.getAllProductSKUs();
+      const channels = await storage.getAllSalesChannels();
+      const existingChannelSKUs = await storage.getAllChannelSKUs();
+      const existingChannelSKUSet = new Set(existingChannelSKUs.map(s => s.channelSKU));
+
+      for (let i = 0; i < records.length; i++) {
+        try {
+          const record = records[i];
+          const channelSKU = record['Channel SKU']?.trim();
+          const masterSKU = record['Master SKU']?.trim();
+          const channelName = record['Channel Name']?.trim();
+          const listingId = record['Listing ID']?.trim();
+          const active = record['Active']?.trim();
+
+          if (!channelSKU || !masterSKU || !channelName) {
+            results.errors.push(`Row ${i + 2}: Missing required fields`);
+            results.skipped++;
+            continue;
+          }
+
+          if (existingChannelSKUSet.has(channelSKU)) {
+            results.skipped++;
+            continue;
+          }
+
+          const masterSKURecord = masterSKUs.find(s => s.sku === masterSKU);
+          const channel = channels.find(c => c.name === channelName);
+
+          if (!masterSKURecord) {
+            results.errors.push(`Row ${i + 2}: Master SKU "${masterSKU}" not found`);
+            results.skipped++;
+            continue;
+          }
+
+          if (!channel) {
+            results.errors.push(`Row ${i + 2}: Channel "${channelName}" not found`);
+            results.skipped++;
+            continue;
+          }
+
+          await storage.createChannelSKU({
+            channelSKU,
+            masterSKUId: masterSKURecord.id,
+            channelId: channel.id,
+            channelListingId: listingId || null,
+            isActive: active === 'Yes'
+          });
+          existingChannelSKUSet.add(channelSKU);
+          results.imported++;
+        } catch (error) {
+          results.errors.push(`Row ${i + 2}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          results.skipped++;
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error('Error importing channel SKUs:', error);
+      res.status(500).json({ message: "Failed to import channel SKUs" });
     }
   });
 

@@ -288,6 +288,18 @@ export default function SKUManagement() {
     );
   }, [channelSKUs, channelSKUSearch]);
 
+  // Media type to code mapping
+  const getMediaCode = (mediaType: string): string => {
+    const mediaCodeMap: { [key: string]: string } = {
+      "ChromaLuxe": "MTL",
+      "Metal": "MTL",
+      "Framed Archival": "FRM",
+      "Canvas": "CNV",
+      "Acrylic": "ACR",
+    };
+    return mediaCodeMap[mediaType] || mediaType.substring(0, 3).toUpperCase();
+  };
+
   const handleAutoGenerateSKU = () => {
     const productId = productSKUForm.watch("productId");
     const mediaType = productSKUForm.watch("mediaType");
@@ -307,20 +319,27 @@ export default function SKUManagement() {
 
     if (!product || !size) return;
 
-    const productCode = product.title
+    // Extract first 5 characters (alphanumeric only) from product title
+    const productPrefix = product.title
       .replace(/[^a-zA-Z0-9]/g, "")
-      .substring(0, 8)
+      .substring(0, 5)
       .toUpperCase();
     
-    const mediaCode = mediaType
-      .split(" ")
-      .map(word => word[0])
-      .join("")
-      .toUpperCase();
+    // Extract last 2 digits from product title (assumes it's a year)
+    const yearMatch = product.title.match(/(\d{2})(?!.*\d{2})/);
+    const yearSuffix = yearMatch ? yearMatch[1] : "";
     
-    const sizeCode = size.sizeLabel.replace(/\s/g, "");
+    // Get media code
+    const mediaCode = getMediaCode(mediaType);
+    
+    // Get size code (remove spaces and quotes, convert X to uppercase)
+    const sizeCode = size.sizeLabel
+      .replace(/\s/g, "")
+      .replace(/["']/g, "")
+      .replace(/x/gi, "X");
 
-    const generatedSKU = `${productCode}-${mediaCode}-${sizeCode}`;
+    // Format: FIRST5-YY-MTL-36X48
+    const generatedSKU = `${productPrefix}-${yearSuffix}-${mediaCode}-${sizeCode}`;
     productSKUForm.setValue("sku", generatedSKU);
   };
 

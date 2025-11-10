@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Edit, Trash2, Image, Package2, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Edit, Trash2, Image, Package2, Check, ChevronsUpDown, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -56,7 +56,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Product, Photo } from "@shared/schema";
+import type { Product, Photo, ProductSKU, ProductSize } from "@shared/schema";
 import { cn } from "@/lib/utils";
 
 // Form schema for product creation/editing
@@ -81,6 +81,7 @@ export default function ProductManagement() {
   const [photoFilter, setPhotoFilter] = useState<"all" | "with-photo" | "no-photo">("all");
   const [sortBy, setSortBy] = useState<"title" | "aspectRatio" | "created">("title");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [expandedProducts, setExpandedProducts] = useState<Set<string>>(new Set());
   const { toast } = useToast();
 
   // Fetch all products
@@ -91,6 +92,16 @@ export default function ProductManagement() {
   // Fetch all photos for the photo selector
   const { data: photos = [] } = useQuery<Photo[]>({
     queryKey: ["/api/photos"],
+  });
+
+  // Fetch all product SKUs
+  const { data: productSKUs = [] } = useQuery<ProductSKU[]>({
+    queryKey: ["/api/admin/product-skus"],
+  });
+
+  // Fetch all product sizes
+  const { data: productSizes = [] } = useQuery<ProductSize[]>({
+    queryKey: ["/api/admin/product-sizes"],
   });
 
   const form = useForm<ProductFormValues>({
@@ -278,6 +289,30 @@ export default function ProductManagement() {
     return Array.from(ratios).sort();
   }, [products]);
 
+  // Toggle product expansion
+  const toggleProductExpansion = (productId: string) => {
+    setExpandedProducts(prev => {
+      const next = new Set(prev);
+      if (next.has(productId)) {
+        next.delete(productId);
+      } else {
+        next.add(productId);
+      }
+      return next;
+    });
+  };
+
+  // Get SKUs for a product
+  const getProductSKUs = (productId: string) => {
+    return productSKUs.filter(sku => sku.productId === productId);
+  };
+
+  // Get size label for a SKU
+  const getSizeLabel = (sizeId: string) => {
+    const size = productSizes.find(s => s.id === sizeId);
+    return size?.sizeLabel || "Unknown";
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -374,6 +409,7 @@ export default function ProductManagement() {
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]"></TableHead>
               <TableHead>Title</TableHead>
               <TableHead>Photo</TableHead>
               <TableHead>Aspect Ratio</TableHead>
@@ -385,87 +421,137 @@ export default function ProductManagement() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center">
+                <TableCell colSpan={8} className="text-center">
                   Loading products...
                 </TableCell>
               </TableRow>
             ) : filteredProducts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground">
+                <TableCell colSpan={8} className="text-center text-muted-foreground">
                   {products.length === 0 ? "No products yet. Add your first product to get started." : "No products match your filters"}
                 </TableCell>
               </TableRow>
             ) : (
               filteredProducts.map((product) => {
                 const linkedPhoto = product.photoId ? photos.find(p => p.id === product.photoId) : null;
+                const isExpanded = expandedProducts.has(product.id);
+                const skus = getProductSKUs(product.id);
+                
                 return (
-                  <TableRow key={product.id} data-testid={`row-product-${product.id}`}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center">
-                        {linkedPhoto?.imageUrl ? (
-                          <img
-                            src={linkedPhoto.imageUrl}
-                            alt={product.title}
-                            className="w-12 h-12 object-cover rounded mr-2"
-                            data-testid={`img-product-${product.id}`}
-                            onError={(e) => {
-                              // Fallback to icon if image fails to load
-                              const target = e.target as HTMLImageElement;
-                              target.style.display = 'none';
-                              const fallbackIcon = target.nextElementSibling as HTMLElement;
-                              if (fallbackIcon) fallbackIcon.style.display = 'block';
-                            }}
-                          />
-                        ) : null}
-                        <div style={{ display: linkedPhoto?.imageUrl ? 'none' : 'flex' }} className="w-12 h-12 bg-gray-100 rounded mr-2 items-center justify-center">
-                          {product.photoId ? (
-                            <Image className="w-6 h-6 text-muted-foreground" />
+                  <>
+                    <TableRow key={product.id} data-testid={`row-product-${product.id}`}>
+                      <TableCell className="w-[40px]">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => toggleProductExpansion(product.id)}
+                          data-testid={`button-toggle-skus-${product.id}`}
+                          className="h-8 w-8"
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="w-4 h-4" />
                           ) : (
-                            <Package2 className="w-6 h-6 text-muted-foreground" />
+                            <ChevronRight className="w-4 h-4" />
                           )}
+                        </Button>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        <div className="flex items-center">
+                          {linkedPhoto?.imageUrl ? (
+                            <img
+                              src={linkedPhoto.imageUrl}
+                              alt={product.title}
+                              className="w-12 h-12 object-cover rounded mr-2"
+                              data-testid={`img-product-${product.id}`}
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const fallbackIcon = target.nextElementSibling as HTMLElement;
+                                if (fallbackIcon) fallbackIcon.style.display = 'block';
+                              }}
+                            />
+                          ) : null}
+                          <div style={{ display: linkedPhoto?.imageUrl ? 'none' : 'flex' }} className="w-12 h-12 bg-gray-100 rounded mr-2 items-center justify-center">
+                            {product.photoId ? (
+                              <Image className="w-6 h-6 text-muted-foreground" />
+                            ) : (
+                              <Package2 className="w-6 h-6 text-muted-foreground" />
+                            )}
+                          </div>
+                          <span>{product.title}</span>
                         </div>
-                        <span>{product.title}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{getPhotoName(product.photoId)}</TableCell>
-                    <TableCell>{product.aspectRatio}</TableCell>
-                    <TableCell>
-                      <span className="text-sm text-muted-foreground font-mono">
-                        {product.externalId || "-"}
-                      </span>
-                    </TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                        product.isActive
-                          ? "bg-green-100 text-green-800"
-                          : "bg-gray-100 text-gray-800"
-                      }`}
-                    >
-                      {product.isActive ? "Active" : "Inactive"}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(product)}
-                        data-testid={`button-edit-product-${product.id}`}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(product.id)}
-                        data-testid={`button-delete-product-${product.id}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
+                      </TableCell>
+                      <TableCell>{getPhotoName(product.photoId)}</TableCell>
+                      <TableCell>{product.aspectRatio}</TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground font-mono">
+                          {product.externalId || "-"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            product.isActive
+                              ? "bg-green-100 text-green-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {product.isActive ? "Active" : "Inactive"}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(product)}
+                            data-testid={`button-edit-product-${product.id}`}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(product.id)}
+                            data-testid={`button-delete-product-${product.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                    
+                    {isExpanded && (
+                      <TableRow>
+                        <TableCell colSpan={8} className="bg-muted/50 p-4">
+                          <div className="space-y-2">
+                            <h4 className="text-sm font-medium">Linked SKUs ({skus.length})</h4>
+                            {skus.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No SKUs linked to this product yet.</p>
+                            ) : (
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                {skus.map((sku) => (
+                                  <div
+                                    key={sku.id}
+                                    className="bg-background border rounded-md p-3 text-sm"
+                                    data-testid={`sku-${sku.id}`}
+                                  >
+                                    <div className="font-mono font-medium">{sku.sku}</div>
+                                    <div className="text-muted-foreground mt-1">
+                                      {sku.mediaType} · {getSizeLabel(sku.productSizeId)}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground mt-1">
+                                      {sku.isActive ? "Active" : "Inactive"}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </>
                 );
               })
             )}

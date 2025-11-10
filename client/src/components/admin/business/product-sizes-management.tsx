@@ -1,11 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Trash2, Edit, Check, X } from "lucide-react";
+import { Plus, Trash2, Edit, Check, X, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 
@@ -31,10 +32,35 @@ export default function ProductSizesManagement() {
   const [isAdding, setIsAdding] = useState(false);
   const [editingRow, setEditingRow] = useState<{sizeId: string; mediaType: string} | null>(null);
   const [editPrice, setEditPrice] = useState("");
+  
+  const [filterAspectRatio, setFilterAspectRatio] = useState<string>("all");
+  const [filterMediaType, setFilterMediaType] = useState<string>("all");
 
   const { data: pricingData, isLoading } = useQuery<PricingData[]>({
     queryKey: ["/api/admin/product-sizes/pricing"],
   });
+
+  const uniqueAspectRatios = useMemo(() => {
+    if (!pricingData) return [];
+    const ratios = new Set(pricingData.map(row => row.size.aspectRatio));
+    return Array.from(ratios).sort();
+  }, [pricingData]);
+
+  const uniqueMediaTypes = useMemo(() => {
+    if (!pricingData) return [];
+    const types = new Set(pricingData.map(row => row.mediaType));
+    return Array.from(types).sort();
+  }, [pricingData]);
+
+  const filteredData = useMemo(() => {
+    if (!pricingData) return [];
+    
+    return pricingData.filter(row => {
+      const aspectRatioMatch = filterAspectRatio === "all" || row.size.aspectRatio === filterAspectRatio;
+      const mediaTypeMatch = filterMediaType === "all" || row.mediaType === filterMediaType;
+      return aspectRatioMatch && mediaTypeMatch;
+    });
+  }, [pricingData, filterAspectRatio, filterMediaType]);
 
   const setRetailPriceMutation = useMutation({
     mutationFn: async (params: { productSizeId: string; mediaType: string; retailPrice: number }) => {
@@ -188,6 +214,65 @@ export default function ProductSizesManagement() {
             </Button>
           </div>
 
+          {/* Filters */}
+          {pricingData && pricingData.length > 0 && (
+            <div className="flex gap-4 items-center p-4 bg-gray-50 rounded-lg border">
+              <Filter className="w-4 h-4 text-gray-500" />
+              <div className="flex gap-4 flex-1">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                    Aspect Ratio:
+                  </label>
+                  <Select value={filterAspectRatio} onValueChange={setFilterAspectRatio}>
+                    <SelectTrigger className="w-[140px]" data-testid="select-aspect-ratio-filter">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      {uniqueAspectRatios.map(ratio => (
+                        <SelectItem key={ratio} value={ratio}>{ratio}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                    Media Type:
+                  </label>
+                  <Select value={filterMediaType} onValueChange={setFilterMediaType}>
+                    <SelectTrigger className="w-[180px]" data-testid="select-media-type-filter">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      {uniqueMediaTypes.map(type => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {(filterAspectRatio !== "all" || filterMediaType !== "all") && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    onClick={() => {
+                      setFilterAspectRatio("all");
+                      setFilterMediaType("all");
+                    }}
+                    data-testid="button-clear-filters"
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+              </div>
+              <div className="text-sm text-gray-600">
+                Showing {filteredData.length} of {pricingData.length} rows
+              </div>
+            </div>
+          )}
+
           {isLoading ? (
             <div className="space-y-2">
               <Skeleton className="h-8 w-full" />
@@ -201,6 +286,7 @@ export default function ProductSizesManagement() {
                   <TableRow>
                     <TableHead>Size</TableHead>
                     <TableHead>Dimensions</TableHead>
+                    <TableHead>Aspect Ratio</TableHead>
                     <TableHead>Media Type</TableHead>
                     <TableHead className="text-right">Avg Supplier Cost</TableHead>
                     <TableHead className="text-right">Your Retail Price</TableHead>
@@ -209,13 +295,14 @@ export default function ProductSizesManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pricingData.map((row) => {
+                  {filteredData.length > 0 ? filteredData.map((row) => {
                     const isEditing = editingRow?.sizeId === row.size.id && editingRow?.mediaType === row.mediaType;
                     
                     return (
                       <TableRow key={`${row.size.id}-${row.mediaType}`}>
                         <TableCell className="font-medium">{row.size.sizeLabel}</TableCell>
                         <TableCell>{row.size.widthInches}" × {row.size.heightInches}"</TableCell>
+                        <TableCell className="text-sm text-gray-600">{row.size.aspectRatio}</TableCell>
                         <TableCell>{row.mediaType}</TableCell>
                         <TableCell className="text-right text-gray-600">
                           {formatCurrency(row.avgSupplierCost)}
@@ -279,7 +366,7 @@ export default function ProductSizesManagement() {
                                 <Edit className="w-4 h-4 text-blue-600" />
                               </Button>
                               {/* Only show delete button for the first media type of each size */}
-                              {pricingData.findIndex(p => p.size.id === row.size.id) === pricingData.findIndex(p => p.size.id === row.size.id && p.mediaType === row.mediaType) && (
+                              {filteredData.findIndex(p => p.size.id === row.size.id) === filteredData.findIndex(p => p.size.id === row.size.id && p.mediaType === row.mediaType) && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -294,7 +381,13 @@ export default function ProductSizesManagement() {
                         </TableCell>
                       </TableRow>
                     );
-                  })}
+                  }) : (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center text-gray-500 py-8">
+                        No sizes match the current filters
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </div>

@@ -2700,6 +2700,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const records = skus.map(sku => ({
         'SKU': sku.sku,
         'Product Title': sku.productTitle,
+        'Product External ID': sku.productExternalId || '',
         'Media Type': sku.mediaType,
         'Size Label': sku.sizeLabel,
         'Active': sku.isActive ? 'Yes' : 'No'

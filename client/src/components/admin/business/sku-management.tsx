@@ -337,15 +337,20 @@ export default function SKUManagement() {
 
     if (!product || !size) return;
 
-    // Extract first 5 characters (alphanumeric only) from product title
-    const productPrefix = product.title
-      .replace(/[^a-zA-Z0-9]/g, "")
-      .substring(0, 5)
-      .toUpperCase();
+    // Extract 4-digit year from product title
+    const yearMatch = product.title.match(/\b(20\d{2}|19\d{2})\b/);
+    const yearSuffix = yearMatch ? yearMatch[1].slice(-2) : "";
     
-    // Extract last 2 digits from product title (assumes it's a year)
-    const yearMatch = product.title.match(/(\d{2})(?!.*\d{2})/);
-    const yearSuffix = yearMatch ? yearMatch[1] : "";
+    // Get product name (everything before the year, or entire title if no year)
+    let productName = product.title;
+    if (yearMatch) {
+      productName = product.title.substring(0, product.title.indexOf(yearMatch[0]));
+    }
+    
+    // Clean product name: remove spaces and special characters, convert to uppercase
+    const productPrefix = productName
+      .replace(/[^a-zA-Z0-9]/g, "")
+      .toUpperCase();
     
     // Get media code (already uppercase)
     const mediaCode = getMediaCode(mediaType);
@@ -356,7 +361,7 @@ export default function SKUManagement() {
       .replace(/["'`]/g, "")
       .toUpperCase();
 
-    // Format: FIRST5YY-MTL-36X48 (no spaces, all uppercase)
+    // Format: PRODUCTNAMEYY-MTL-36X48 (no spaces, all uppercase)
     const parts = [productPrefix + yearSuffix, mediaCode, sizeCode];
     const generatedSKU = parts.join("-").replace(/\s+/g, "");
     productSKUForm.setValue("sku", generatedSKU);

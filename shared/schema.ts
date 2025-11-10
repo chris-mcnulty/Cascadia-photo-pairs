@@ -324,12 +324,14 @@ export const products = pgTable("products", {
   description: text("description"),
   originalDate: timestamp("original_date"),
   aspectRatio: varchar("aspect_ratio").notNull(), // "3x2", "2x3", "16x9", "1x1", etc. - orientation specific!
+  externalId: varchar("external_id"), // External ID for integration with other systems (e.g., Etsy, Amazon)
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_products_photo").on(table.photoId),
   index("idx_products_aspect_ratio").on(table.aspectRatio),
+  index("idx_products_external_id").on(table.externalId),
 ]);
 
 // Product variants (same product in different media types)

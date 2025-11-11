@@ -78,6 +78,8 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
   const [isAddingSize, setIsAddingSize] = useState(false);
   const [selectedProductAspectRatio, setSelectedProductAspectRatio] = useState<string | null>(null);
   const [productSearchOpen, setProductSearchOpen] = useState(false);
+  const [isManualPrice, setIsManualPrice] = useState(false);
+  const [lastAutoFilledPrice, setLastAutoFilledPrice] = useState<string | null>(null);
 
   const { data: products } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -92,6 +94,16 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
   const { data: suppliers } = useQuery<Supplier[]>({
     queryKey: ["/api/admin/suppliers"],
     enabled: open,
+  });
+
+  // Watch for size and media type changes to auto-fill price
+  const watchedSizeId = form.watch("productSizeId");
+  const watchedMediaType = form.watch("mediaType");
+
+  // Fetch retail price when size and media type are both selected
+  const { data: retailPriceData, isLoading: isLoadingPrice } = useQuery<{ retailPrice: number } | null>({
+    queryKey: ["/api/admin/retail-prices", watchedSizeId, watchedMediaType],
+    enabled: open && !!watchedSizeId && !!watchedMediaType,
   });
 
   // Sort products by name/title alphabetically
@@ -142,6 +154,9 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
       if (product) {
         setSelectedProductAspectRatio(product.aspectRatio);
       }
+      // Reset manual price flag when editing
+      setIsManualPrice(false);
+      setLastAutoFilledPrice(null);
     } else {
       form.reset({
         productId: "",
@@ -156,8 +171,29 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
         notes: "",
       });
       setSelectedProductAspectRatio(null);
+      setIsManualPrice(false);
+      setLastAutoFilledPrice(null);
     }
   }, [editingItem, form, open, products]);
+
+  // Auto-fill price when retail price data is available
+  useEffect(() => {
+    // Only auto-fill if user hasn't manually entered a price
+    if (!isManualPrice && retailPriceData && retailPriceData.retailPrice !== undefined) {
+      const priceInDollars = (retailPriceData.retailPrice / 100).toFixed(2);
+      setLastAutoFilledPrice(priceInDollars);
+      form.setValue("listPrice", priceInDollars);
+    } else if (!isManualPrice && retailPriceData === null) {
+      // No retail price found - clear the field
+      form.setValue("listPrice", "");
+      setLastAutoFilledPrice(null);
+    }
+  }, [retailPriceData, isManualPrice, form]);
+
+  // Reset manual price flag when size or media type changes
+  useEffect(() => {
+    setIsManualPrice(false);
+  }, [watchedSizeId, watchedMediaType]);
 
   const handleAddCustomSize = async () => {
     if (!newSizeLabel.trim()) {
@@ -493,9 +529,27 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
                         step="0.01"
                         placeholder="0.00"
                         {...field}
+                        onChange={(e) => {
+                          field.onChange(e);
+                          // Mark as manual if user changes the value
+                          const currentValue = e.target.value;
+                          if (currentValue !== lastAutoFilledPrice) {
+                            setIsManualPrice(true);
+                          }
+                        }}
+                        disabled={isLoadingPrice}
                         data-testid="input-list-price"
                       />
                     </FormControl>
+                    {isLoadingPrice && (
+                      <p className="text-xs text-muted-foreground">Loading price...</p>
+                    )}
+                    {!isLoadingPrice && watchedSizeId && watchedMediaType && !field.value && (
+                      <p className="text-xs text-amber-600">No retail price found for this size/media combination. Please enter a price or update retail pricing.</p>
+                    )}
+                    {!isLoadingPrice && field.value && !isManualPrice && (
+                      <p className="text-xs text-green-600">Auto-filled from retail pricing</p>
+                    )}
                     <FormMessage />
                   </FormItem>
                 )}

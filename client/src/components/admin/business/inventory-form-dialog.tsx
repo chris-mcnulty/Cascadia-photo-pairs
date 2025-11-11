@@ -96,6 +96,23 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
     enabled: open,
   });
 
+  // Initialize form first, before using form.watch
+  const form = useForm<InventoryFormData>({
+    resolver: zodResolver(inventorySchema),
+    defaultValues: {
+      productId: "",
+      supplierId: "",
+      mediaType: "ChromaLuxe",
+      productSizeId: "",
+      acquisitionCost: "",
+      listPrice: "",
+      status: "ordered",
+      purchaseDate: "",
+      soldDate: "",
+      notes: "",
+    },
+  });
+
   // Watch for size and media type changes to auto-fill price
   const watchedSizeId = form.watch("productSizeId");
   const watchedMediaType = form.watch("mediaType");
@@ -118,22 +135,6 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
   const filteredProductSizes = convertedAspectRatio
     ? productSizes?.filter(size => size.aspectRatio === convertedAspectRatio)
     : productSizes;
-
-  const form = useForm<InventoryFormData>({
-    resolver: zodResolver(inventorySchema),
-    defaultValues: {
-      productId: "",
-      supplierId: "",
-      mediaType: "ChromaLuxe",
-      productSizeId: "",
-      acquisitionCost: "",
-      listPrice: "",
-      status: "ordered",
-      purchaseDate: "",
-      soldDate: "",
-      notes: "",
-    },
-  });
 
   useEffect(() => {
     if (editingItem) {
@@ -181,14 +182,24 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
     // Only auto-fill if user hasn't manually entered a price
     if (!isManualPrice && retailPriceData && retailPriceData.retailPrice !== undefined) {
       const priceInDollars = (retailPriceData.retailPrice / 100).toFixed(2);
-      setLastAutoFilledPrice(priceInDollars);
-      form.setValue("listPrice", priceInDollars);
-    } else if (!isManualPrice && retailPriceData === null) {
-      // No retail price found - clear the field
+      const currentPrice = form.getValues("listPrice");
+      
+      // Don't overwrite existing prices when editing (they may be intentional manual overrides)
+      if (editingItem && currentPrice && currentPrice !== priceInDollars) {
+        // This is an existing manual price, preserve it
+        setIsManualPrice(true);
+        setLastAutoFilledPrice(null);
+      } else {
+        // Auto-fill for new items or when creating
+        setLastAutoFilledPrice(priceInDollars);
+        form.setValue("listPrice", priceInDollars);
+      }
+    } else if (!isManualPrice && retailPriceData === null && !editingItem) {
+      // No retail price found - clear the field only for new items
       form.setValue("listPrice", "");
       setLastAutoFilledPrice(null);
     }
-  }, [retailPriceData, isManualPrice, form]);
+  }, [retailPriceData, isManualPrice, form, editingItem]);
 
   // Reset manual price flag when size or media type changes
   useEffect(() => {

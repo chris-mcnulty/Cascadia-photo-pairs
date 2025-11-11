@@ -11,6 +11,9 @@ import {
   type DropShipOrder, type InsertDropShipOrder, type ExpenseCategory, type InsertExpenseCategory,
   type Expense, type InsertExpense
 } from "@shared/schema";
+
+// DTO for expenses enriched with category name
+export type ExpenseWithCategory = Expense & { categoryName: string };
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { photos, votes, settings, collections, photoPairs, pairVotes, products, productVariants, productSKUs, channelSKUs, retailPrices, salesChannels, suppliers, productSizes, supplierPrices, sales, orders, orderItems, inventoryItems, dropShipOrders, expenseCategories, expenses } from "@shared/schema";
@@ -197,13 +200,13 @@ export interface IStorage {
   deleteExpenseCategory(id: string): Promise<boolean>;
   
   // Expenses
-  getAllExpenses(startDate?: Date, endDate?: Date): Promise<Expense[]>;
-  getExpense(id: string): Promise<Expense | undefined>;
+  getAllExpenses(startDate?: Date, endDate?: Date): Promise<ExpenseWithCategory[]>;
+  getExpense(id: string): Promise<ExpenseWithCategory | undefined>;
   createExpense(expense: InsertExpense): Promise<Expense>;
   updateExpense(id: string, updates: Partial<Expense>): Promise<Expense | undefined>;
   deleteExpense(id: string): Promise<boolean>;
-  getExpensesByCategory(categoryId: string): Promise<Expense[]>;
-  getExpensesByVendor(vendor: string): Promise<Expense[]>;
+  getExpensesByCategory(categoryId: string): Promise<ExpenseWithCategory[]>;
+  getExpensesByVendor(vendor: string): Promise<ExpenseWithCategory[]>;
 }
 
 export class MemStorage implements IStorage {
@@ -842,13 +845,13 @@ export class MemStorage implements IStorage {
   async updateExpenseCategory(id: string, updates: Partial<ExpenseCategory>): Promise<ExpenseCategory | undefined> { return undefined; }
   async deleteExpenseCategory(id: string): Promise<boolean> { return false; }
   
-  async getAllExpenses(startDate?: Date, endDate?: Date): Promise<Expense[]> { return []; }
-  async getExpense(id: string): Promise<Expense | undefined> { return undefined; }
+  async getAllExpenses(startDate?: Date, endDate?: Date): Promise<ExpenseWithCategory[]> { return []; }
+  async getExpense(id: string): Promise<ExpenseWithCategory | undefined> { return undefined; }
   async createExpense(expense: InsertExpense): Promise<Expense> { throw new Error('Not implemented in MemStorage'); }
   async updateExpense(id: string, updates: Partial<Expense>): Promise<Expense | undefined> { return undefined; }
   async deleteExpense(id: string): Promise<boolean> { return false; }
-  async getExpensesByCategory(categoryId: string): Promise<Expense[]> { return []; }
-  async getExpensesByVendor(vendor: string): Promise<Expense[]> { return []; }
+  async getExpensesByCategory(categoryId: string): Promise<ExpenseWithCategory[]> { return []; }
+  async getExpensesByVendor(vendor: string): Promise<ExpenseWithCategory[]> { return []; }
 }
 
 // DatabaseStorage implementation
@@ -2864,34 +2867,60 @@ export class DatabaseStorage implements IStorage {
   // EXPENSES METHODS
   // ============================================
   
-  async getAllExpenses(startDate?: Date, endDate?: Date): Promise<Expense[]> {
+  async getAllExpenses(startDate?: Date, endDate?: Date): Promise<ExpenseWithCategory[]> {
+    let query = db
+      .select({
+        id: expenses.id,
+        categoryId: expenses.categoryId,
+        vendor: expenses.vendor,
+        amount: expenses.amount,
+        expenseDate: expenses.expenseDate,
+        purpose: expenses.purpose,
+        receiptUrl: expenses.receiptUrl,
+        receiptFileName: expenses.receiptFileName,
+        notes: expenses.notes,
+        createdAt: expenses.createdAt,
+        updatedAt: expenses.updatedAt,
+        categoryName: expenseCategories.name,
+      })
+      .from(expenses)
+      .innerJoin(expenseCategories, eq(expenses.categoryId, expenseCategories.id))
+      .orderBy(desc(expenses.expenseDate))
+      .$dynamic();
+
     if (startDate && endDate) {
-      return await db
-        .select()
-        .from(expenses)
-        .where(and(
-          gte(expenses.expenseDate, startDate),
-          lte(expenses.expenseDate, endDate)
-        ))
-        .orderBy(desc(expenses.expenseDate));
+      query = query.where(and(
+        gte(expenses.expenseDate, startDate),
+        lte(expenses.expenseDate, endDate)
+      ));
     } else if (startDate) {
-      return await db
-        .select()
-        .from(expenses)
-        .where(gte(expenses.expenseDate, startDate))
-        .orderBy(desc(expenses.expenseDate));
+      query = query.where(gte(expenses.expenseDate, startDate));
     } else if (endDate) {
-      return await db
-        .select()
-        .from(expenses)
-        .where(lte(expenses.expenseDate, endDate))
-        .orderBy(desc(expenses.expenseDate));
+      query = query.where(lte(expenses.expenseDate, endDate));
     }
-    return await db.select().from(expenses).orderBy(desc(expenses.expenseDate));
+    
+    return await query;
   }
 
-  async getExpense(id: string): Promise<Expense | undefined> {
-    const [expense] = await db.select().from(expenses).where(eq(expenses.id, id));
+  async getExpense(id: string): Promise<ExpenseWithCategory | undefined> {
+    const [expense] = await db
+      .select({
+        id: expenses.id,
+        categoryId: expenses.categoryId,
+        vendor: expenses.vendor,
+        amount: expenses.amount,
+        expenseDate: expenses.expenseDate,
+        purpose: expenses.purpose,
+        receiptUrl: expenses.receiptUrl,
+        receiptFileName: expenses.receiptFileName,
+        notes: expenses.notes,
+        createdAt: expenses.createdAt,
+        updatedAt: expenses.updatedAt,
+        categoryName: expenseCategories.name,
+      })
+      .from(expenses)
+      .innerJoin(expenseCategories, eq(expenses.categoryId, expenseCategories.id))
+      .where(eq(expenses.id, id));
     return expense;
   }
 
@@ -2914,18 +2943,46 @@ export class DatabaseStorage implements IStorage {
     return (result.rowCount || 0) > 0;
   }
 
-  async getExpensesByCategory(categoryId: string): Promise<Expense[]> {
+  async getExpensesByCategory(categoryId: string): Promise<ExpenseWithCategory[]> {
     return await db
-      .select()
+      .select({
+        id: expenses.id,
+        categoryId: expenses.categoryId,
+        vendor: expenses.vendor,
+        amount: expenses.amount,
+        expenseDate: expenses.expenseDate,
+        purpose: expenses.purpose,
+        receiptUrl: expenses.receiptUrl,
+        receiptFileName: expenses.receiptFileName,
+        notes: expenses.notes,
+        createdAt: expenses.createdAt,
+        updatedAt: expenses.updatedAt,
+        categoryName: expenseCategories.name,
+      })
       .from(expenses)
+      .innerJoin(expenseCategories, eq(expenses.categoryId, expenseCategories.id))
       .where(eq(expenses.categoryId, categoryId))
       .orderBy(desc(expenses.expenseDate));
   }
 
-  async getExpensesByVendor(vendor: string): Promise<Expense[]> {
+  async getExpensesByVendor(vendor: string): Promise<ExpenseWithCategory[]> {
     return await db
-      .select()
+      .select({
+        id: expenses.id,
+        categoryId: expenses.categoryId,
+        vendor: expenses.vendor,
+        amount: expenses.amount,
+        expenseDate: expenses.expenseDate,
+        purpose: expenses.purpose,
+        receiptUrl: expenses.receiptUrl,
+        receiptFileName: expenses.receiptFileName,
+        notes: expenses.notes,
+        createdAt: expenses.createdAt,
+        updatedAt: expenses.updatedAt,
+        categoryName: expenseCategories.name,
+      })
       .from(expenses)
+      .innerJoin(expenseCategories, eq(expenses.categoryId, expenseCategories.id))
       .where(eq(expenses.vendor, vendor))
       .orderBy(desc(expenses.expenseDate));
   }

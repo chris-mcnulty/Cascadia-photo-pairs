@@ -12,6 +12,14 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2 } from "lucide-react";
+import { isValid, parseISO } from "date-fns";
+
+// Utility function to safely parse dates for form input
+const parseDateForInput = (dateString: string | undefined | null): string => {
+  if (!dateString) return new Date().toISOString().split("T")[0];
+  const date = parseISO(dateString);
+  return isValid(date) ? date.toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
+};
 
 interface ExpenseCategory {
   id: string;
@@ -22,8 +30,9 @@ interface Expense {
   id: string;
   vendor: string;
   amount: number;
-  date: string;
+  expenseDate: string;
   categoryId: string;
+  categoryName?: string;
   purpose?: string;
   receiptUrl?: string;
   notes?: string;
@@ -73,7 +82,7 @@ export default function ExpenseFormDialog({ open, onClose, editingExpense }: Exp
       form.reset({
         vendor: editingExpense.vendor,
         amount: (editingExpense.amount / 100).toFixed(2),
-        date: new Date(editingExpense.date).toISOString().split("T")[0],
+        date: parseDateForInput(editingExpense.expenseDate),
         categoryId: editingExpense.categoryId,
         purpose: editingExpense.purpose || "",
         receiptUrl: editingExpense.receiptUrl || "",

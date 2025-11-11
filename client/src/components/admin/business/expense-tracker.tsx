@@ -9,13 +9,20 @@ import { Plus, Edit, Trash2, FileText } from "lucide-react";
 import ExpenseFormDialog from "./expense-form-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { format } from "date-fns";
+import { format, isValid, parseISO } from "date-fns";
+
+// Utility function to safely format dates
+const formatExpenseDate = (dateString: string | undefined | null): string => {
+  if (!dateString) return "—";
+  const date = parseISO(dateString);
+  return isValid(date) ? format(date, "MM/dd/yyyy") : "—";
+};
 
 interface Expense {
   id: string;
   vendor: string;
   amount: number;
-  date: string;
+  expenseDate: string;
   categoryName: string;
   purpose?: string;
   receiptUrl?: string;
@@ -149,7 +156,7 @@ export default function ExpenseTracker() {
                   expenses.map((expense) => (
                     <TableRow key={expense.id} data-testid={`row-expense-${expense.id}`}>
                       <TableCell className="text-sm">
-                        {format(new Date(expense.date), "MM/dd/yyyy")}
+                        {formatExpenseDate(expense.expenseDate)}
                       </TableCell>
                       <TableCell className="text-sm font-medium">{expense.vendor}</TableCell>
                       <TableCell className="text-sm">{expense.categoryName}</TableCell>

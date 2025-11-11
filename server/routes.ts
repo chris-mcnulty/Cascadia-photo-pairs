@@ -2502,7 +2502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/product-sizes", isAuthenticated, async (req, res) => {
     try {
       // Parse size label like "60x45" to extract dimensions
-      const { sizeLabel } = req.body;
+      const { sizeLabel, mediaType } = req.body;
       
       if (!sizeLabel || typeof sizeLabel !== 'string') {
         return res.status(400).json({ message: "Size label is required" });
@@ -2538,6 +2538,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       const size = await storage.createProductSize(validatedData);
+      
+      // If mediaType is provided, create an initial retail_prices entry
+      if (mediaType && typeof mediaType === 'string') {
+        // Create a placeholder retail price entry (price = 0) for the specified media type
+        // User can edit this later
+        await storage.setRetailPrice(
+          size.id,
+          mediaType,
+          0, // Placeholder price in cents
+          'Initial size creation'
+        );
+      }
+      
       res.status(201).json(size);
     } catch (error) {
       console.error('Error creating product size:', error);

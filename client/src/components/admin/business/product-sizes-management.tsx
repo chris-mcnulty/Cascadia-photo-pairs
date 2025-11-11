@@ -26,9 +26,12 @@ interface PricingData {
   marginPercent: number | null;
 }
 
+const MEDIA_TYPES = ["ChromaLuxe", "Magnet", "Framed Archival", "Canvas", "Metal", "Acrylic"];
+
 export default function ProductSizesManagement() {
   const { toast } = useToast();
   const [newSizeLabel, setNewSizeLabel] = useState("");
+  const [newMediaType, setNewMediaType] = useState("ChromaLuxe");
   const [isAdding, setIsAdding] = useState(false);
   const [editingRow, setEditingRow] = useState<{sizeId: string; mediaType: string} | null>(null);
   const [editPrice, setEditPrice] = useState("");
@@ -118,16 +121,18 @@ export default function ProductSizesManagement() {
     try {
       await apiRequest("POST", "/api/admin/product-sizes", {
         sizeLabel: newSizeLabel.trim(),
+        mediaType: newMediaType,
       });
 
       await queryClient.invalidateQueries({ queryKey: ["/api/admin/product-sizes/pricing"] });
 
       toast({
         title: "Success",
-        description: `Size "${newSizeLabel}" added successfully`,
+        description: `Size "${newSizeLabel}" added for ${newMediaType}`,
       });
 
       setNewSizeLabel("");
+      setNewMediaType("ChromaLuxe");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -210,7 +215,7 @@ export default function ProductSizesManagement() {
           {/* Add New Size */}
           <div className="flex gap-2">
             <Input
-              placeholder="Enter size (e.g., 60x45)"
+              placeholder="Enter size (e.g., 3 X 2)"
               value={newSizeLabel}
               onChange={(e) => setNewSizeLabel(e.target.value)}
               onKeyDown={(e) => {
@@ -218,8 +223,21 @@ export default function ProductSizesManagement() {
                   handleAddSize();
                 }
               }}
+              className="flex-1"
               data-testid="input-new-size"
             />
+            <Select value={newMediaType} onValueChange={setNewMediaType}>
+              <SelectTrigger className="w-[180px]" data-testid="select-new-media-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MEDIA_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Button 
               onClick={handleAddSize} 
               disabled={isAdding}

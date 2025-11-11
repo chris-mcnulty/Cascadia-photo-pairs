@@ -95,6 +95,7 @@ Preferred communication style: Simple, everyday language.
   - **CSV Import**: Wix historical data import with UTF-8 BOM handling
   - **Product Architecture**: Comprehensive system separating products from photos, with variants, SKUs, and channel SKUs
   - **Data Migration**: Legacy sales table preserved for backward compatibility; existing sales migrated to orders+order_items structure
+  - **Auto-fill List Price**: Inventory form automatically fetches and populates list price from retail_prices table based on selected product size and media type. Features manual override detection, loading states, and helper messages. Preserves intentional manual price overrides when editing existing items.
 - **User Features**: Personalized statistics, contest entry, favorites, purchase history, and client-side personal leaderboard.
 - **Photo Management**: Inline editing, drag-and-drop uploads, and smart handling of photo sources.
 - **Collections**: Organization of photos into themed groups.
@@ -130,3 +131,19 @@ Preferred communication style: Simple, everyday language.
 - **Node.js**: JavaScript runtime environment.
 - **Express.js**: Web application framework for backend.
 - **Replit**: Supported deployment platform.
+
+## Backlog Items
+
+### High Priority
+1. **Multi-item Order Management System**: Build dedicated orders workflow using the orders/order_items tables to replace the legacy single-item sales form. Features needed:
+   - Order header with order number, customer info, totals
+   - Dynamic list of order items with add/remove capability
+   - Integration with existing inventory and product systems
+   - Migration plan for legacy sales data to orders structure
+   - Support for external platform order numbers (Etsy, Amazon, etc.)
+
+### Medium Priority
+2. **Separate Production/Development Databases**: Currently production and development share the same DATABASE_URL. Need separate database instances to prevent data corruption during testing.
+
+### Completed
+- ✅ Auto-fill list price feature for inventory items (completed 2024-11)

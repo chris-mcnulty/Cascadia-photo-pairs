@@ -31,13 +31,23 @@ interface StatsData {
 
 export default function AdminAnalytics() {
   const { toast } = useToast();
+  // Pending filters (user input - changes on every keystroke)
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedVoterType, setSelectedVoterType] = useState<string>("all");
+  
+  // Applied filters (only update when user clicks Apply - used for query)
+  const [appliedFilters, setAppliedFilters] = useState({
+    startDate: "",
+    endDate: "",
+    category: "all",
+    voterType: "all",
+  });
+  
   const [purgeDate, setPurgeDate] = useState("");
   const [showPurgeConfirm, setShowPurgeConfirm] = useState(false);
   const [sortBy, setSortBy] = useState<"votes" | "winRate">("votes");
-  const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [selectedVoterType, setSelectedVoterType] = useState<string>("all");
   const [rankingLimit, setRankingLimit] = useState<number>(20);
   const [isPurgeSectionOpen, setIsPurgeSectionOpen] = useState(false);
   const [reverseSort, setReverseSort] = useState(false);
@@ -46,14 +56,14 @@ export default function AdminAnalytics() {
   const [showEditDialog, setShowEditDialog] = useState(false);
 
   const { data: stats, isLoading } = useQuery<StatsData>({
-    queryKey: ["/api/stats", startDate, endDate, selectedCategory, selectedVoterType],
+    queryKey: ["/api/stats", appliedFilters.startDate, appliedFilters.endDate, appliedFilters.category, appliedFilters.voterType],
     enabled: true,
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (startDate) params.append("startDate", startDate);
-      if (endDate) params.append("endDate", endDate);
-      if (selectedCategory !== "all") params.append("category", selectedCategory);
-      if (selectedVoterType !== "all") params.append("voterType", selectedVoterType);
+      if (appliedFilters.startDate) params.append("startDate", appliedFilters.startDate);
+      if (appliedFilters.endDate) params.append("endDate", appliedFilters.endDate);
+      if (appliedFilters.category !== "all") params.append("category", appliedFilters.category);
+      if (appliedFilters.voterType !== "all") params.append("voterType", appliedFilters.voterType);
       
       const sessionId = localStorage.getItem('admin-session-id');
       const response = await fetch(`/api/stats?${params.toString()}`, {
@@ -125,7 +135,7 @@ export default function AdminAnalytics() {
     },
   });
 
-  const handleDateFilter = () => {
+  const handleApplyFilters = () => {
     if (startDate && endDate && startDate > endDate) {
       toast({
         title: "Invalid date range",
@@ -134,14 +144,33 @@ export default function AdminAnalytics() {
       });
       return;
     }
-    queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    setAppliedFilters({
+      startDate,
+      endDate,
+      category: selectedCategory,
+      voterType: selectedVoterType,
+    });
   };
 
-  const clearDateFilter = () => {
+  const clearFilters = () => {
     setStartDate("");
     setEndDate("");
-    queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    setSelectedCategory("all");
+    setSelectedVoterType("all");
+    setAppliedFilters({
+      startDate: "",
+      endDate: "",
+      category: "all",
+      voterType: "all",
+    });
   };
+
+  // Check if pending filters differ from applied filters
+  const hasUnappliedChanges = 
+    startDate !== appliedFilters.startDate ||
+    endDate !== appliedFilters.endDate ||
+    selectedCategory !== appliedFilters.category ||
+    selectedVoterType !== appliedFilters.voterType;
 
   const handlePurgeTestData = () => {
     if (!purgeDate) {
@@ -278,7 +307,7 @@ export default function AdminAnalytics() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Date Range Filter */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="startDate">Start Date</Label>
               <Input
@@ -286,6 +315,7 @@ export default function AdminAnalytics() {
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
+                data-testid="input-start-date"
               />
             </div>
             <div>
@@ -295,26 +325,13 @@ export default function AdminAnalytics() {
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
+                data-testid="input-end-date"
               />
             </div>
-            <div className="flex items-end gap-2">
-              <Button onClick={handleDateFilter} className="flex-1">
-                Apply Filter
-              </Button>
-              {(startDate || endDate) && (
-                <Button variant="outline" onClick={clearDateFilter}>
-                  Clear
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Category and Voter Type Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="category">Photo Category</Label>
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                <SelectTrigger>
+                <SelectTrigger data-testid="select-category">
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -330,7 +347,7 @@ export default function AdminAnalytics() {
             <div>
               <Label htmlFor="voterType">Voter Type</Label>
               <Select value={selectedVoterType} onValueChange={setSelectedVoterType}>
-                <SelectTrigger>
+                <SelectTrigger data-testid="select-voter-type">
                   <SelectValue placeholder="Select voter type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -340,6 +357,27 @@ export default function AdminAnalytics() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          {/* Apply / Clear Buttons */}
+          <div className="flex items-center gap-2">
+            <Button 
+              onClick={handleApplyFilters} 
+              disabled={!hasUnappliedChanges}
+              data-testid="button-apply-filters"
+            >
+              Apply Filters
+            </Button>
+            {(appliedFilters.startDate || appliedFilters.endDate || appliedFilters.category !== "all" || appliedFilters.voterType !== "all") && (
+              <Button variant="outline" onClick={clearFilters} data-testid="button-clear-filters">
+                Clear All
+              </Button>
+            )}
+            {hasUnappliedChanges && (
+              <span className="text-sm text-amber-600 dark:text-amber-400">
+                Click "Apply Filters" to update results
+              </span>
+            )}
           </div>
           
           {stats?.dateRange && (

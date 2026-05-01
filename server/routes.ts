@@ -3258,6 +3258,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Normalize empty strings to null for unique-constrained fields
       if (validatedData.externalId === "") validatedData.externalId = null;
       
+      // Ensure aspectRatios array always includes the primary aspectRatio
+      if (validatedData.aspectRatio) {
+        const ratios = Array.isArray(validatedData.aspectRatios) ? [...validatedData.aspectRatios] : [];
+        if (!ratios.includes(validatedData.aspectRatio)) {
+          ratios.unshift(validatedData.aspectRatio);
+        }
+        validatedData.aspectRatios = ratios;
+      }
+      
       // If a photoId is provided, copy title, description, and originalDate from the photo
       let finalData = { ...validatedData };
       if (validatedData.photoId) {
@@ -3295,6 +3304,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Normalize empty strings to null for unique-constrained fields
       if (validatedData.externalId === "") validatedData.externalId = null;
+      
+      // Ensure aspectRatios array always includes the primary aspectRatio
+      if (validatedData.aspectRatio || validatedData.aspectRatios) {
+        const currentProduct = validatedData.aspectRatio ? null : await storage.getProduct(id);
+        const primary = validatedData.aspectRatio || currentProduct?.aspectRatio;
+        const ratios = Array.isArray(validatedData.aspectRatios) ? [...validatedData.aspectRatios] : [];
+        if (primary && !ratios.includes(primary)) {
+          ratios.unshift(primary);
+        }
+        if (ratios.length > 0) {
+          validatedData.aspectRatios = ratios;
+        }
+      }
       
       // If a photoId is being updated and title/description/originalDate are not provided, copy from photo
       let finalData = { ...validatedData };

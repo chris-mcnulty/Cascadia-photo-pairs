@@ -147,3 +147,4 @@ Preferred communication style: Simple, everyday language.
 
 ### Completed
 - ✅ Auto-fill list price feature for inventory items (completed 2024-11)
+- ✅ Multi-aspect-ratio products (completed 2026-05): Products now support multiple aspect ratios via `aspectRatios: text[]` column on `products` table while keeping singular `aspectRatio` as the "primary". Product management UI uses a checkbox grid with a "Set primary" toggle per ratio. SKU management and inventory-form-dialog filter eligible product sizes by ANY of the product's allowed aspect ratios (with normalization handling `3x2`, `3:2`, `3X2`, `3×2`). POST/PATCH `/api/products` auto-include the primary ratio in the array. Existing products were backfilled with `aspect_ratios = ARRAY[aspect_ratio]`.

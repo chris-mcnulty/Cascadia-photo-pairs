@@ -115,20 +115,25 @@ export default function SKUManagement() {
   // Watch the selected product ID
   const selectedProductId = productSKUForm.watch("productId");
   
-  // Filter sizes based on selected product's aspect ratio
+  // Filter sizes based on selected product's allowed aspect ratios (supports multiple)
   const eligibleSizes = useMemo(() => {
     if (!productSizes || !selectedProductId || !products) return productSizes || [];
     
     const selectedProduct = products.find(p => p.id === selectedProductId);
     if (!selectedProduct) return productSizes;
     
-    // Normalize aspect ratio for comparison (handle both "3:2" and "3x2" formats)
+    // Normalize aspect ratio for comparison (handle "3:2", "3x2", "3X2", "3×2" formats)
     const normalizeAspectRatio = (ratio: string) => ratio.toLowerCase().replace(/[x×]/g, ':');
-    const productRatio = normalizeAspectRatio(selectedProduct.aspectRatio);
     
-    // Filter sizes that match the product's aspect ratio
+    // Build the set of allowed ratios: prefer aspectRatios array, fall back to single aspectRatio
+    const allowedRatiosRaw = (selectedProduct.aspectRatios && selectedProduct.aspectRatios.length > 0)
+      ? selectedProduct.aspectRatios
+      : [selectedProduct.aspectRatio];
+    const allowedRatios = new Set(allowedRatiosRaw.map(normalizeAspectRatio));
+    
+    // Filter sizes whose aspect ratio matches any of the product's allowed ratios
     return productSizes.filter(size => 
-      normalizeAspectRatio(size.aspectRatio) === productRatio
+      allowedRatios.has(normalizeAspectRatio(size.aspectRatio))
     );
   }, [productSizes, selectedProductId, products]);
 
@@ -887,7 +892,11 @@ export default function SKUManagement() {
                                       if (selectedProduct && currentSizeObj) {
                                         // Normalize aspect ratios for comparison (handle both "3:2" and "3x2")
                                         const normalizeRatio = (ratio: string) => ratio.toLowerCase().replace(/[x×]/g, ':');
-                                        if (normalizeRatio(currentSizeObj.aspectRatio) !== normalizeRatio(selectedProduct.aspectRatio)) {
+                                        const allowedRatios = (selectedProduct.aspectRatios && selectedProduct.aspectRatios.length > 0)
+                                          ? selectedProduct.aspectRatios
+                                          : [selectedProduct.aspectRatio];
+                                        const allowedSet = new Set(allowedRatios.map(normalizeRatio));
+                                        if (!allowedSet.has(normalizeRatio(currentSizeObj.aspectRatio))) {
                                           productSKUForm.setValue("productSizeId", "");
                                         }
                                       }

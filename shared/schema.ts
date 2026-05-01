@@ -323,7 +323,8 @@ export const products = pgTable("products", {
   title: varchar("title").notNull(),
   description: text("description"),
   originalDate: timestamp("original_date"),
-  aspectRatio: varchar("aspect_ratio").notNull(), // "3x2", "2x3", "16x9", "1x1", etc. - orientation specific!
+  aspectRatio: varchar("aspect_ratio").notNull(), // Primary aspect ratio - used for default thumbnail and gallery preview
+  aspectRatios: text("aspect_ratios").array().notNull().default(sql`ARRAY[]::text[]`), // All aspect ratios available for this product (e.g., ["16x9", "3x2"]). Primary aspectRatio is auto-included.
   externalId: varchar("external_id").unique(), // External ID for integration with other systems (e.g., Etsy, Amazon) - must be unique
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

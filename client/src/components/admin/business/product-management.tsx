@@ -63,7 +63,8 @@ import { cn } from "@/lib/utils";
 const productFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   photoId: z.string().nullable(),
-  aspectRatio: z.string().min(1, "Aspect ratio is required"),
+  aspectRatio: z.string().min(1, "A primary aspect ratio is required"),
+  aspectRatios: z.array(z.string()).min(1, "At least one aspect ratio is required"),
   description: z.string().optional(),
   externalId: z.string().optional(),
   isActive: z.boolean(),
@@ -110,6 +111,7 @@ export default function ProductManagement() {
       title: "",
       photoId: null,
       aspectRatio: "3x2",
+      aspectRatios: ["3x2"],
       description: "",
       externalId: "",
       isActive: true,
@@ -187,10 +189,14 @@ export default function ProductManagement() {
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
+    const ratios = (product.aspectRatios && product.aspectRatios.length > 0)
+      ? product.aspectRatios
+      : [product.aspectRatio];
     form.reset({
       title: product.title,
       photoId: product.photoId,
       aspectRatio: product.aspectRatio,
+      aspectRatios: ratios.includes(product.aspectRatio) ? ratios : [product.aspectRatio, ...ratios],
       description: product.description || "",
       externalId: product.externalId || "",
       isActive: product.isActive,
@@ -248,9 +254,12 @@ export default function ProductManagement() {
       );
     }
 
-    // Aspect ratio filter
+    // Aspect ratio filter — match if ANY of the product's ratios match
     if (aspectFilter !== "all") {
-      filtered = filtered.filter(p => p.aspectRatio === aspectFilter);
+      filtered = filtered.filter(p => {
+        const ratios = (p.aspectRatios && p.aspectRatios.length > 0) ? p.aspectRatios : [p.aspectRatio];
+        return ratios.includes(aspectFilter);
+      });
     }
 
     // Photo filter
@@ -283,9 +292,13 @@ export default function ProductManagement() {
     return sorted;
   }, [products, searchTerm, statusFilter, aspectFilter, photoFilter, sortBy, sortOrder]);
 
-  // Get unique aspect ratios from products
+  // Get unique aspect ratios from products (collect from all aspectRatios arrays)
   const availableAspectRatios = useMemo(() => {
-    const ratios = new Set(products.map(p => p.aspectRatio));
+    const ratios = new Set<string>();
+    products.forEach(p => {
+      const r = (p.aspectRatios && p.aspectRatios.length > 0) ? p.aspectRatios : [p.aspectRatio];
+      r.forEach(x => ratios.add(x));
+    });
     return Array.from(ratios).sort();
   }, [products]);
 
@@ -482,7 +495,31 @@ export default function ProductManagement() {
                         </div>
                       </TableCell>
                       <TableCell>{getPhotoName(product.photoId)}</TableCell>
-                      <TableCell>{product.aspectRatio}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const ratios = (product.aspectRatios && product.aspectRatios.length > 0)
+                            ? product.aspectRatios
+                            : [product.aspectRatio];
+                          return (
+                            <div className="flex flex-wrap gap-1" data-testid={`aspect-ratios-${product.id}`}>
+                              {ratios.map(r => (
+                                <span
+                                  key={r}
+                                  className={cn(
+                                    "inline-flex items-center px-2 py-0.5 rounded text-xs font-medium",
+                                    r === product.aspectRatio
+                                      ? "bg-blue-100 text-blue-800"
+                                      : "bg-gray-100 text-gray-700"
+                                  )}
+                                  title={r === product.aspectRatio ? "Primary" : "Additional"}
+                                >
+                                  {r}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                      </TableCell>
                       <TableCell>
                         <span className="text-sm text-muted-foreground font-mono">
                           {product.externalId || "-"}
@@ -678,30 +715,78 @@ export default function ProductManagement() {
 
               <FormField
                 control={form.control}
-                name="aspectRatio"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Aspect Ratio</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger data-testid="select-aspect-ratio">
-                          <SelectValue placeholder="Select aspect ratio" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {aspectRatioOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      The aspect ratio determines compatible print sizes
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
+                name="aspectRatios"
+                render={({ field }) => {
+                  const primary = form.watch("aspectRatio");
+                  const selectedRatios: string[] = field.value || [];
+                  const toggleRatio = (value: string, checked: boolean) => {
+                    if (checked) {
+                      const next = Array.from(new Set([...selectedRatios, value]));
+                      field.onChange(next);
+                    } else {
+                      // Don't allow removing the primary ratio
+                      if (value === primary) return;
+                      const next = selectedRatios.filter(r => r !== value);
+                      field.onChange(next.length > 0 ? next : [primary]);
+                    }
+                  };
+                  const setPrimary = (value: string) => {
+                    form.setValue("aspectRatio", value);
+                    if (!selectedRatios.includes(value)) {
+                      field.onChange([value, ...selectedRatios]);
+                    }
+                  };
+                  return (
+                    <FormItem>
+                      <FormLabel>Aspect Ratios</FormLabel>
+                      <FormDescription>
+                        Check every ratio this product is offered in. Click the star to mark the primary ratio (used for the gallery thumbnail).
+                      </FormDescription>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-2" data-testid="aspect-ratios-grid">
+                        {aspectRatioOptions.map((option) => {
+                          const isChecked = selectedRatios.includes(option.value);
+                          const isPrimary = option.value === primary;
+                          return (
+                            <div
+                              key={option.value}
+                              className={cn(
+                                "flex items-center justify-between gap-2 px-3 py-2 rounded-md border",
+                                isPrimary && "border-blue-400 bg-blue-50",
+                                !isPrimary && isChecked && "border-gray-300 bg-gray-50",
+                                !isChecked && "border-gray-200"
+                              )}
+                            >
+                              <label className="flex items-center gap-2 text-sm cursor-pointer flex-1 min-w-0">
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={(c) => toggleRatio(option.value, !!c)}
+                                  disabled={isPrimary}
+                                  data-testid={`checkbox-aspect-${option.value}`}
+                                />
+                                <span className="truncate">{option.label}</span>
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => setPrimary(option.value)}
+                                className={cn(
+                                  "text-xs px-2 py-0.5 rounded font-medium shrink-0",
+                                  isPrimary
+                                    ? "bg-blue-600 text-white"
+                                    : "text-gray-500 hover:text-blue-600 hover:bg-blue-100"
+                                )}
+                                title={isPrimary ? "Primary ratio" : "Make this the primary ratio"}
+                                data-testid={`button-primary-${option.value}`}
+                              >
+                                {isPrimary ? "Primary" : "Set primary"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  );
+                }}
               />
 
               <FormField

@@ -76,7 +76,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
   const [addSizeDialogOpen, setAddSizeDialogOpen] = useState(false);
   const [newSizeLabel, setNewSizeLabel] = useState("");
   const [isAddingSize, setIsAddingSize] = useState(false);
-  const [selectedProductAspectRatio, setSelectedProductAspectRatio] = useState<string | null>(null);
+  const [selectedProductAspectRatios, setSelectedProductAspectRatios] = useState<string[] | null>(null);
   const [productSearchOpen, setProductSearchOpen] = useState(false);
   const [isManualPrice, setIsManualPrice] = useState(false);
   const [lastAutoFilledPrice, setLastAutoFilledPrice] = useState<string | null>(null);
@@ -129,11 +129,14 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
     return [...products].sort((a, b) => a.title.localeCompare(b.title));
   }, [products]);
 
-  // Filter product sizes based on selected product's aspect ratio
-  // Convert product aspectRatio format (e.g., "3x2") to match product_sizes format (e.g., "3:2")
-  const convertedAspectRatio = selectedProductAspectRatio?.replace('x', ':');
-  const filteredProductSizes = convertedAspectRatio
-    ? productSizes?.filter(size => size.aspectRatio === convertedAspectRatio)
+  // Filter product sizes based on selected product's allowed aspect ratios (supports multiple)
+  // Normalize formats so "3x2", "3:2", "3X2", "3×2" all match
+  const normalizeRatio = (r: string) => r.toLowerCase().replace(/[x×]/g, ':');
+  const allowedRatioSet = selectedProductAspectRatios && selectedProductAspectRatios.length > 0
+    ? new Set(selectedProductAspectRatios.map(normalizeRatio))
+    : null;
+  const filteredProductSizes = allowedRatioSet
+    ? productSizes?.filter(size => allowedRatioSet.has(normalizeRatio(size.aspectRatio)))
     : productSizes;
 
   useEffect(() => {
@@ -150,10 +153,13 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
         soldDate: editingItem.soldDate ? new Date(editingItem.soldDate).toISOString().split('T')[0] : "",
         notes: editingItem.notes || "",
       });
-      // Set the aspect ratio for the edited item's product
+      // Set the allowed aspect ratios for the edited item's product
       const product = products?.find(p => p.id === editingItem.productId);
       if (product) {
-        setSelectedProductAspectRatio(product.aspectRatio);
+        const ratios = (product.aspectRatios && product.aspectRatios.length > 0)
+          ? product.aspectRatios
+          : [product.aspectRatio];
+        setSelectedProductAspectRatios(ratios);
       }
       // Reset manual price flag when editing
       setIsManualPrice(false);
@@ -171,7 +177,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
         soldDate: "",
         notes: "",
       });
-      setSelectedProductAspectRatio(null);
+      setSelectedProductAspectRatios(null);
       setIsManualPrice(false);
       setLastAutoFilledPrice(null);
     }
@@ -323,7 +329,10 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
                                   value={product.title}
                                   onSelect={() => {
                                     field.onChange(product.id);
-                                    setSelectedProductAspectRatio(product.aspectRatio);
+                                    const ratios = (product.aspectRatios && product.aspectRatios.length > 0)
+                                      ? product.aspectRatios
+                                      : [product.aspectRatio];
+                                    setSelectedProductAspectRatios(ratios);
                                     form.setValue("productSizeId", "");
                                     setProductSearchOpen(false);
                                   }}
@@ -335,7 +344,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
                                       field.value === product.id ? "opacity-100" : "opacity-0"
                                     )}
                                   />
-                                  {product.title} ({product.aspectRatio})
+                                  {product.title} ({((product.aspectRatios && product.aspectRatios.length > 0) ? product.aspectRatios : [product.aspectRatio]).join(", ")})
                                 </CommandItem>
                               ))}
                             </CommandGroup>
@@ -432,7 +441,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
                           ))
                         ) : (
                           <div className="px-2 py-4 text-sm text-muted-foreground text-center">
-                            {selectedProductAspectRatio 
+                            {selectedProductAspectRatios && selectedProductAspectRatios.length > 0
                               ? "No sizes available for this aspect ratio" 
                               : "Please select a product first"}
                           </div>

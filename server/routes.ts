@@ -3255,6 +3255,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertProductSchema.parse(req.body);
       
+      // Normalize empty strings to null for unique-constrained fields
+      if (validatedData.externalId === "") validatedData.externalId = null;
+      
       // If a photoId is provided, copy title, description, and originalDate from the photo
       let finalData = { ...validatedData };
       if (validatedData.photoId) {
@@ -3289,6 +3292,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate the update data using partial schema
       const updateSchema = insertProductSchema.partial();
       const validatedData = updateSchema.parse(req.body);
+      
+      // Normalize empty strings to null for unique-constrained fields
+      if (validatedData.externalId === "") validatedData.externalId = null;
       
       // If a photoId is being updated and title/description/originalDate are not provided, copy from photo
       let finalData = { ...validatedData };

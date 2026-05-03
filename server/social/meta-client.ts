@@ -101,9 +101,10 @@ export async function publishFacebookPagePost(args: {
     // field AND append the tracked URL to the caption to guarantee the
     // tracked link is visible/tappable in the feed even on clients that
     // don't render the structured `link` attachment for photo posts.
-    const captionWithLink = args.link
-      ? `${args.caption}\n\n${args.link}`
-      : args.caption;
+    const captionWithLink =
+      args.link && !args.caption.includes(args.link)
+        ? `${args.caption}\n\n${args.link}`
+        : args.caption;
     const result = await metaFetch(`/${args.pageId}/photos`, {
       method: "POST",
       token,

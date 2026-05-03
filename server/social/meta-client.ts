@@ -1,8 +1,9 @@
 /**
  * Thin Meta Graph API wrapper for publishing to Facebook Pages and
- * Instagram Business accounts. Tokens are read from process.env using the
- * secret key recorded on the social_accounts row, never stored in the DB,
- * and never logged.
+ * Instagram Business accounts. The caller passes a decrypted access token
+ * (resolved via loadAccountToken from token-crypto.ts); this module never
+ * touches the DB, never reads process.env for tokens, and never logs the
+ * token value.
  */
 
 const GRAPH_VERSION = "v19.0";
@@ -95,17 +96,20 @@ export async function publishFacebookPagePost(args: {
 }): Promise<PublishResponse> {
   try {
     const token = args.accessToken;
-    // /{page-id}/photos with url + caption posts the photo to the Page feed.
-    // Page feed photo publish: Meta's documented endpoint for an image post
-    // on a Page is /{page-id}/photos with `url` (image), `caption` (text),
-    // and `link` (clickable destination). The API attaches `link` as a real
-    // outbound link rather than appending it to the caption text.
+    // Page feed photo publish: Meta's documented endpoint for an image
+    // post on a Page is /{page-id}/photos. We pass `link` as a separate
+    // field AND append the tracked URL to the caption to guarantee the
+    // tracked link is visible/tappable in the feed even on clients that
+    // don't render the structured `link` attachment for photo posts.
+    const captionWithLink = args.link
+      ? `${args.caption}\n\n${args.link}`
+      : args.caption;
     const result = await metaFetch(`/${args.pageId}/photos`, {
       method: "POST",
       token,
       body: {
         url: args.imageUrl,
-        caption: args.caption,
+        caption: captionWithLink,
         link: args.link,
         published: "true",
       },

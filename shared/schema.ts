@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, index, numeric } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, integer, boolean, timestamp, jsonb, index, uniqueIndex, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -875,7 +875,7 @@ export const socialPosts = pgTable("social_posts", {
   index("idx_social_posts_csv").on(table.csvImportId),
   index("idx_social_posts_tracked_slug").on(table.trackedSlug),
   index("idx_social_posts_account_external").on(table.accountId, table.externalPostId),
-  index("uniq_social_posts_account_external_post")
+  uniqueIndex("uniq_social_posts_account_external_post")
     .on(table.accountId, table.externalPostId)
     .where(sql`external_post_id IS NOT NULL`),
 ]);

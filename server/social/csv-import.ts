@@ -192,6 +192,21 @@ export async function parseSocialCsv(args: {
     }
 
     const link = (r.link || "").trim() || undefined;
+    if (link) {
+      try {
+        const parsed = new URL(link);
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+          errors.push(`link must be http(s): ${link}`);
+        } else if (!(await isHostPublic(parsed.hostname))) {
+          errors.push(`link target is not a public host: ${link}`);
+        }
+      } catch {
+        errors.push(`link is not a valid URL: ${link}`);
+      }
+    }
+    if (caption.includes("{{link}}") && !link) {
+      errors.push("caption uses {{link}} but no link column value was provided");
+    }
 
     let scheduledAt: Date;
     const schedRaw = (r.scheduled_at || "").trim().toLowerCase();

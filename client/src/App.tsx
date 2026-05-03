@@ -34,8 +34,12 @@ import RouteTracker from "@/components/route-tracker";
 function Router() {
   return (
     <Switch>
+      {/* Photo Pairs voting — default landing */}
+      <Route path="/" component={PhotoPairs} />
+      <Route path="/photo-pairs" component={PhotoPairs} />
+
       {/* Public site */}
-      <Route path="/" component={PublicHome} />
+      <Route path="/home" component={PublicHome} />
       <Route path="/portfolio" component={Portfolio} />
       <Route path="/portfolio/:slug" component={PortfolioCollection} />
       <Route path="/store" component={Store} />
@@ -49,9 +53,6 @@ function Router() {
       <Route path="/calendar" component={CalendarPage} />
       <Route path="/news" component={News} />
       <Route path="/news/:slug" component={NewsPost} />
-
-      {/* Photo Pairs / voting (was at /) */}
-      <Route path="/photo-pairs" component={PhotoPairs} />
 
       {/* Existing back-office, auth, admin */}
       <Route path="/leaderboard" component={Leaderboard} />

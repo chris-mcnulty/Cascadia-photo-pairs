@@ -112,3 +112,19 @@ export function setSessionCookie(res: Response, sid: string): void {
 export function newSessionId(): string {
   return crypto.randomBytes(16).toString("hex");
 }
+
+export function isOptedOut(req: Request): boolean {
+  const dnt = req.headers["dnt"];
+  const gpc = req.headers["sec-gpc"];
+  return dnt === "1" || gpc === "1";
+}
+
+const SKIP_PREFIXES = ["/api", "/admin", "/assets", "/@", "/src", "/uploads", "/node_modules", "/_vite", "/favicon", "/manifest", "/robots", "/sitemap", "/sw.js"];
+const FILE_EXT_RE = /\.[a-z0-9]{1,6}(?:\?|$)/i;
+
+export function shouldCollectPath(path: string): boolean {
+  if (!path || !path.startsWith("/")) return false;
+  for (const p of SKIP_PREFIXES) if (path === p || path.startsWith(p + "/") || path === p) return false;
+  if (FILE_EXT_RE.test(path)) return false;
+  return true;
+}

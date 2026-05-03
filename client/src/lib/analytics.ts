@@ -60,12 +60,14 @@ function send(url: string, body: object): void {
 
 let lastPath = "";
 
-export function trackPageView(path: string): void {
+export function trackPageView(path: string, opts: { skipServer?: boolean } = {}): void {
   if (typeof window === "undefined") return;
   if (path === lastPath) return;
   lastPath = path;
   const referrer = document.referrer || undefined;
-  send("/api/analytics/page", { path, referrer, ...utm() });
+  if (!opts.skipServer) {
+    send("/api/analytics/page", { path, referrer, ...utm() });
+  }
   if (GA4_ID) {
     ensureGa4Loaded();
     const w = window as any;

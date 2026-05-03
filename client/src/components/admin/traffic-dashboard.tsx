@@ -32,24 +32,27 @@ type TimelinePoint = {
   bucket: string;
   webViews: number;
   webSessions: number;
+  webVisitors: number;
   socialClicks: number;
   emailOpens: number;
   emailClicks: number;
 };
 
-type TopPage = { path: string; views: number; sessions: number; visitors: number };
-type RefBlock = { web: Array<{ host: string; sessions: number }>; social: Array<{ platform: string; clicks: number }> };
+type TopPage = { path: string; views: number; sessions: number; visitors: number; avgViewsPerSession: number };
+type SourceRow = { source: string; sessions: number };
+type WebRefRow = { host: string; sessions: number };
+type SocialRefRow = { platform: string; clicks: number };
+type RefBlock = { sources: SourceRow[]; web: WebRefRow[]; social: SocialRefRow[] };
 type FunnelStep = { name: string; value: number };
 type Voting = { pairsViews: number; pairsSessions: number; votesCast: number; pairVotesCast: number };
 
-function fmt(n: number) {
+function fmt(n: number): string {
   return new Intl.NumberFormat().format(n);
 }
 
-function shortDate(s: string) {
+function shortDate(s: string): string {
   try {
-    const d = new Date(s);
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    return new Date(s).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   } catch {
     return s;
   }
@@ -61,11 +64,10 @@ export default function TrafficDashboard() {
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
 
-  // When a custom range is set, prefer it over `days`.
   const rangeQs = from ? `from=${encodeURIComponent(from)}${to ? `&to=${encodeURIComponent(to)}` : ""}` : `days=${days}`;
   const rangeKey = from ? `${from}..${to || "now"}` : `${days}d`;
 
-  const headers = (() => {
+  const headers: Record<string, string> = (() => {
     const sid = localStorage.getItem("admin-session-id");
     const tok = localStorage.getItem("auth-token");
     const h: Record<string, string> = {};
@@ -74,42 +76,45 @@ export default function TrafficDashboard() {
     return h;
   })();
 
-  // 30s polling so admins watching the dashboard see fresh numbers.
   const refetchInterval = 30_000;
+  const fetcher = async <T,>(url: string): Promise<T> => {
+    const r = await fetch(url, { headers });
+    return (await r.json()) as T;
+  };
+
   const { data: overview } = useQuery<Overview>({
     queryKey: ["/api/admin/analytics/overview", rangeKey],
-    queryFn: () => fetch(`/api/admin/analytics/overview?${rangeQs}`, { headers }).then((r) => r.json()),
+    queryFn: () => fetcher<Overview>(`/api/admin/analytics/overview?${rangeQs}`),
     refetchInterval,
   });
   const { data: timeline } = useQuery<{ series: TimelinePoint[] }>({
     queryKey: ["/api/admin/analytics/timeline", rangeKey, granularity],
-    queryFn: () =>
-      fetch(`/api/admin/analytics/timeline?${rangeQs}&granularity=${granularity}`, { headers }).then((r) => r.json()),
+    queryFn: () => fetcher(`/api/admin/analytics/timeline?${rangeQs}&granularity=${granularity}`),
     refetchInterval,
   });
   const { data: topPages } = useQuery<{ rows: TopPage[] }>({
     queryKey: ["/api/admin/analytics/top-pages", rangeKey],
-    queryFn: () => fetch(`/api/admin/analytics/top-pages?${rangeQs}`, { headers }).then((r) => r.json()),
+    queryFn: () => fetcher(`/api/admin/analytics/top-pages?${rangeQs}`),
     refetchInterval,
   });
   const { data: referrers } = useQuery<RefBlock>({
     queryKey: ["/api/admin/analytics/referrers", rangeKey],
-    queryFn: () => fetch(`/api/admin/analytics/referrers?${rangeQs}`, { headers }).then((r) => r.json()),
+    queryFn: () => fetcher(`/api/admin/analytics/referrers?${rangeQs}`),
     refetchInterval,
   });
   const { data: funnel } = useQuery<{ steps: FunnelStep[] }>({
     queryKey: ["/api/admin/analytics/funnel", rangeKey],
-    queryFn: () => fetch(`/api/admin/analytics/funnel?${rangeQs}`, { headers }).then((r) => r.json()),
+    queryFn: () => fetcher(`/api/admin/analytics/funnel?${rangeQs}`),
     refetchInterval,
   });
   const { data: voting } = useQuery<Voting>({
     queryKey: ["/api/admin/analytics/voting", rangeKey],
-    queryFn: () => fetch(`/api/admin/analytics/voting?${rangeQs}`, { headers }).then((r) => r.json()),
+    queryFn: () => fetcher(`/api/admin/analytics/voting?${rangeQs}`),
     refetchInterval,
   });
 
-  function downloadCsv(filename: string, headerRow: string[], rows: (string | number)[][]) {
-    const esc = (v: string | number) => {
+  function downloadCsv(filename: string, headerRow: string[], rows: Array<Array<string | number>>): void {
+    const esc = (v: string | number): string => {
       const s = String(v ?? "");
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
@@ -117,8 +122,12 @@ export default function TrafficDashboard() {
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
-    document.body.removeChild(a); URL.revokeObjectURL(url);
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   const funnelWithDrop = useMemo(() => {
@@ -127,9 +136,7 @@ export default function TrafficDashboard() {
     return steps.map((s, i) => ({
       ...s,
       pctOfTop: top > 0 ? (s.value / top) * 100 : 0,
-      dropFromPrev: i > 0 && steps[i - 1].value > 0
-        ? ((steps[i - 1].value - s.value) / steps[i - 1].value) * 100
-        : 0,
+      dropFromPrev: i > 0 && steps[i - 1].value > 0 ? ((steps[i - 1].value - s.value) / steps[i - 1].value) * 100 : 0,
     }));
   }, [funnel]);
 
@@ -138,12 +145,33 @@ export default function TrafficDashboard() {
     [timeline],
   );
 
+  const votesPerSession = (() => {
+    const total = (voting?.votesCast || 0) + (voting?.pairVotesCast || 0);
+    const s = voting?.pairsSessions || 0;
+    return s > 0 ? total / s : 0;
+  })();
+  const votingShare = (() => {
+    const total = overview?.sessions || 0;
+    return total > 0 ? ((voting?.pairsSessions || 0) / total) * 100 : 0;
+  })();
+
   return (
     <div className="space-y-6" data-testid="traffic-dashboard">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-2xl font-medium text-gray-900 mr-auto">Traffic</h2>
-        <Select value={from ? "custom" : String(days)} onValueChange={(v) => { if (v !== "custom") { setFrom(""); setTo(""); setDays(Number(v)); } }}>
-          <SelectTrigger className="w-36" data-testid="select-days"><SelectValue /></SelectTrigger>
+        <Select
+          value={from ? "custom" : String(days)}
+          onValueChange={(v) => {
+            if (v !== "custom") {
+              setFrom("");
+              setTo("");
+              setDays(Number(v));
+            }
+          }}
+        >
+          <SelectTrigger className="w-36" data-testid="select-days">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="1">Last 24h</SelectItem>
             <SelectItem value="7">Last 7 days</SelectItem>
@@ -170,42 +198,14 @@ export default function TrafficDashboard() {
           data-testid="input-to-date"
         />
         <Select value={granularity} onValueChange={(v) => setGranularity(v as "day" | "hour")}>
-          <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-32">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             <SelectItem value="day">Daily</SelectItem>
             <SelectItem value="hour">Hourly</SelectItem>
           </SelectContent>
         </Select>
-        <Button
-          variant="outline"
-          size="sm"
-          data-testid="button-export-pages-csv"
-          onClick={() =>
-            downloadCsv(
-              `top-pages-${days}d.csv`,
-              ["path", "views", "sessions", "visitors"],
-              (topPages?.rows || []).map((r) => [r.path, r.views, r.sessions, r.visitors]),
-            )
-          }
-        >
-          Export top pages
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          data-testid="button-export-timeline-csv"
-          onClick={() =>
-            downloadCsv(
-              `timeline-${days}d-${granularity}.csv`,
-              ["bucket", "webViews", "webSessions", "socialClicks", "emailOpens", "emailClicks"],
-              (timeline?.series || []).map((p) => [
-                p.bucket, p.webViews, p.webSessions, p.socialClicks, p.emailOpens, p.emailClicks,
-              ]),
-            )
-          }
-        >
-          Export timeline
-        </Button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -224,7 +224,31 @@ export default function TrafficDashboard() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle>Unified timeline</CardTitle></CardHeader>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle>Unified timeline</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            data-testid="button-export-timeline-csv"
+            onClick={() =>
+              downloadCsv(
+                `timeline-${rangeKey}-${granularity}.csv`,
+                ["bucket", "webViews", "webSessions", "webVisitors", "socialClicks", "emailOpens", "emailClicks"],
+                (timeline?.series || []).map((p) => [
+                  p.bucket,
+                  p.webViews,
+                  p.webSessions,
+                  p.webVisitors,
+                  p.socialClicks,
+                  p.emailOpens,
+                  p.emailClicks,
+                ]),
+              )
+            }
+          >
+            Export CSV
+          </Button>
+        </CardHeader>
         <CardContent style={{ height: 320 }}>
           <ResponsiveContainer>
             <LineChart data={series}>
@@ -243,9 +267,58 @@ export default function TrafficDashboard() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle>Sessions &amp; unique visitors (daily)</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            data-testid="button-export-sessions-csv"
+            onClick={() =>
+              downloadCsv(
+                `sessions-${rangeKey}.csv`,
+                ["bucket", "webSessions", "webVisitors"],
+                (timeline?.series || []).map((p) => [p.bucket, p.webSessions, p.webVisitors]),
+              )
+            }
+          >
+            Export CSV
+          </Button>
+        </CardHeader>
+        <CardContent style={{ height: 240 }}>
+          <ResponsiveContainer>
+            <BarChart data={series}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="label" minTickGap={20} />
+              <YAxis allowDecimals={false} />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="webSessions" name="Sessions" fill="#2a5434" />
+              <Bar dataKey="webVisitors" name="Unique visitors" fill="#7a9a82" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader><CardTitle>Conversion funnel</CardTitle></CardHeader>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle>Conversion funnel</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="button-export-funnel-csv"
+              onClick={() =>
+                downloadCsv(
+                  `funnel-${rangeKey}.csv`,
+                  ["step", "sessions", "pctOfTop", "dropFromPrev"],
+                  funnelWithDrop.map((s) => [s.name, s.value, s.pctOfTop.toFixed(2), s.dropFromPrev.toFixed(2)]),
+                )
+              }
+            >
+              Export CSV
+            </Button>
+          </CardHeader>
           <CardContent>
             <div style={{ height: 220 }}>
               <ResponsiveContainer>
@@ -282,13 +355,38 @@ export default function TrafficDashboard() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Voting engagement</CardTitle></CardHeader>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle>Voting engagement</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="button-export-voting-csv"
+              onClick={() =>
+                downloadCsv(
+                  `voting-${rangeKey}.csv`,
+                  ["metric", "value"],
+                  [
+                    ["pairs_views", voting?.pairsViews ?? 0],
+                    ["pairs_sessions", voting?.pairsSessions ?? 0],
+                    ["votes_cast", voting?.votesCast ?? 0],
+                    ["pair_votes_cast", voting?.pairVotesCast ?? 0],
+                    ["votes_per_pairs_session", votesPerSession.toFixed(3)],
+                    ["voting_session_share_pct", votingShare.toFixed(2)],
+                  ],
+                )
+              }
+            >
+              Export CSV
+            </Button>
+          </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
               <Mini label="/photo-pairs views" value={voting?.pairsViews ?? 0} />
               <Mini label="/photo-pairs sessions" value={voting?.pairsSessions ?? 0} />
               <Mini label="Votes cast" value={voting?.votesCast ?? 0} />
               <Mini label="Pair votes cast" value={voting?.pairVotesCast ?? 0} />
+              <Mini label="Votes / voting session" value={Number(votesPerSession.toFixed(2))} />
+              <Mini label="Voting session share" value={Number(votingShare.toFixed(1))} suffix="%" />
             </div>
           </CardContent>
         </Card>
@@ -296,7 +394,29 @@ export default function TrafficDashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
-          <CardHeader><CardTitle>Top pages</CardTitle></CardHeader>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle>Top pages</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="button-export-pages-csv"
+              onClick={() =>
+                downloadCsv(
+                  `top-pages-${rangeKey}.csv`,
+                  ["path", "views", "sessions", "visitors", "avgViewsPerSession"],
+                  (topPages?.rows || []).map((r) => [
+                    r.path,
+                    r.views,
+                    r.sessions,
+                    r.visitors,
+                    r.avgViewsPerSession ?? 0,
+                  ]),
+                )
+              }
+            >
+              Export CSV
+            </Button>
+          </CardHeader>
           <CardContent>
             <table className="w-full text-sm">
               <thead className="text-left text-gray-500">
@@ -305,6 +425,7 @@ export default function TrafficDashboard() {
                   <th className="py-1 text-right">Views</th>
                   <th className="py-1 text-right">Sessions</th>
                   <th className="py-1 text-right">Visitors</th>
+                  <th className="py-1 text-right">Views/session</th>
                 </tr>
               </thead>
               <tbody>
@@ -314,10 +435,15 @@ export default function TrafficDashboard() {
                     <td className="py-1 text-right">{fmt(r.views)}</td>
                     <td className="py-1 text-right">{fmt(r.sessions)}</td>
                     <td className="py-1 text-right">{fmt(r.visitors)}</td>
+                    <td className="py-1 text-right">{(r.avgViewsPerSession ?? 0).toFixed(2)}</td>
                   </tr>
                 ))}
                 {!topPages?.rows?.length && (
-                  <tr><td colSpan={4} className="py-3 text-center text-gray-400">No views yet</td></tr>
+                  <tr>
+                    <td colSpan={5} className="py-3 text-center text-gray-400">
+                      No views yet
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>
@@ -325,10 +451,44 @@ export default function TrafficDashboard() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Referrers & /go redirects</CardTitle></CardHeader>
+          <CardHeader className="flex-row items-center justify-between">
+            <CardTitle>Referrers &amp; /go redirects</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              data-testid="button-export-referrers-csv"
+              onClick={() => {
+                const rows: Array<Array<string | number>> = [];
+                for (const s of referrers?.sources || []) rows.push(["source-class", s.source, s.sessions]);
+                for (const w of referrers?.web || []) rows.push(["web-host", w.host, w.sessions]);
+                for (const g of referrers?.social || []) rows.push(["social-platform", g.platform, g.clicks]);
+                downloadCsv(`referrers-${rangeKey}.csv`, ["bucket", "key", "value"], rows);
+              }}
+            >
+              Export CSV
+            </Button>
+          </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <div className="font-semibold text-gray-700 mb-1">Web referrers</div>
+              <div className="font-semibold text-gray-700 mb-1">Source classification</div>
+              <table className="w-full text-sm">
+                <tbody>
+                  {(referrers?.sources || []).map((r) => (
+                    <tr key={r.source} className="border-t">
+                      <td className="py-1 capitalize">{r.source}</td>
+                      <td className="py-1 text-right">{fmt(r.sessions)}</td>
+                    </tr>
+                  ))}
+                  {!referrers?.sources?.length && (
+                    <tr>
+                      <td className="py-2 text-center text-gray-400">No data yet</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <div className="font-semibold text-gray-700 mb-1">Web referrers (host)</div>
               <table className="w-full text-sm">
                 <tbody>
                   {(referrers?.web || []).slice(0, 15).map((r) => (
@@ -338,7 +498,9 @@ export default function TrafficDashboard() {
                     </tr>
                   ))}
                   {!referrers?.web?.length && (
-                    <tr><td className="py-2 text-center text-gray-400">No referrers yet</td></tr>
+                    <tr>
+                      <td className="py-2 text-center text-gray-400">No referrers yet</td>
+                    </tr>
                   )}
                 </tbody>
               </table>
@@ -354,7 +516,9 @@ export default function TrafficDashboard() {
                     </tr>
                   ))}
                   {!referrers?.social?.length && (
-                    <tr><td className="py-2 text-center text-gray-400">No /go clicks yet</td></tr>
+                    <tr>
+                      <td className="py-2 text-center text-gray-400">No /go clicks yet</td>
+                    </tr>
                   )}
                 </tbody>
               </table>
@@ -370,7 +534,10 @@ function StatCard({ label, value, rendered }: { label: string; value: number; re
   return (
     <Card>
       <CardContent className="pt-6">
-        <div className="text-2xl font-bold text-cascadia-green" data-testid={`stat-${label.toLowerCase().replace(/\s+/g, "-")}`}>
+        <div
+          className="text-2xl font-bold text-cascadia-green"
+          data-testid={`stat-${label.toLowerCase().replace(/\s+/g, "-")}`}
+        >
           {rendered ?? fmt(value)}
         </div>
         <div className="text-sm text-gray-600">{label}</div>
@@ -379,10 +546,13 @@ function StatCard({ label, value, rendered }: { label: string; value: number; re
   );
 }
 
-function Mini({ label, value }: { label: string; value: number }) {
+function Mini({ label, value, suffix }: { label: string; value: number; suffix?: string }) {
   return (
     <div>
-      <div className="text-xl font-bold text-gray-900">{fmt(value)}</div>
+      <div className="text-xl font-bold text-gray-900">
+        {fmt(value)}
+        {suffix || ""}
+      </div>
       <div className="text-xs text-gray-500">{label}</div>
     </div>
   );

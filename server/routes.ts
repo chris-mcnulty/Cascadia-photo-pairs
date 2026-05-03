@@ -4776,7 +4776,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerSocialRoutes(app, isAuthenticated, getCurrentAdminUser);
 
   // Unified web traffic analytics
-  const { registerAnalyticsRoutes } = await import("./analytics/routes");
+  const { registerAnalyticsRoutes, htmlCollectorMiddleware } = await import("./analytics/routes");
+  app.use(htmlCollectorMiddleware);
   registerAnalyticsRoutes(app, isAuthenticated);
   startSocialScheduler();
 

@@ -32,9 +32,11 @@ import {
   classifyDevice,
   countryFromHeaders,
   isBotUA,
+  isOptedOut,
   newSessionId,
   readSessionCookie,
   setSessionCookie,
+  shouldCollectPath,
   visitorHashFor,
   SESSION_TTL_MS,
 } from "./middleware";
@@ -170,6 +172,53 @@ async function ensureSession(req: Request, res: Response, opts: {
   return { sid, visitorHash, isBot, device, browser, country };
 }
 
+/**
+ * Express middleware that logs HTML document GETs server-side. This catches
+ * non-JS clients, failed hydration, and direct deep-links that the SPA
+ * RouteTracker would miss. Filters out admin/api/asset/file paths and bots.
+ */
+export async function htmlCollectorMiddleware(req: Request, res: Response, next: (err?: unknown) => void): Promise<void> {
+  try {
+    if (req.method !== "GET") return next();
+    const accept = (req.headers["accept"] as string) || "";
+    if (!accept.includes("text/html")) return next();
+    const path = req.path || "/";
+    if (!shouldCollectPath(path)) return next();
+    const ua = (req.headers["user-agent"] as string) || "";
+    if (isBotUA(ua)) return next();
+    if (isOptedOut(req)) return next();
+    const referrer = normalizeReferrer(req.headers["referer"]);
+    const utm = {
+      source: safeStr((req.query as Record<string, unknown>).utm_source, 128),
+      medium: safeStr((req.query as Record<string, unknown>).utm_medium, 128),
+      campaign: safeStr((req.query as Record<string, unknown>).utm_campaign, 128),
+    };
+    const { sid, visitorHash, isBot, device, browser, country } =
+      await ensureSession(req, res, { path, referrer, utm });
+    await db.insert(pageViews).values({
+      sessionId: sid,
+      visitorHash,
+      path,
+      referrer,
+      utmSource: utm.source,
+      utmMedium: utm.medium,
+      utmCampaign: utm.campaign,
+      device,
+      browser,
+      country,
+      isBot,
+      userId: null,
+    });
+    await db.update(trafficSessions)
+      .set({ pageViewCount: sql`${trafficSessions.pageViewCount} + 1`, lastSeenAt: new Date() })
+      .where(eq(trafficSessions.id, sid));
+  } catch (e) {
+    // Never fail the page render over analytics; surface only at warn level.
+    console.warn("[analytics] html collector error:", (e as Error).message);
+  }
+  next();
+}
+
 export function registerAnalyticsRoutes(
   app: Express,
   isAuthenticated: (req: any, res: any, next: any) => any,
@@ -206,6 +255,7 @@ export function registerAnalyticsRoutes(
       const ua = (req.headers["user-agent"] as string) || "";
       // Skip bot writes entirely so analytics tables don't bloat with crawler noise.
       if (isBotUA(ua)) return res.json({ ok: true, skipped: "bot" });
+      if (isOptedOut(req)) return res.json({ ok: true, skipped: "opt-out" });
       const referrer = normalizeReferrer(req.body?.referrer);
       const utm = {
         source: safeStr(req.body?.utmSource, 128),
@@ -246,6 +296,7 @@ export function registerAnalyticsRoutes(
     try {
       const ua = (req.headers["user-agent"] as string) || "";
       if (isBotUA(ua)) return res.json({ ok: true, skipped: "bot" });
+      if (isOptedOut(req)) return res.json({ ok: true, skipped: "opt-out" });
       const eventType = safeStr(req.body?.eventType, 64);
       if (!eventType) return res.status(400).json({ error: "eventType required" });
       const allowed = new Set(["cart_started", "checkout_started", "order_completed", "vote_cast", "other"]);
@@ -324,9 +375,10 @@ export function registerAnalyticsRoutes(
 
       const pvRows = await db.execute(sql`
         SELECT ${trunc} AS bucket, count(*)::int AS web_views,
-               count(distinct x.session_id)::int AS web_sessions
+               count(distinct x.session_id)::int AS web_sessions,
+               count(distinct x.visitor_hash)::int AS web_visitors
           FROM (
-            SELECT created_at AS t, session_id FROM page_views
+            SELECT created_at AS t, session_id, visitor_hash FROM page_views
              WHERE created_at >= ${since} AND created_at <= ${until}
                ${includeBots ? sql`` : sql`AND is_bot = false`}
           ) x
@@ -348,25 +400,50 @@ export function registerAnalyticsRoutes(
          GROUP BY bucket ORDER BY bucket
       `);
 
-      type Row = { bucket: string; web_views?: number; web_sessions?: number; social_clicks?: number; email_opens?: number; email_clicks?: number };
+      type Row = {
+        bucket: string;
+        web_views?: number;
+        web_sessions?: number;
+        web_visitors?: number;
+        social_clicks?: number;
+        email_opens?: number;
+        email_clicks?: number;
+      };
+      type SqlRow = Record<string, unknown> & { bucket: Date | string };
       const merged = new Map<string, Row>();
-      const upsert = (b: any, patch: Partial<Row>) => {
-        const key = (b instanceof Date ? b.toISOString() : String(b));
+      const upsert = (b: Date | string, patch: Partial<Row>) => {
+        const key = b instanceof Date ? b.toISOString() : String(b);
         const cur = merged.get(key) || { bucket: key };
         merged.set(key, { ...cur, ...patch });
       };
-      for (const r of (pvRows as any).rows as any[]) upsert(r.bucket, { web_views: r.web_views, web_sessions: r.web_sessions });
-      for (const r of (scRows as any).rows as any[]) upsert(r.bucket, { social_clicks: r.social_clicks });
-      for (const r of (emRows as any).rows as any[]) upsert(r.bucket, { email_opens: r.email_opens, email_clicks: r.email_clicks });
+      for (const r of (pvRows as { rows: SqlRow[] }).rows) {
+        upsert(r.bucket, {
+          web_views: Number(r.web_views) || 0,
+          web_sessions: Number(r.web_sessions) || 0,
+          web_visitors: Number(r.web_visitors) || 0,
+        });
+      }
+      for (const r of (scRows as { rows: SqlRow[] }).rows) {
+        upsert(r.bucket, { social_clicks: Number(r.social_clicks) || 0 });
+      }
+      for (const r of (emRows as { rows: SqlRow[] }).rows) {
+        upsert(r.bucket, {
+          email_opens: Number(r.email_opens) || 0,
+          email_clicks: Number(r.email_clicks) || 0,
+        });
+      }
 
-      const series = Array.from(merged.values()).sort((a, b) => a.bucket.localeCompare(b.bucket)).map((r) => ({
-        bucket: r.bucket,
-        webViews: r.web_views || 0,
-        webSessions: r.web_sessions || 0,
-        socialClicks: r.social_clicks || 0,
-        emailOpens: r.email_opens || 0,
-        emailClicks: r.email_clicks || 0,
-      }));
+      const series = Array.from(merged.values())
+        .sort((a, b) => a.bucket.localeCompare(b.bucket))
+        .map((r) => ({
+          bucket: r.bucket,
+          webViews: r.web_views || 0,
+          webSessions: r.web_sessions || 0,
+          webVisitors: r.web_visitors || 0,
+          socialClicks: r.social_clicks || 0,
+          emailOpens: r.email_opens || 0,
+          emailClicks: r.email_clicks || 0,
+        }));
       res.json({ days, granularity, series });
     } catch (e: any) {
       console.error("[analytics] timeline error:", e);

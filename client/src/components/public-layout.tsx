@@ -7,25 +7,43 @@ import { useCart } from "@/contexts/cart-context";
 const HERO_MOUNTAIN_URL = "/hero-mountains.png";
 
 const NAV_ITEMS: { label: string; href: string }[] = [
-  { label: "Home", href: "/" },
+  { label: "Home", href: "/home" },
   { label: "Portfolio", href: "/portfolio" },
   { label: "Store", href: "/store" },
-  { label: "Photo Pairs", href: "/photo-pairs" },
+  { label: "Photo Pairs", href: "/" },
+  { label: "Leaderboard", href: "/leaderboard" },
   { label: "Calendar", href: "/calendar" },
   { label: "Biography", href: "/biography" },
   { label: "News & Updates", href: "/news" },
 ];
 
-function useUserAuth() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+function useAuth() {
+  const [isAuthed, setIsAuthed] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
   useEffect(() => {
+    // Admin session takes priority (MFA-based admin login)
+    if (localStorage.getItem("admin-session-id")) {
+      setIsAuthed(true);
+      setIsAdmin(true);
+      return;
+    }
     const token = localStorage.getItem("auth-token");
     if (!token) return;
     fetch("/api/auth/user", { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => setIsAuthenticated(r.ok))
-      .catch(() => setIsAuthenticated(false));
+      .then((r) => {
+        if (!r.ok) return null;
+        return r.json();
+      })
+      .then((u) => {
+        if (!u) return;
+        setIsAuthed(true);
+        if (u.isAdmin || u.isMasterAdmin) setIsAdmin(true);
+      })
+      .catch(() => {});
   }, []);
-  return isAuthenticated;
+
+  return { isAuthed, isAdmin };
 }
 
 interface PublicLayoutProps {
@@ -48,7 +66,13 @@ export default function PublicLayout({
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { count } = useCart();
-  const isAuthed = useUserAuth();
+  const { isAuthed, isAdmin } = useAuth();
+
+  const adminItems = isAdmin
+    ? [{ label: "Admin", href: "/admin" }]
+    : [];
+
+  const allNavItems = [...NAV_ITEMS, ...adminItems];
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-gray-900 font-metronova">
@@ -95,6 +119,15 @@ export default function PublicLayout({
             </div>
 
             <div className="flex items-center gap-4">
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className="text-white/90 hover:text-white text-sm font-medium bg-white/10 hover:bg-white/20 border border-white/30 px-3 py-1 rounded transition-colors"
+                  data-testid="link-admin-shortcut"
+                >
+                  Admin Panel
+                </Link>
+              )}
               {isAuthed ? (
                 <Link
                   href="/profile"
@@ -150,20 +183,25 @@ export default function PublicLayout({
         {/* Primary nav bar */}
         <nav className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="hidden md:flex items-center justify-center gap-8 h-14">
-              {NAV_ITEMS.map((item) => {
+            <div className="hidden md:flex items-center justify-center gap-6 h-14">
+              {allNavItems.map((item) => {
                 const isActive =
                   item.href === "/"
-                    ? location === "/"
+                    ? location === "/" || location === "/photo-pairs"
                     : location === item.href || location.startsWith(item.href + "/");
+                const isAdminLink = item.label === "Admin";
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     className={`text-sm tracking-wide uppercase transition-colors ${
-                      isActive
-                        ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1"
-                        : "text-gray-700 hover:text-cascadia-green"
+                      isAdminLink
+                        ? isActive
+                          ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1"
+                          : "text-cascadia-green font-semibold hover:text-green-800"
+                        : isActive
+                          ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1"
+                          : "text-gray-700 hover:text-cascadia-green"
                     }`}
                     data-testid={`nav-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
                   >
@@ -191,11 +229,15 @@ export default function PublicLayout({
 
             {mobileOpen && (
               <div className="md:hidden pb-3 flex flex-col gap-2">
-                {NAV_ITEMS.map((item) => (
+                {allNavItems.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="text-sm tracking-wide uppercase py-2 px-2 text-gray-700 hover:text-cascadia-green"
+                    className={`text-sm tracking-wide uppercase py-2 px-2 ${
+                      item.label === "Admin"
+                        ? "text-cascadia-green font-semibold"
+                        : "text-gray-700 hover:text-cascadia-green"
+                    }`}
                     onClick={() => setMobileOpen(false)}
                     data-testid={`nav-mobile-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
                   >
@@ -232,8 +274,13 @@ export default function PublicLayout({
                 </Link>
               </li>
               <li>
-                <Link href="/photo-pairs" className="text-gray-600 hover:text-cascadia-green">
+                <Link href="/" className="text-gray-600 hover:text-cascadia-green">
                   Photo Pairs
+                </Link>
+              </li>
+              <li>
+                <Link href="/leaderboard" className="text-gray-600 hover:text-cascadia-green">
+                  Leaderboard
                 </Link>
               </li>
               <li>

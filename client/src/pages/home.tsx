@@ -103,7 +103,13 @@ function AuthenticationButtons({ isMobile = false }: { isMobile?: boolean }) {
   );
 }
 
-export default function Home() {
+export default function Home({
+  showHeader = true,
+  showFooter = true,
+}: {
+  showHeader?: boolean;
+  showFooter?: boolean;
+} = {}) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [useMobileInterface, setUseMobileInterface] = useState(false);
   const [useFocusMode, setUseFocusMode] = useState(false);
@@ -212,8 +218,8 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      {/* Header - only show for desktop */}
-      {!useMobileInterface && (
+      {/* Header - only show when standalone (not wrapped by PublicLayout) and on desktop */}
+      {showHeader && !useMobileInterface && (
       <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
@@ -492,8 +498,8 @@ export default function Home() {
         </>
       )}
 
-      {/* Footer - only show for desktop */}
-      {!useMobileInterface && (
+      {/* Footer - only show when standalone (not wrapped by PublicLayout) and on desktop */}
+      {showFooter && !useMobileInterface && (
       <footer className="bg-gray-50 border-t border-gray-200 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="grid md:grid-cols-3 gap-8">

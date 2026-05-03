@@ -1,14 +1,14 @@
 import PublicLayout from "@/components/public-layout";
 import Home from "./home";
 
-// The Photo Pairs voting experience lives at /photo-pairs.
-// We wrap the existing voting Home page with the public site's top nav so
-// the chrome stays consistent across the rest of chrismcnulty.net. The
-// voting page renders its own internal header below.
+// The Photo Pairs voting experience is the primary landing page.
+// PublicLayout provides the single unified header/footer with site-wide
+// navigation (including admin links when an admin is logged in), so the
+// inner voting header and footer inside Home are suppressed here.
 export default function PhotoPairs() {
   return (
     <PublicLayout showHero={false} contentBleed>
-      <Home />
+      <Home showHeader={false} showFooter={false} />
     </PublicLayout>
   );
 }

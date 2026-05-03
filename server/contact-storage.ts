@@ -6,6 +6,7 @@ import {
   contactListMembers,
   emailCampaigns,
   emailCampaignRecipients,
+  emailCampaignEvents,
   type Contact,
   type InsertContact,
   type ContactList,
@@ -13,6 +14,7 @@ import {
   type EmailCampaign,
   type InsertEmailCampaign,
   type EmailCampaignRecipient,
+  type EmailCampaignEvent,
 } from "@shared/schema";
 import { generateUnsubscribeToken } from "./campaign-service";
 
@@ -183,6 +185,10 @@ export const contactStorage = {
         sendgridMessageId: emailCampaignRecipients.sendgridMessageId,
         errorMessage: emailCampaignRecipients.errorMessage,
         sentAt: emailCampaignRecipients.sentAt,
+        openedAt: emailCampaignRecipients.openedAt,
+        openCount: emailCampaignRecipients.openCount,
+        clickedAt: emailCampaignRecipients.clickedAt,
+        clickCount: emailCampaignRecipients.clickCount,
         createdAt: emailCampaignRecipients.createdAt,
         campaignName: emailCampaigns.name,
         campaignSubject: emailCampaigns.subject,
@@ -366,5 +372,25 @@ export const contactStorage = {
       .where(eq(emailCampaignRecipients.campaignId, campaignId))
       .orderBy(desc(emailCampaignRecipients.createdAt))
       .limit(5000);
+  },
+
+  async getRecipientEvents(recipientId: string): Promise<EmailCampaignEvent[]> {
+    return await db
+      .select()
+      .from(emailCampaignEvents)
+      .where(eq(emailCampaignEvents.recipientId, recipientId))
+      .orderBy(desc(emailCampaignEvents.occurredAt))
+      .limit(500);
+  },
+
+  async getCampaignEvents(campaignId: string, eventType?: string): Promise<EmailCampaignEvent[]> {
+    const where: SQL[] = [eq(emailCampaignEvents.campaignId, campaignId)];
+    if (eventType) where.push(eq(emailCampaignEvents.eventType, eventType));
+    return await db
+      .select()
+      .from(emailCampaignEvents)
+      .where(and(...where))
+      .orderBy(desc(emailCampaignEvents.occurredAt))
+      .limit(2000);
   },
 };

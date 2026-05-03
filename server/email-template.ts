@@ -32,7 +32,7 @@ export async function renderBrandedEmail(opts: BrandedEmailOptions): Promise<str
     ? `<p style="margin: 8px 0 0 0; font-size: 12px; color: #666;">
          You're receiving this email${opts.recipientEmail ? ` at ${escapeHtml(opts.recipientEmail)}` : ""} as part of the Cascadia Oceanic mailing list.
          <br>
-         <a href="${opts.unsubscribeUrl}" style="color: ${CASCADIA_GREEN}; text-decoration: underline;">Unsubscribe</a>
+         <a href="${opts.unsubscribeUrl}" clicktracking="off" style="color: ${CASCADIA_GREEN}; text-decoration: underline;">Unsubscribe</a>
          &nbsp;|&nbsp;
          <a href="mailto:${escapeHtml(supportEmail)}" style="color: ${CASCADIA_GREEN}; text-decoration: underline;">Contact us</a>
        </p>`

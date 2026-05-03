@@ -68,6 +68,12 @@ type Campaign = {
   failedCount: number;
   unsubscribedCount: number;
   totalRecipients: number;
+  trackOpens: boolean;
+  trackClicks: boolean;
+  openCount: number;
+  uniqueOpenCount: number;
+  clickCount: number;
+  uniqueClickCount: number;
   scheduledFor: string | null;
   sentAt: string | null;
   createdAt: string;
@@ -80,7 +86,22 @@ type Recipient = {
   status: string;
   errorMessage: string | null;
   sentAt: string | null;
+  openedAt: string | null;
+  openCount: number;
+  clickedAt: string | null;
+  clickCount: number;
   createdAt: string;
+};
+type CampaignEvent = {
+  id: string;
+  campaignId: string;
+  recipientId: string | null;
+  email: string;
+  eventType: string;
+  url: string | null;
+  userAgent: string | null;
+  ip: string | null;
+  occurredAt: string;
 };
 
 type ContactCampaignHistory = {
@@ -791,13 +812,25 @@ function CampaignsPanel() {
 
   const { data: campaigns = [], isLoading } = useQuery<Campaign[]>({
     queryKey: ["/api/admin/campaigns"],
-    // While any campaign is mid-send, poll so the dashboard counts stay live.
-    refetchInterval: (q) =>
-      (q.state.data as Campaign[] | undefined)?.some(
-        (c) => c.status === "sending" || c.status === "queued",
-      )
-        ? 3000
-        : false,
+    // While any campaign is mid-send, poll fast so the dashboard counts stay
+    // live. After send completes, keep polling on a slower cadence whenever
+    // there's a sent-but-tracking-enabled campaign so open/click aggregates
+    // refresh without a manual reload.
+    refetchInterval: (q) => {
+      const data = q.state.data as Campaign[] | undefined;
+      if (!data?.length) return false;
+      if (data.some((c) => c.status === "sending" || c.status === "queued")) {
+        return 3000;
+      }
+      const now = Date.now();
+      const hasRecentTracked = data.some((c) => {
+        if (!c.trackOpens && !c.trackClicks) return false;
+        if (c.status !== "sent") return false;
+        const sent = c.sentAt ? new Date(c.sentAt).getTime() : 0;
+        return sent > 0 && now - sent < 24 * 60 * 60 * 1000;
+      });
+      return hasRecentTracked ? 30000 : false;
+    },
   });
 
   const deleteMut = useMutation({
@@ -826,12 +859,17 @@ function CampaignsPanel() {
                 <th className="p-2">Subject</th>
                 <th className="p-2">Status</th>
                 <th className="p-2">Sent</th>
+                <th className="p-2">Opens</th>
+                <th className="p-2">Clicks</th>
                 <th className="p-2"></th>
               </tr>
             </thead>
             <tbody>
-              {campaigns.length === 0 && <tr><td colSpan={5} className="p-4 text-center text-gray-500">No campaigns yet.</td></tr>}
-              {campaigns.map((c) => (
+              {campaigns.length === 0 && <tr><td colSpan={7} className="p-4 text-center text-gray-500">No campaigns yet.</td></tr>}
+              {campaigns.map((c) => {
+                const openRate = c.sentCount > 0 ? Math.round((c.uniqueOpenCount / c.sentCount) * 100) : 0;
+                const clickRate = c.sentCount > 0 ? Math.round((c.uniqueClickCount / c.sentCount) * 100) : 0;
+                return (
                 <tr key={c.id} className="border-t" data-testid={`row-campaign-${c.id}`}>
                   <td className="p-2 font-medium">{c.name}</td>
                   <td className="p-2">{c.subject}</td>
@@ -839,6 +877,16 @@ function CampaignsPanel() {
                   <td className="p-2 text-xs">
                     {c.sentCount}/{c.totalRecipients}
                     {c.failedCount > 0 ? ` (${c.failedCount} failed)` : ""}
+                  </td>
+                  <td className="p-2 text-xs" data-testid={`campaign-opens-${c.id}`}>
+                    {c.trackOpens ? (
+                      <span>{c.uniqueOpenCount} <span className="text-gray-500">({openRate}%)</span></span>
+                    ) : <span className="text-gray-400">off</span>}
+                  </td>
+                  <td className="p-2 text-xs" data-testid={`campaign-clicks-${c.id}`}>
+                    {c.trackClicks ? (
+                      <span>{c.uniqueClickCount} <span className="text-gray-500">({clickRate}%)</span></span>
+                    ) : <span className="text-gray-400">off</span>}
                   </td>
                   <td className="p-2 text-right space-x-1">
                     <Button size="sm" variant="outline" onClick={() => setRecipientsFor(c)} data-testid={`button-recipients-${c.id}`}>Recipients</Button>
@@ -848,7 +896,8 @@ function CampaignsPanel() {
                     </Button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -865,11 +914,37 @@ function CampaignsPanel() {
 
 function RecipientsDialog({ campaign, onClose }: { campaign: Campaign; onClose: () => void }) {
   const [filter, setFilter] = useState<string>("all");
+  const [eventsFor, setEventsFor] = useState<Recipient | null>(null);
   const { data: recipients = [], isLoading } = useQuery<Recipient[]>({
     queryKey: ["/api/admin/campaigns", campaign.id, "recipients"],
-    refetchInterval: campaign.status === "sending" || campaign.status === "queued" ? 3000 : false,
+    refetchInterval:
+      campaign.status === "sending" || campaign.status === "queued"
+        ? 3000
+        : campaign.trackOpens || campaign.trackClicks
+          ? 15000
+          : false,
   });
-  const filtered = filter === "all" ? recipients : recipients.filter((r) => r.status === filter);
+  const filtered =
+    filter === "all"
+      ? recipients
+      : filter === "opened"
+        ? recipients.filter((r) => !!r.openedAt)
+        : filter === "clicked"
+          ? recipients.filter((r) => !!r.clickedAt)
+          : recipients.filter((r) => r.status === filter);
+
+  // Derive live aggregates from the polled recipients so the header stays in
+  // sync without needing to close & reopen the dialog after new events land.
+  const liveAggregates = recipients.reduce(
+    (acc, r) => {
+      acc.openCount += r.openCount || 0;
+      acc.clickCount += r.clickCount || 0;
+      if ((r.openCount || 0) > 0) acc.uniqueOpens++;
+      if ((r.clickCount || 0) > 0) acc.uniqueClicks++;
+      return acc;
+    },
+    { openCount: 0, uniqueOpens: 0, clickCount: 0, uniqueClicks: 0 },
+  );
 
   const exportFailures = () => {
     const failed = recipients.filter((r) => r.status === "failed");
@@ -899,13 +974,21 @@ function RecipientsDialog({ campaign, onClose }: { campaign: Campaign; onClose: 
               <SelectItem value="sent">Sent</SelectItem>
               <SelectItem value="failed">Failed</SelectItem>
               <SelectItem value="skipped">Skipped</SelectItem>
+              <SelectItem value="opened">Opened</SelectItem>
+              <SelectItem value="clicked">Clicked</SelectItem>
             </SelectContent>
           </Select>
           <Button size="sm" variant="outline" onClick={exportFailures} data-testid="button-export-failures">
             Export failures (CSV)
           </Button>
-          <span className="ml-auto text-xs text-gray-500">
+          <span className="ml-auto text-xs text-gray-500" data-testid="campaign-detail-metrics">
             sent {campaign.sentCount} · failed {campaign.failedCount} · total {campaign.totalRecipients}
+            {campaign.trackOpens && (
+              <> · opens {liveAggregates.uniqueOpens}/{liveAggregates.openCount}</>
+            )}
+            {campaign.trackClicks && (
+              <> · clicks {liveAggregates.uniqueClicks}/{liveAggregates.clickCount}</>
+            )}
           </span>
         </div>
         {isLoading ? (
@@ -918,19 +1001,33 @@ function RecipientsDialog({ campaign, onClose }: { campaign: Campaign; onClose: 
                   <th className="p-2">Email</th>
                   <th className="p-2">Status</th>
                   <th className="p-2">Sent at</th>
+                  <th className="p-2">Opens</th>
+                  <th className="p-2">Clicks</th>
                   <th className="p-2">Error</th>
+                  <th className="p-2"></th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.length === 0 && (
-                  <tr><td colSpan={4} className="p-4 text-center text-gray-500">No recipients match this filter.</td></tr>
+                  <tr><td colSpan={7} className="p-4 text-center text-gray-500">No recipients match this filter.</td></tr>
                 )}
                 {filtered.map((r) => (
                   <tr key={r.id} className="border-t" data-testid={`row-recipient-${r.id}`}>
                     <td className="p-2 font-mono text-xs">{r.email}</td>
                     <td className="p-2"><Badge variant="secondary">{r.status}</Badge></td>
                     <td className="p-2 text-xs">{r.sentAt ? new Date(r.sentAt).toLocaleString() : "—"}</td>
+                    <td className="p-2 text-xs" data-testid={`recipient-opens-${r.id}`}>
+                      {r.openedAt ? `${r.openCount}× · ${new Date(r.openedAt).toLocaleString()}` : "—"}
+                    </td>
+                    <td className="p-2 text-xs" data-testid={`recipient-clicks-${r.id}`}>
+                      {r.clickedAt ? `${r.clickCount}× · ${new Date(r.clickedAt).toLocaleString()}` : "—"}
+                    </td>
                     <td className="p-2 text-xs text-red-600">{r.errorMessage || ""}</td>
+                    <td className="p-2 text-right">
+                      <Button size="sm" variant="ghost" onClick={() => setEventsFor(r)} data-testid={`button-events-${r.id}`}>
+                        Events
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -940,6 +1037,61 @@ function RecipientsDialog({ campaign, onClose }: { campaign: Campaign; onClose: 
         <DialogFooter>
           <Button onClick={onClose}>Close</Button>
         </DialogFooter>
+      </DialogContent>
+      {eventsFor && (
+        <RecipientEventsDialog recipient={eventsFor} onClose={() => setEventsFor(null)} />
+      )}
+    </Dialog>
+  );
+}
+
+function RecipientEventsDialog({ recipient, onClose }: { recipient: Recipient; onClose: () => void }) {
+  const { data: events = [], isLoading } = useQuery<CampaignEvent[]>({
+    queryKey: ["/api/admin/campaign-recipients", recipient.id, "events"],
+  });
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Tracking events — {recipient.email}</DialogTitle>
+        </DialogHeader>
+        {isLoading ? (
+          <Loader2 className="w-6 h-6 animate-spin mx-auto" />
+        ) : events.length === 0 ? (
+          <p className="text-sm text-gray-500" data-testid="text-no-events">
+            No tracking events recorded for this recipient yet.
+          </p>
+        ) : (
+          <div className="border rounded max-h-[60vh] overflow-y-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-left sticky top-0">
+                <tr>
+                  <th className="p-2">Event</th>
+                  <th className="p-2">Time</th>
+                  <th className="p-2">URL / detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {events.map((ev) => (
+                  <tr key={ev.id} className="border-t" data-testid={`row-event-${ev.id}`}>
+                    <td className="p-2"><Badge variant="secondary">{ev.eventType}</Badge></td>
+                    <td className="p-2 text-xs whitespace-nowrap">{new Date(ev.occurredAt).toLocaleString()}</td>
+                    <td className="p-2 text-xs break-all">
+                      {ev.url ? (
+                        <a href={ev.url} target="_blank" rel="noreferrer" className="text-cascadia-blue hover:underline">{ev.url}</a>
+                      ) : ev.userAgent ? (
+                        <span className="text-gray-500">{ev.userAgent}</span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <DialogFooter><Button onClick={onClose}>Close</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -966,6 +1118,8 @@ function CampaignEditor({ campaign, onClose }: { campaign?: Campaign; onClose: (
   const [fromName, setFromName] = useState(campaign?.fromName || "");
   const [fromEmail, setFromEmail] = useState(campaign?.fromEmail || "");
   const [replyTo, setReplyTo] = useState(campaign?.replyTo || "");
+  const [trackOpens, setTrackOpens] = useState(campaign?.trackOpens ?? true);
+  const [trackClicks, setTrackClicks] = useState(campaign?.trackClicks ?? true);
   const [testEmail, setTestEmail] = useState("");
   const [previewHtml, setPreviewHtml] = useState<string>("");
 
@@ -979,6 +1133,8 @@ function CampaignEditor({ campaign, onClose }: { campaign?: Campaign; onClose: (
     fromName?: string;
     fromEmail?: string;
     replyTo?: string;
+    trackOpens: boolean;
+    trackClicks: boolean;
   };
 
   const saveMut = useMutation({
@@ -986,6 +1142,8 @@ function CampaignEditor({ campaign, onClose }: { campaign?: Campaign; onClose: (
       const payload: CampaignPayload = {
         name, subject, bodyHtml,
         listId: listId || null,
+        trackOpens,
+        trackClicks,
       };
       if (fromName) payload.fromName = fromName;
       if (fromEmail) payload.fromEmail = fromEmail;
@@ -1028,6 +1186,30 @@ function CampaignEditor({ campaign, onClose }: { campaign?: Campaign; onClose: (
             <div><Label>From name</Label><Input value={fromName} onChange={(e) => setFromName(e.target.value)} placeholder="Cascadia Oceanic" /></div>
             <div><Label>From email</Label><Input value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} placeholder="cascadia@chrismcnulty.net" /></div>
             <div><Label>Reply-to</Label><Input value={replyTo} onChange={(e) => setReplyTo(e.target.value)} /></div>
+          </div>
+          <div className="flex items-center gap-6 p-2 border rounded bg-gray-50">
+            <Label className="text-sm font-semibold">Tracking:</Label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={trackOpens}
+                onChange={(e) => setTrackOpens(e.target.checked)}
+                data-testid="checkbox-track-opens"
+              />
+              Track opens
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={trackClicks}
+                onChange={(e) => setTrackClicks(e.target.checked)}
+                data-testid="checkbox-track-clicks"
+              />
+              Track clicks
+            </label>
+            <span className="ml-auto text-xs text-gray-500">
+              The unsubscribe link is always excluded from click rewriting.
+            </span>
           </div>
           <div>
             <Label>Recipient list *</Label>

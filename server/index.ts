@@ -9,8 +9,17 @@ const app = express();
 // Stripe webhooks require the raw request body for signature verification, so
 // the JSON parser is skipped for that path. Everything else goes through JSON.
 const jsonParser = express.json({ limit: '50mb' });
+const sendgridWebhookParser = express.json({
+  limit: '10mb',
+  verify: (req, _res, buf) => {
+    (req as Request & { rawBody?: Buffer }).rawBody = Buffer.from(buf);
+  },
+});
 app.use((req, res, next) => {
   if (req.originalUrl === '/api/webhooks/stripe') return next();
+  if (req.originalUrl === '/api/webhooks/sendgrid/events') {
+    return sendgridWebhookParser(req, res, next);
+  }
   return jsonParser(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));

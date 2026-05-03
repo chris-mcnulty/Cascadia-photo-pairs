@@ -1,4 +1,5 @@
-import type { Express, RequestHandler } from "express";
+import type { Express, Request, RequestHandler } from "express";
+import crypto from "crypto";
 import { z } from "zod";
 import { contactStorage } from "../contact-storage";
 import {
@@ -11,6 +12,7 @@ import {
   sendCampaignWithFailureGuard,
   sendCampaignTest,
   queueCampaignRecipients,
+  ingestSendGridEvents,
   errMsg,
 } from "../campaign-service";
 import { storage } from "../storage";
@@ -296,6 +298,95 @@ export function registerCampaignRoutes(app: Express, isAuthenticated: RequestHan
     } catch (err) {
       console.error("[admin campaigns recipients] error", errMsg(err));
       res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.get("/api/admin/campaigns/:id/events", isAuthenticated, async (req, res) => {
+    try {
+      const eventType = (req.query.type as string) || undefined;
+      res.json(await contactStorage.getCampaignEvents(req.params.id, eventType));
+    } catch (err) {
+      console.error("[admin campaigns events] error", errMsg(err));
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  app.get("/api/admin/campaign-recipients/:id/events", isAuthenticated, async (req, res) => {
+    try {
+      res.json(await contactStorage.getRecipientEvents(req.params.id));
+    } catch (err) {
+      console.error("[admin recipient events] error", errMsg(err));
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // ---------------- SendGrid event webhook ----------------
+  // Ingests open/click/bounce/etc events. Idempotent via sg_event_id.
+  // Public endpoint (called by SendGrid) but protected by SendGrid's signed
+  // Event Webhook ECDSA P-256 signature. Requires SENDGRID_WEBHOOK_PUBLIC_KEY
+  // env var (the base64 public key shown in SendGrid's Mail Settings UI).
+  app.post("/api/webhooks/sendgrid/events", async (req, res) => {
+    try {
+      const publicKey = process.env.SENDGRID_WEBHOOK_PUBLIC_KEY;
+      if (!publicKey) {
+        console.error(
+          "[sendgrid webhook] SENDGRID_WEBHOOK_PUBLIC_KEY not set - rejecting request"
+        );
+        return res.status(401).json({ message: "Webhook signing key not configured" });
+      }
+      const signature = String(
+        req.header("X-Twilio-Email-Event-Webhook-Signature") || ""
+      );
+      const timestamp = String(
+        req.header("X-Twilio-Email-Event-Webhook-Timestamp") || ""
+      );
+      const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
+      if (!signature || !timestamp || !rawBody) {
+        return res.status(401).json({ message: "Missing signature headers" });
+      }
+      // Reject events older than 10 minutes to limit replay attacks.
+      const tsSec = Number(timestamp);
+      if (!Number.isFinite(tsSec) || Math.abs(Date.now() / 1000 - tsSec) > 600) {
+        return res.status(401).json({ message: "Stale or invalid timestamp" });
+      }
+      let pubKey: crypto.KeyObject;
+      try {
+        pubKey = crypto.createPublicKey({
+          key: Buffer.from(publicKey, "base64"),
+          format: "der",
+          type: "spki",
+        });
+      } catch (err) {
+        console.error(
+          "[sendgrid webhook] invalid SENDGRID_WEBHOOK_PUBLIC_KEY:",
+          errMsg(err)
+        );
+        return res.status(500).json({ message: "Invalid webhook key" });
+      }
+      const verifier = crypto.createVerify("sha256");
+      verifier.update(timestamp);
+      verifier.update(rawBody);
+      verifier.end();
+      let valid = false;
+      try {
+        valid = verifier.verify(
+          { key: pubKey, dsaEncoding: "der" },
+          Buffer.from(signature, "base64")
+        );
+      } catch {
+        valid = false;
+      }
+      if (!valid) {
+        return res.status(401).json({ message: "Invalid signature" });
+      }
+      const events = Array.isArray(req.body) ? req.body : [];
+      const result = await ingestSendGridEvents(events);
+      res.json(result);
+    } catch (err) {
+      console.error("[sendgrid webhook] error", errMsg(err));
+      // Return 200 so SendGrid doesn't retry on a transient store error and
+      // potentially flood logs - errors are logged above for investigation.
+      res.status(200).json({ inserted: 0, error: "ingest failed" });
     }
   });
 

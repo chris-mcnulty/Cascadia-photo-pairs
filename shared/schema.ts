@@ -972,6 +972,12 @@ export const emailCampaigns = pgTable("email_campaigns", {
   failedCount: integer("failed_count").default(0).notNull(),
   unsubscribedCount: integer("unsubscribed_count").default(0).notNull(),
   totalRecipients: integer("total_recipients").default(0).notNull(),
+  trackOpens: boolean("track_opens").default(true).notNull(),
+  trackClicks: boolean("track_clicks").default(true).notNull(),
+  openCount: integer("open_count").default(0).notNull(),
+  uniqueOpenCount: integer("unique_open_count").default(0).notNull(),
+  clickCount: integer("click_count").default(0).notNull(),
+  uniqueClickCount: integer("unique_click_count").default(0).notNull(),
   scheduledFor: timestamp("scheduled_for"),
   sentAt: timestamp("sent_at"),
   createdBy: varchar("created_by").references(() => users.id),
@@ -991,12 +997,38 @@ export const emailCampaignRecipients = pgTable("email_campaign_recipients", {
   sendgridMessageId: varchar("sendgrid_message_id"),
   errorMessage: text("error_message"),
   sentAt: timestamp("sent_at"),
+  openedAt: timestamp("opened_at"),
+  openCount: integer("open_count").default(0).notNull(),
+  clickedAt: timestamp("clicked_at"),
+  clickCount: integer("click_count").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   index("idx_ecr_campaign").on(table.campaignId),
   index("idx_ecr_contact").on(table.contactId),
   index("idx_ecr_status").on(table.status),
   uniqueIndex("idx_ecr_unique").on(table.campaignId, table.contactId),
+  index("idx_ecr_sgid").on(table.sendgridMessageId),
+]);
+
+export const emailCampaignEvents = pgTable("email_campaign_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  campaignId: varchar("campaign_id").notNull().references(() => emailCampaigns.id, { onDelete: "cascade" }),
+  recipientId: varchar("recipient_id").references(() => emailCampaignRecipients.id, { onDelete: "cascade" }),
+  contactId: varchar("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+  email: varchar("email").notNull(),
+  eventType: varchar("event_type").notNull(), // "open", "click", "bounce", "dropped", "spamreport", "unsubscribe", etc.
+  url: text("url"),
+  userAgent: text("user_agent"),
+  ip: varchar("ip"),
+  sgEventId: varchar("sg_event_id"),
+  sgMessageId: varchar("sg_message_id"),
+  occurredAt: timestamp("occurred_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_ece_campaign").on(table.campaignId),
+  index("idx_ece_recipient").on(table.recipientId),
+  index("idx_ece_type").on(table.eventType),
+  uniqueIndex("idx_ece_sg_event_unique").on(table.sgEventId),
 ]);
 
 export const insertContactSchema = createInsertSchema(contacts).omit({
@@ -1021,11 +1053,19 @@ export const insertEmailCampaignSchema = createInsertSchema(emailCampaigns).omit
   failedCount: true,
   unsubscribedCount: true,
   totalRecipients: true,
+  openCount: true,
+  uniqueOpenCount: true,
+  clickCount: true,
+  uniqueClickCount: true,
   sentAt: true,
   createdAt: true,
   updatedAt: true,
 });
 export const insertEmailCampaignRecipientSchema = createInsertSchema(emailCampaignRecipients).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertEmailCampaignEventSchema = createInsertSchema(emailCampaignEvents).omit({
   id: true,
   createdAt: true,
 });
@@ -1048,3 +1088,5 @@ export type EmailCampaign = typeof emailCampaigns.$inferSelect;
 export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;
 export type EmailCampaignRecipient = typeof emailCampaignRecipients.$inferSelect;
 export type InsertEmailCampaignRecipient = z.infer<typeof insertEmailCampaignRecipientSchema>;
+export type EmailCampaignEvent = typeof emailCampaignEvents.$inferSelect;
+export type InsertEmailCampaignEvent = z.infer<typeof insertEmailCampaignEventSchema>;

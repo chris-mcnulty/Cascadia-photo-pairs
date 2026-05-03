@@ -7,6 +7,7 @@ import {
   contactListMembers,
   emailCampaigns,
   emailCampaignRecipients,
+  emailCampaignEvents,
   users,
   customers,
   settings as settingsTable,
@@ -298,6 +299,10 @@ export async function sendCampaign(opts: SendCampaignOptions): Promise<{
         replyTo: campaign.replyTo || undefined,
         subject: campaign.subject,
         html,
+        trackOpens: campaign.trackOpens,
+        trackClicks: campaign.trackClicks,
+        campaignId: campaign.id,
+        recipientId: r.id,
       });
 
       if (result.success) {
@@ -375,6 +380,10 @@ interface SendOneArgs {
   replyTo?: string;
   subject: string;
   html: string;
+  trackOpens?: boolean;
+  trackClicks?: boolean;
+  campaignId?: string;
+  recipientId?: string;
 }
 
 /**
@@ -390,13 +399,23 @@ export async function sendOneCampaignEmail(args: SendOneArgs): Promise<{
     return { success: true, messageId: `dev-${Date.now()}` };
   }
   try {
+    const customArgs: Record<string, string> = {};
+    if (args.campaignId) customArgs.campaign_id = args.campaignId;
+    if (args.recipientId) customArgs.recipient_id = args.recipientId;
     const [resp] = await sgMail.send({
       to: args.to,
       from: { email: args.from, name: args.fromName },
       replyTo: args.replyTo,
       subject: args.subject,
       html: args.html,
-      trackingSettings: { clickTracking: { enable: false } },
+      // Open tracking injects a 1x1 pixel; click tracking rewrites <a href>
+      // links. The unsubscribe link is marked clicktracking="off" in
+      // email-template.ts so it survives un-rewritten regardless of this flag.
+      trackingSettings: {
+        openTracking: { enable: !!args.trackOpens },
+        clickTracking: { enable: !!args.trackClicks, enableText: false },
+      },
+      customArgs: Object.keys(customArgs).length ? customArgs : undefined,
     });
     const messageId = resp?.headers?.["x-message-id"] as string | undefined;
     return { success: true, messageId };
@@ -441,4 +460,171 @@ export async function sendCampaignTest(
     subject: `[TEST] ${campaign.subject}`,
     html,
   });
+}
+
+// =============== Tracking event ingest (SendGrid Event Webhook) ===============
+
+interface SendGridEvent {
+  email?: string;
+  timestamp?: number;
+  event?: string;
+  url?: string;
+  useragent?: string;
+  ip?: string;
+  sg_event_id?: string;
+  sg_message_id?: string;
+  campaign_id?: string;   // populated via customArgs at send time
+  recipient_id?: string;  // populated via customArgs at send time
+}
+
+/**
+ * Ingest a batch of SendGrid event webhook payloads. Idempotent via
+ * unique sg_event_id. Updates per-recipient and per-campaign aggregates
+ * for open/click events.
+ */
+export async function ingestSendGridEvents(events: SendGridEvent[]): Promise<{
+  inserted: number;
+  matched: number;
+  unmatched: number;
+}> {
+  let inserted = 0;
+  let matched = 0;
+  let unmatched = 0;
+
+  // Track which (campaignId, recipientId) pairs need aggregate refresh.
+  const dirtyCampaigns = new Set<string>();
+
+  for (const ev of events) {
+    if (!ev || !ev.event) continue;
+    const eventType = String(ev.event).toLowerCase();
+    const occurredAt = ev.timestamp ? new Date(ev.timestamp * 1000) : new Date();
+    const email = (ev.email || "").toLowerCase();
+
+    // Resolve recipient by recipient_id customArg first, then by sg_message_id prefix.
+    let recipientRow:
+      | { id: string; campaignId: string; contactId: string; openCount: number; clickCount: number; openedAt: Date | null; clickedAt: Date | null }
+      | undefined;
+
+    if (ev.recipient_id) {
+      const [row] = await db
+        .select({
+          id: emailCampaignRecipients.id,
+          campaignId: emailCampaignRecipients.campaignId,
+          contactId: emailCampaignRecipients.contactId,
+          openCount: emailCampaignRecipients.openCount,
+          clickCount: emailCampaignRecipients.clickCount,
+          openedAt: emailCampaignRecipients.openedAt,
+          clickedAt: emailCampaignRecipients.clickedAt,
+        })
+        .from(emailCampaignRecipients)
+        .where(eq(emailCampaignRecipients.id, ev.recipient_id));
+      recipientRow = row;
+    }
+    if (!recipientRow && ev.sg_message_id) {
+      // SendGrid event sg_message_id is like "<x-message-id>.<suffix>".
+      const prefix = ev.sg_message_id.split(".")[0];
+      const [row] = await db
+        .select({
+          id: emailCampaignRecipients.id,
+          campaignId: emailCampaignRecipients.campaignId,
+          contactId: emailCampaignRecipients.contactId,
+          openCount: emailCampaignRecipients.openCount,
+          clickCount: emailCampaignRecipients.clickCount,
+          openedAt: emailCampaignRecipients.openedAt,
+          clickedAt: emailCampaignRecipients.clickedAt,
+        })
+        .from(emailCampaignRecipients)
+        .where(eq(emailCampaignRecipients.sendgridMessageId, prefix));
+      recipientRow = row;
+    }
+
+    if (!recipientRow) {
+      unmatched++;
+      continue;
+    }
+    matched++;
+
+    // Insert into events log (idempotent on sg_event_id). If SendGrid omits
+    // sg_event_id, synthesize a stable hash so duplicates still dedupe.
+    let dedupeId = ev.sg_event_id;
+    if (!dedupeId) {
+      const basis = [
+        recipientRow.id,
+        eventType,
+        ev.sg_message_id ?? "",
+        ev.timestamp ?? "",
+        ev.url ?? "",
+      ].join("|");
+      dedupeId =
+        "synth-" +
+        crypto.createHash("sha256").update(basis).digest("hex").slice(0, 32);
+    }
+    try {
+      const ins = await db.execute(sql`
+        INSERT INTO email_campaign_events
+          (campaign_id, recipient_id, contact_id, email, event_type, url,
+           user_agent, ip, sg_event_id, sg_message_id, occurred_at)
+        VALUES (${recipientRow.campaignId}, ${recipientRow.id}, ${recipientRow.contactId},
+                ${email || ""}, ${eventType}, ${ev.url ?? null},
+                ${ev.useragent ?? null}, ${ev.ip ?? null},
+                ${dedupeId}, ${ev.sg_message_id ?? null}, ${occurredAt})
+        ON CONFLICT (sg_event_id) DO NOTHING
+        RETURNING id
+      `);
+      if (rowCount(ins) > 0) inserted++;
+      else continue; // duplicate event - don't double-count
+    } catch (err) {
+      console.error("[Campaigns] event insert failed:", scrubPii(errMsg(err)));
+      continue;
+    }
+
+    if (eventType === "open") {
+      // Atomic increment: avoids lost updates when multiple events for the
+      // same recipient arrive in one batch (or concurrently across requests).
+      await db.execute(sql`
+        UPDATE email_campaign_recipients
+        SET open_count = open_count + 1,
+            opened_at = COALESCE(opened_at, ${occurredAt})
+        WHERE id = ${recipientRow.id}
+      `);
+      dirtyCampaigns.add(recipientRow.campaignId);
+    } else if (eventType === "click") {
+      await db.execute(sql`
+        UPDATE email_campaign_recipients
+        SET click_count = click_count + 1,
+            clicked_at = COALESCE(clicked_at, ${occurredAt})
+        WHERE id = ${recipientRow.id}
+      `);
+      dirtyCampaigns.add(recipientRow.campaignId);
+    }
+  }
+
+  // Refresh aggregate counts on each touched campaign.
+  for (const campaignId of Array.from(dirtyCampaigns)) {
+    await refreshTrackingAggregates(campaignId);
+  }
+
+  return { inserted, matched, unmatched };
+}
+
+export async function refreshTrackingAggregates(campaignId: string): Promise<void> {
+  const [agg] = await db
+    .select({
+      openCount: sql<number>`coalesce(sum(${emailCampaignRecipients.openCount}), 0)::int`,
+      uniqueOpens: sql<number>`count(*) filter (where ${emailCampaignRecipients.openedAt} is not null)::int`,
+      clickCount: sql<number>`coalesce(sum(${emailCampaignRecipients.clickCount}), 0)::int`,
+      uniqueClicks: sql<number>`count(*) filter (where ${emailCampaignRecipients.clickedAt} is not null)::int`,
+    })
+    .from(emailCampaignRecipients)
+    .where(eq(emailCampaignRecipients.campaignId, campaignId));
+  await db
+    .update(emailCampaigns)
+    .set({
+      openCount: agg?.openCount ?? 0,
+      uniqueOpenCount: agg?.uniqueOpens ?? 0,
+      clickCount: agg?.clickCount ?? 0,
+      uniqueClickCount: agg?.uniqueClicks ?? 0,
+      updatedAt: new Date(),
+    })
+    .where(eq(emailCampaigns.id, campaignId));
 }

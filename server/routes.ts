@@ -1,4 +1,6 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
+import express from "express";
+import type Stripe from "stripe";
 import { createServer, type Server } from "http";
 import { db } from "./db";
 import { 
@@ -4115,6 +4117,655 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching expenses by vendor:', error);
       res.status(500).json({ message: "Failed to fetch expenses by vendor" });
+    }
+  });
+
+  // ============================================================
+  // PUBLIC SITE API (chrismcnulty.net)
+  // ============================================================
+
+  // List collections to show on public store/portfolio
+  app.get("/api/public/collections", async (_req, res) => {
+    try {
+      const rows = await db.execute(sql`
+        SELECT id, slug, name, description, hero_image_url AS "heroImageUrl",
+               display_order AS "displayOrder", show_on_portfolio AS "showOnPortfolio",
+               show_on_store AS "showOnStore"
+        FROM collections
+        WHERE slug IS NOT NULL
+        ORDER BY display_order ASC, name ASC
+      `);
+      res.json(rows.rows);
+    } catch (e) {
+      console.error('public/collections error:', e);
+      res.status(500).json({ error: 'Failed to fetch collections' });
+    }
+  });
+
+  app.get("/api/public/collections/:slug", async (req, res) => {
+    try {
+      const rows = await db.execute(sql`
+        SELECT id, slug, name, description, hero_image_url AS "heroImageUrl"
+        FROM collections WHERE slug = ${req.params.slug} LIMIT 1
+      `);
+      if (!rows.rows.length) return res.status(404).json({ error: 'Not found' });
+      res.json(rows.rows[0]);
+    } catch (e) {
+      console.error('public/collections/:slug error:', e);
+      res.status(500).json({ error: 'Failed to fetch collection' });
+    }
+  });
+
+  // List active products, optionally filtered by category slug
+  app.get("/api/public/products", async (req, res) => {
+    try {
+      const category = (req.query.category as string | undefined) || null;
+      let rows;
+      if (category && category !== 'all-products') {
+        rows = await db.execute(sql`
+          SELECT p.id, p.slug, p.title, p.description, p.aspect_ratio AS "aspectRatio",
+                 COALESCE(p.hero_image_url, ph.image_url) AS "heroImageUrl",
+                 p.badge, p.base_price_cents AS "basePriceCents", c.slug AS "collectionSlug"
+          FROM products p
+          LEFT JOIN photos ph ON ph.id = p.photo_id
+          LEFT JOIN collections c ON c.id = p.collection_id
+          WHERE p.is_active = true AND p.show_on_store = true
+            AND p.slug IS NOT NULL
+            AND c.slug = ${category}
+          ORDER BY p.created_at DESC
+        `);
+      } else {
+        rows = await db.execute(sql`
+          SELECT p.id, p.slug, p.title, p.description, p.aspect_ratio AS "aspectRatio",
+                 COALESCE(p.hero_image_url, ph.image_url) AS "heroImageUrl",
+                 p.badge, p.base_price_cents AS "basePriceCents", c.slug AS "collectionSlug"
+          FROM products p
+          LEFT JOIN photos ph ON ph.id = p.photo_id
+          LEFT JOIN collections c ON c.id = p.collection_id
+          WHERE p.is_active = true AND p.show_on_store = true
+            AND p.slug IS NOT NULL
+          ORDER BY p.created_at DESC
+        `);
+      }
+      res.json(rows.rows);
+    } catch (e) {
+      console.error('public/products error:', e);
+      res.status(500).json({ error: 'Failed to fetch products' });
+    }
+  });
+
+  // Single product detail with size + price options
+  app.get("/api/public/products/:slug", async (req, res) => {
+    try {
+      const slug = req.params.slug;
+      const productRows = await db.execute(sql`
+        SELECT p.id, p.slug, p.title, p.description, p.aspect_ratio AS "aspectRatio",
+               COALESCE(p.hero_image_url, ph.image_url) AS "heroImageUrl",
+               p.badge, p.base_price_cents AS "basePriceCents",
+               c.slug AS "collectionSlug", c.name AS "collectionName"
+        FROM products p
+        LEFT JOIN photos ph ON ph.id = p.photo_id
+        LEFT JOIN collections c ON c.id = p.collection_id
+        WHERE p.slug = ${slug} AND p.is_active = true AND p.show_on_store = true
+        LIMIT 1
+      `);
+      if (!productRows.rows.length) return res.status(404).json({ error: 'Not found' });
+      const product = productRows.rows[0] as Record<string, unknown> & {
+        aspectRatio?: string | null;
+      };
+
+      // Aspect on products is "16x9" etc.; on product_sizes it is "16:9" etc.
+      const ratioColon = String(product.aspectRatio || '').replace(/x/g, ':');
+      const sizeRows = await db.execute(sql`
+        SELECT ps.id AS "productSizeId",
+               ps.size_label AS "sizeLabel",
+               rp.media_type AS "mediaType",
+               rp.retail_price AS "retailPriceCents"
+        FROM retail_prices rp
+        JOIN product_sizes ps ON ps.id = rp.product_size_id
+        WHERE rp.is_current = true
+          AND rp.retail_price > 0
+          AND ps.aspect_ratio = ${ratioColon}
+        ORDER BY rp.media_type, rp.retail_price ASC
+      `);
+
+      res.json({ ...product, sizeOptions: sizeRows.rows });
+    } catch (e) {
+      console.error('public/products/:slug error:', e);
+      res.status(500).json({ error: 'Failed to fetch product' });
+    }
+  });
+
+  // Public photo gallery for /portfolio/:slug. Maps collection slug to
+  // photo category values.
+  app.get("/api/public/photos", async (req, res) => {
+    try {
+      const collection = String(req.query.collection || '').toLowerCase();
+      const collectionToCategories: Record<string, string[]> = {
+        seascapes: ['Seascapes', 'Seascape', 'Ocean', 'Oceans'],
+        landscapes: ['Landscapes', 'Landscape', 'Mountain', 'Mountain ', 'Trees', 'SunriseSunset'],
+        cityscapes: ['Cityscapes', 'City', 'Neon', 'Sign', 'Night', 'Highway', 'Transit', 'Houses'],
+      };
+      const categories = collectionToCategories[collection] || [];
+      const rows = categories.length
+        ? await db.execute(sql`
+            SELECT id, title, description, image_url AS "imageUrl", category,
+                   original_date AS "originalDate", custom_purchase_url AS "customPurchaseUrl"
+            FROM photos
+            WHERE archived = false AND hidden = false
+              AND category IN (${sql.join(categories.map((c) => sql`${c}`), sql`, `)})
+            ORDER BY original_date DESC NULLS LAST, created_at DESC
+            LIMIT 200
+          `)
+        : await db.execute(sql`
+            SELECT id, title, description, image_url AS "imageUrl", category,
+                   original_date AS "originalDate", custom_purchase_url AS "customPurchaseUrl"
+            FROM photos
+            WHERE archived = false AND hidden = false
+            ORDER BY original_date DESC NULLS LAST, created_at DESC
+            LIMIT 200
+          `);
+      res.json(rows.rows);
+    } catch (e) {
+      console.error('public/photos error:', e);
+      res.status(500).json({ error: 'Failed to fetch photos' });
+    }
+  });
+
+  // Public news feed (uses storage interface for admin editability)
+  app.get("/api/public/news", async (_req, res) => {
+    try {
+      const rows = await storage.getAllNewsItems(true);
+      res.json(rows.slice(0, 50));
+    } catch (e) {
+      console.error('public/news error:', e);
+      res.status(500).json({ error: 'Failed to fetch news' });
+    }
+  });
+
+  app.get("/api/public/news/:slug", async (req, res) => {
+    try {
+      const row = await storage.getNewsItemBySlug(req.params.slug);
+      if (!row) return res.status(404).json({ error: 'Not found' });
+      res.json(row);
+    } catch (e) {
+      console.error('public/news/:slug error:', e);
+      res.status(500).json({ error: 'Failed to fetch post' });
+    }
+  });
+
+  // Public events (uses storage interface for admin editability)
+  app.get("/api/public/events", async (_req, res) => {
+    try {
+      const rows = await storage.getAllEvents(true);
+      res.json(rows);
+    } catch (e) {
+      console.error('public/events error:', e);
+      res.status(500).json({ error: 'Failed to fetch events' });
+    }
+  });
+
+  // ============================================================
+  // CHECKOUT (Stripe)
+  // ============================================================
+  // Shared helper: convert "16x9" (DB product format) to "16:9" (DB size format)
+  function normalizeAspect(a: string): string {
+    return String(a || '').replace(/x/gi, ':');
+  }
+
+  // Validate the client-supplied cart against the DB and return server-trusted
+  // line items. The client may only specify what they want to buy
+  // (productId, productSizeId, mediaType, quantity); ALL pricing comes from
+  // the database. This prevents price tampering via cart/localStorage.
+  interface CartLineRequest {
+    productId: string;
+    productSizeId: string;
+    mediaType: string;
+    quantity: number;
+  }
+  interface ResolvedLine {
+    productId: string;
+    productSlug: string;
+    productTitle: string;
+    productImageUrl: string | null;
+    productSizeId: string;
+    sizeLabel: string;
+    mediaType: string;
+    quantity: number;
+    unitPriceCents: number;
+    lineTotalCents: number;
+  }
+
+  async function resolveCartLines(rawItems: unknown): Promise<
+    | { ok: true; lines: ResolvedLine[]; subtotalCents: number }
+    | { ok: false; status: number; error: string }
+  > {
+    if (!Array.isArray(rawItems) || rawItems.length === 0) {
+      return { ok: false, status: 400, error: 'Cart is empty.' };
+    }
+    if (rawItems.length > 50) {
+      return { ok: false, status: 400, error: 'Cart has too many items.' };
+    }
+
+    const requests: CartLineRequest[] = [];
+    for (const raw of rawItems) {
+      if (!raw || typeof raw !== 'object') {
+        return { ok: false, status: 400, error: 'Invalid cart item.' };
+      }
+      const item = raw as Record<string, unknown>;
+      const productId = typeof item.productId === 'string' ? item.productId : '';
+      const productSizeId = typeof item.productSizeId === 'string' ? item.productSizeId : '';
+      const mediaType = typeof item.mediaType === 'string' ? item.mediaType : '';
+      const quantity = Math.max(1, Math.min(99, Math.floor(Number(item.quantity) || 0)));
+      if (!productId || !productSizeId || !mediaType || quantity < 1) {
+        return { ok: false, status: 400, error: 'Cart item is missing required fields.' };
+      }
+      requests.push({ productId, productSizeId, mediaType, quantity });
+    }
+
+    const lines: ResolvedLine[] = [];
+    let subtotalCents = 0;
+
+    for (const req of requests) {
+      const result = await db.execute(sql`
+        SELECT
+          p.id              AS product_id,
+          p.slug            AS product_slug,
+          p.title           AS product_name,
+          p.hero_image_url  AS hero_image_url,
+          p.aspect_ratio    AS product_aspect,
+          ps.id             AS product_size_id,
+          ps.size_label     AS size_label,
+          ps.aspect_ratio   AS size_aspect,
+          rp.media_type     AS media_type,
+          rp.retail_price   AS retail_price
+        FROM products p
+        JOIN retail_prices rp
+          ON rp.product_size_id = ${req.productSizeId}
+         AND rp.media_type      = ${req.mediaType}
+         AND rp.is_current      = true
+        JOIN product_sizes ps
+          ON ps.id = rp.product_size_id
+        WHERE p.id = ${req.productId}
+          AND p.is_active     = true
+          AND p.show_on_store = true
+        LIMIT 1
+      `);
+      const row = (result.rows as Record<string, unknown>[])[0];
+      if (!row) {
+        return {
+          ok: false,
+          status: 400,
+          error: 'One or more items in your cart are no longer available.',
+        };
+      }
+      const productAspect = normalizeAspect(String(row.product_aspect || ''));
+      const sizeAspect = String(row.size_aspect || '');
+      if (productAspect !== sizeAspect) {
+        return {
+          ok: false,
+          status: 400,
+          error: 'Selected size does not match this print.',
+        };
+      }
+      const unitPriceCents = Math.max(0, Math.round(Number(row.retail_price) || 0));
+      if (unitPriceCents <= 0) {
+        return { ok: false, status: 400, error: 'Selected option is unavailable.' };
+      }
+      const lineTotalCents = unitPriceCents * req.quantity;
+      lines.push({
+        productId: String(row.product_id),
+        productSlug: String(row.product_slug),
+        productTitle: String(row.product_name),
+        productImageUrl: row.hero_image_url ? String(row.hero_image_url) : null,
+        productSizeId: String(row.product_size_id),
+        sizeLabel: String(row.size_label),
+        mediaType: String(row.media_type),
+        quantity: req.quantity,
+        unitPriceCents,
+        lineTotalCents,
+      });
+      subtotalCents += lineTotalCents;
+    }
+
+    return { ok: true, lines, subtotalCents };
+  }
+
+  interface PersistResult {
+    ok: true;
+    data: {
+      orderId: string;
+      totalCents: number;
+      subtotalCents: number;
+      taxCents: number;
+      alreadyPersisted: boolean;
+    };
+  }
+  interface PersistError { ok: false; status: number; error: string }
+
+  async function persistOrderFromStripeSession(
+    session: Stripe.Checkout.Session,
+  ): Promise<PersistResult | PersistError> {
+    const sessionId = session.id;
+    if (session.payment_status !== 'paid') {
+      return { ok: false, status: 402, error: 'Payment is not complete.' };
+    }
+
+    const existing = await db.execute(sql`
+      SELECT id, total_amount, subtotal, tax_collected
+      FROM orders WHERE order_number = ${sessionId} LIMIT 1
+    `);
+    const existingRow = (existing.rows as Record<string, unknown>[])[0];
+    if (existingRow) {
+      return {
+        ok: true,
+        data: {
+          orderId: String(existingRow.id),
+          totalCents: Number(existingRow.total_amount),
+          subtotalCents: Number(existingRow.subtotal),
+          taxCents: Number(existingRow.tax_collected),
+          alreadyPersisted: true,
+        },
+      };
+    }
+
+    const metadata = session.metadata || {};
+    const cartCount = parseInt(metadata.cart_count || '0', 10);
+    if (!cartCount || cartCount < 1) {
+      return { ok: false, status: 400, error: 'Session has no recoverable cart.' };
+    }
+    const reconstructed: CartLineRequest[] = [];
+    for (let i = 0; i < cartCount; i++) {
+      const raw = metadata[`item_${i}`];
+      if (typeof raw !== 'string') continue;
+      const [productId, productSizeId, mediaType, qty] = raw.split('|');
+      if (!productId || !productSizeId || !mediaType) continue;
+      reconstructed.push({
+        productId,
+        productSizeId,
+        mediaType,
+        quantity: Math.max(1, parseInt(qty || '1', 10)),
+      });
+    }
+    const resolved = await resolveCartLines(reconstructed);
+    if (!resolved.ok) {
+      console.error('persist: cart could not be re-resolved', resolved.error);
+      return { ok: false, status: 500, error: 'Could not reconcile order with catalog.' };
+    }
+
+    const channelRow = await db.execute(sql`
+      SELECT id FROM sales_channels WHERE name = 'Website' LIMIT 1
+    `);
+    let channelId = (channelRow.rows as Record<string, unknown>[])[0]?.id as string | undefined;
+    if (!channelId) {
+      const created = await db.execute(sql`
+        INSERT INTO sales_channels (name, description, is_active)
+        VALUES ('Website', 'chrismcnulty.net public store', true)
+        RETURNING id
+      `);
+      channelId = (created.rows as Record<string, unknown>[])[0]?.id as string;
+    }
+
+    interface AddrLike {
+      line1?: string | null; line2?: string | null;
+      city?: string | null; state?: string | null;
+      postal_code?: string | null; country?: string | null;
+    }
+    const customerDetails = session.customer_details;
+    const shipping = (session as unknown as {
+      shipping_details?: { address?: AddrLike | null; name?: string | null } | null;
+    }).shipping_details;
+    const buyerName = customerDetails?.name || shipping?.name || null;
+    const buyerEmail = customerDetails?.email || null;
+    const buyerPhone = customerDetails?.phone || null;
+    const addr: AddrLike | null =
+      shipping?.address || (customerDetails?.address as AddrLike | null) || null;
+    const shippingAddress = addr
+      ? [
+          addr.line1, addr.line2,
+          [addr.city, addr.state, addr.postal_code].filter(Boolean).join(', '),
+          addr.country,
+        ].filter(Boolean).join('\n')
+      : null;
+
+    const totalCents = session.amount_total ?? resolved.subtotalCents;
+    const subtotalCents = resolved.subtotalCents;
+    const taxCents = Math.max(0, totalCents - subtotalCents);
+
+    const insertedRow = await db.transaction(async (tx) => {
+      let customerId: string | null = null;
+      if (buyerEmail) {
+        const found = await tx.execute(sql`
+          SELECT id FROM customers WHERE email = ${buyerEmail} LIMIT 1
+        `);
+        const foundRow = (found.rows as Record<string, unknown>[])[0];
+        if (foundRow) {
+          customerId = String(foundRow.id);
+          await tx.execute(sql`
+            UPDATE customers
+            SET name = COALESCE(${buyerName}, name),
+                phone = COALESCE(${buyerPhone}, phone),
+                address = COALESCE(${shippingAddress}, address),
+                updated_at = NOW()
+            WHERE id = ${customerId}
+          `);
+        } else {
+          const created = await tx.execute(sql`
+            INSERT INTO customers (name, email, phone, address)
+            VALUES (${buyerName}, ${buyerEmail}, ${buyerPhone}, ${shippingAddress})
+            RETURNING id
+          `);
+          customerId = String((created.rows as Record<string, unknown>[])[0].id);
+        }
+      }
+
+      const inserted = await tx.execute(sql`
+        INSERT INTO orders (
+          order_number, channel_id, customer_id,
+          subtotal, tax_collected, total_amount,
+          buyer_name, buyer_email, buyer_phone, shipping_address, notes
+        ) VALUES (
+          ${sessionId}, ${channelId}, ${customerId},
+          ${subtotalCents}, ${taxCents}, ${totalCents},
+          ${buyerName}, ${buyerEmail}, ${buyerPhone}, ${shippingAddress},
+          ${'Stripe checkout: ' + sessionId}
+        )
+        ON CONFLICT (order_number) DO NOTHING
+        RETURNING id
+      `);
+      const insertedRows = inserted.rows as Record<string, unknown>[];
+      if (!insertedRows.length) {
+        const refetch = await tx.execute(sql`
+          SELECT id FROM orders WHERE order_number = ${sessionId} LIMIT 1
+        `);
+        return { id: String((refetch.rows as Record<string, unknown>[])[0].id), wasNew: false };
+      }
+      const orderId = String(insertedRows[0].id);
+      for (const line of resolved.lines) {
+        await tx.execute(sql`
+          INSERT INTO order_items (
+            order_id, product_id, sale_type,
+            quantity, unit_price, tax_amount, line_total, notes
+          ) VALUES (
+            ${orderId}, ${line.productId}, 'dropship',
+            ${line.quantity}, ${line.unitPriceCents}, 0, ${line.lineTotalCents},
+            ${line.mediaType + ' · ' + line.sizeLabel}
+          )
+        `);
+      }
+      return { id: orderId, wasNew: true };
+    });
+
+    return {
+      ok: true,
+      data: {
+        orderId: insertedRow.id,
+        totalCents,
+        subtotalCents,
+        taxCents,
+        alreadyPersisted: !insertedRow.wasNew,
+      },
+    };
+  }
+
+  app.get("/api/checkout/status", async (_req, res) => {
+    try {
+      const { isStripeConfigured } = await import("./stripe");
+      const available = await isStripeConfigured();
+      res.json({ available });
+    } catch (err) {
+      console.warn('checkout/status: failed to probe Stripe', err);
+      res.json({ available: false });
+    }
+  });
+
+  app.post("/api/checkout/create-session", async (req, res) => {
+    try {
+      const resolved = await resolveCartLines(req.body?.items);
+      if (!resolved.ok) {
+        return res.status(resolved.status).json({ error: resolved.error });
+      }
+
+      const { getUncachableStripeClient, isStripeConfigured } = await import("./stripe");
+      const ok = await isStripeConfigured();
+      if (!ok) {
+        return res
+          .status(503)
+          .json({ error: 'Online checkout is not currently available.' });
+      }
+
+      const stripe = await getUncachableStripeClient();
+      const origin = `${req.protocol}://${req.get('host')}`;
+
+      // Encode the validated cart in session metadata so we can reconstruct
+      // the order on the confirmation step. Each item slot stays well under
+      // Stripe's 500-char metadata value limit.
+      const metadata: Record<string, string> = { cart_count: String(resolved.lines.length) };
+      resolved.lines.forEach((line, idx) => {
+        metadata[`item_${idx}`] = `${line.productId}|${line.productSizeId}|${line.mediaType}|${line.quantity}`;
+      });
+
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: resolved.lines.map((line) => ({
+          quantity: line.quantity,
+          price_data: {
+            currency: 'usd',
+            unit_amount: line.unitPriceCents,
+            product_data: {
+              name: line.productTitle.slice(0, 250),
+              description: `${line.mediaType} · ${line.sizeLabel}`.slice(0, 250),
+              images: line.productImageUrl ? [line.productImageUrl] : undefined,
+              metadata: { product_id: line.productId, product_size_id: line.productSizeId },
+            },
+          },
+        })),
+        shipping_address_collection: { allowed_countries: ['US', 'CA'] },
+        metadata,
+        success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/checkout/cancel`,
+      });
+
+      res.json({ url: session.url, sessionId: session.id });
+    } catch (err) {
+      console.error('create-session error:', err);
+      const message = err instanceof Error ? err.message : 'Checkout failed';
+      res.status(500).json({ error: message });
+    }
+  });
+
+  // Stripe webhook: verifies signature, persists order via shared helper.
+  // Raw body is enabled in server/index.ts for this path.
+  app.post(
+    "/api/webhooks/stripe",
+    express.raw({ type: "application/json" }),
+    async (req: Request, res) => {
+      try {
+        const { getUncachableStripeClient, isStripeConfigured } = await import("./stripe");
+        if (!(await isStripeConfigured())) {
+          return res.status(503).json({ error: 'Stripe is not configured.' });
+        }
+        const secret = process.env.STRIPE_WEBHOOK_SECRET;
+        if (!secret) {
+          console.warn('STRIPE_WEBHOOK_SECRET not set; rejecting webhook.');
+          return res.status(503).json({ error: 'Webhook secret not configured.' });
+        }
+        const sigHeader = req.headers['stripe-signature'];
+        if (typeof sigHeader !== 'string') {
+          return res.status(400).json({ error: 'Missing stripe-signature header.' });
+        }
+        const stripe = await getUncachableStripeClient();
+        let event: Stripe.Event;
+        try {
+          event = stripe.webhooks.constructEvent(
+            req.body as Buffer,
+            sigHeader,
+            secret,
+          );
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : 'invalid signature';
+          console.warn('Stripe webhook signature verification failed:', msg);
+          return res.status(400).json({ error: `Webhook Error: ${msg}` });
+        }
+
+        if (
+          event.type === 'checkout.session.completed' ||
+          event.type === 'checkout.session.async_payment_succeeded'
+        ) {
+          const sessionLite = event.data.object as Stripe.Checkout.Session;
+          const session = await stripe.checkout.sessions.retrieve(sessionLite.id);
+          const result = await persistOrderFromStripeSession(session);
+          if (!result.ok) {
+            console.error('Webhook persist failed', result);
+            // Return 200 only for client-side reasons; otherwise let Stripe retry.
+            if (result.status >= 400 && result.status < 500) {
+              return res.status(200).json({ received: true, skipped: result.error });
+            }
+            return res.status(500).json({ error: result.error });
+          }
+          return res.status(200).json({ received: true, orderId: result.data.orderId });
+        }
+
+        res.status(200).json({ received: true, ignored: event.type });
+      } catch (err) {
+        console.error('webhook handler error:', err);
+        res.status(500).json({ error: 'Webhook processing failed.' });
+      }
+    },
+  );
+
+  // Success-page confirm: verifies the session is paid and persists the
+  // order if the webhook hasn't already done so. Idempotent.
+  app.post("/api/checkout/confirm/:sessionId", async (req, res) => {
+    try {
+      const sessionId = String(req.params.sessionId || '');
+      if (!sessionId.startsWith('cs_')) {
+        return res.status(400).json({ error: 'Invalid session id.' });
+      }
+
+      const { getUncachableStripeClient, isStripeConfigured } = await import("./stripe");
+      if (!(await isStripeConfigured())) {
+        return res.status(503).json({ error: 'Online checkout is not currently available.' });
+      }
+      const stripe = await getUncachableStripeClient();
+      // customer_details and shipping_details are returned by default on a
+      // Checkout Session — no expand needed.
+      const session = await stripe.checkout.sessions.retrieve(sessionId);
+      const result = await persistOrderFromStripeSession(session);
+      if (!result.ok) {
+        return res.status(result.status).json({ error: result.error });
+      }
+      res.json(result.data);
+    } catch (err) {
+      console.error('checkout/confirm error:', err);
+      const message = err instanceof Error ? err.message : 'Could not confirm order.';
+      // Stripe "No such checkout.session" and similar invalid-request errors
+      // should surface as 404, not 500.
+      const isInvalidRequest =
+        typeof message === 'string' &&
+        (message.includes('No such') || message.toLowerCase().includes('invalid'));
+      res.status(isInvalidRequest ? 404 : 500).json({ error: message });
     }
   });
 

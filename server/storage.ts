@@ -9,14 +9,16 @@ import {
   type Sale, type InsertSale, type Order, type InsertOrder, type OrderItem, type InsertOrderItem,
   type InventoryItem, type InsertInventoryItem,
   type DropShipOrder, type InsertDropShipOrder, type ExpenseCategory, type InsertExpenseCategory,
-  type Expense, type InsertExpense
+  type Expense, type InsertExpense,
+  type Event, type InsertEvent,
+  type NewsItem, type InsertNewsItem,
 } from "@shared/schema";
 
 // DTO for expenses enriched with category name
 export type ExpenseWithCategory = Expense & { categoryName: string };
 import { randomUUID } from "crypto";
 import { db } from "./db";
-import { photos, votes, settings, collections, photoPairs, pairVotes, products, productVariants, productSKUs, channelSKUs, retailPrices, salesChannels, suppliers, productSizes, supplierPrices, sales, orders, orderItems, inventoryItems, dropShipOrders, expenseCategories, expenses } from "@shared/schema";
+import { photos, votes, settings, collections, photoPairs, pairVotes, products, productVariants, productSKUs, channelSKUs, retailPrices, salesChannels, suppliers, productSizes, supplierPrices, sales, orders, orderItems, inventoryItems, dropShipOrders, expenseCategories, expenses, events, newsItems } from "@shared/schema";
 import { eq, sql, inArray, and, or, gte, lte, isNull, desc } from "drizzle-orm";
 
 export interface IStorage {
@@ -207,6 +209,22 @@ export interface IStorage {
   deleteExpense(id: string): Promise<boolean>;
   getExpensesByCategory(categoryId: string): Promise<ExpenseWithCategory[]>;
   getExpensesByVendor(vendor: string): Promise<ExpenseWithCategory[]>;
+
+  // Calendar events (public site)
+  getAllEvents(activeOnly?: boolean): Promise<Event[]>;
+  getEvent(id: string): Promise<Event | undefined>;
+  getEventBySlug(slug: string): Promise<Event | undefined>;
+  createEvent(event: InsertEvent): Promise<Event>;
+  updateEvent(id: string, updates: Partial<Event>): Promise<Event | undefined>;
+  deleteEvent(id: string): Promise<boolean>;
+
+  // News items (public blog)
+  getAllNewsItems(activeOnly?: boolean): Promise<NewsItem[]>;
+  getNewsItem(id: string): Promise<NewsItem | undefined>;
+  getNewsItemBySlug(slug: string): Promise<NewsItem | undefined>;
+  createNewsItem(item: InsertNewsItem): Promise<NewsItem>;
+  updateNewsItem(id: string, updates: Partial<NewsItem>): Promise<NewsItem | undefined>;
+  deleteNewsItem(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -852,6 +870,20 @@ export class MemStorage implements IStorage {
   async deleteExpense(id: string): Promise<boolean> { return false; }
   async getExpensesByCategory(categoryId: string): Promise<ExpenseWithCategory[]> { return []; }
   async getExpensesByVendor(vendor: string): Promise<ExpenseWithCategory[]> { return []; }
+
+  async getAllEvents(_activeOnly?: boolean): Promise<Event[]> { return []; }
+  async getEvent(_id: string): Promise<Event | undefined> { return undefined; }
+  async getEventBySlug(_slug: string): Promise<Event | undefined> { return undefined; }
+  async createEvent(_event: InsertEvent): Promise<Event> { throw new Error('Not implemented in MemStorage'); }
+  async updateEvent(_id: string, _updates: Partial<Event>): Promise<Event | undefined> { return undefined; }
+  async deleteEvent(_id: string): Promise<boolean> { return false; }
+
+  async getAllNewsItems(_activeOnly?: boolean): Promise<NewsItem[]> { return []; }
+  async getNewsItem(_id: string): Promise<NewsItem | undefined> { return undefined; }
+  async getNewsItemBySlug(_slug: string): Promise<NewsItem | undefined> { return undefined; }
+  async createNewsItem(_item: InsertNewsItem): Promise<NewsItem> { throw new Error('Not implemented in MemStorage'); }
+  async updateNewsItem(_id: string, _updates: Partial<NewsItem>): Promise<NewsItem | undefined> { return undefined; }
+  async deleteNewsItem(_id: string): Promise<boolean> { return false; }
 }
 
 // DatabaseStorage implementation
@@ -2985,6 +3017,64 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(expenseCategories, eq(expenses.categoryId, expenseCategories.id))
       .where(eq(expenses.vendor, vendor))
       .orderBy(desc(expenses.expenseDate));
+  }
+
+  // Calendar events
+  async getAllEvents(activeOnly: boolean = false): Promise<Event[]> {
+    const q = db.select().from(events);
+    const rows = activeOnly
+      ? await q.where(eq(events.isActive, true)).orderBy(events.startDate)
+      : await q.orderBy(events.startDate);
+    return rows;
+  }
+  async getEvent(id: string): Promise<Event | undefined> {
+    const [row] = await db.select().from(events).where(eq(events.id, id));
+    return row;
+  }
+  async getEventBySlug(slug: string): Promise<Event | undefined> {
+    const [row] = await db.select().from(events).where(eq(events.slug, slug));
+    return row;
+  }
+  async createEvent(data: InsertEvent): Promise<Event> {
+    const [row] = await db.insert(events).values(data).returning();
+    return row;
+  }
+  async updateEvent(id: string, updates: Partial<Event>): Promise<Event | undefined> {
+    const [row] = await db.update(events).set(updates).where(eq(events.id, id)).returning();
+    return row;
+  }
+  async deleteEvent(id: string): Promise<boolean> {
+    const r = await db.delete(events).where(eq(events.id, id));
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  // News items
+  async getAllNewsItems(activeOnly: boolean = false): Promise<NewsItem[]> {
+    const q = db.select().from(newsItems);
+    const rows = activeOnly
+      ? await q.where(eq(newsItems.isActive, true)).orderBy(desc(newsItems.publishDate))
+      : await q.orderBy(desc(newsItems.publishDate));
+    return rows;
+  }
+  async getNewsItem(id: string): Promise<NewsItem | undefined> {
+    const [row] = await db.select().from(newsItems).where(eq(newsItems.id, id));
+    return row;
+  }
+  async getNewsItemBySlug(slug: string): Promise<NewsItem | undefined> {
+    const [row] = await db.select().from(newsItems).where(eq(newsItems.slug, slug));
+    return row;
+  }
+  async createNewsItem(data: InsertNewsItem): Promise<NewsItem> {
+    const [row] = await db.insert(newsItems).values(data).returning();
+    return row;
+  }
+  async updateNewsItem(id: string, updates: Partial<NewsItem>): Promise<NewsItem | undefined> {
+    const [row] = await db.update(newsItems).set(updates).where(eq(newsItems.id, id)).returning();
+    return row;
+  }
+  async deleteNewsItem(id: string): Promise<boolean> {
+    const r = await db.delete(newsItems).where(eq(newsItems.id, id));
+    return (r.rowCount ?? 0) > 0;
   }
 }
 

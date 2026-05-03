@@ -66,6 +66,10 @@ export default {
           border: "var(--sidebar-border)",
           ring: "var(--sidebar-ring)",
         },
+        "cascadia-green": "var(--cascadia-green)",
+        "cascadia-sage": "var(--cascadia-sage)",
+        "cascadia-blue": "var(--cascadia-blue)",
+        "cascadia-light": "var(--cascadia-light)",
       },
       keyframes: {
         "accordion-down": {

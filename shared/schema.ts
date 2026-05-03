@@ -9,6 +9,12 @@ export const collections = pgTable("collections", {
   description: text("description"),
   color: text("color").default("#3B82F6").notNull(),
   createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  // Public site fields
+  slug: varchar("slug").unique(),
+  heroImageUrl: text("hero_image_url"),
+  displayOrder: integer("display_order").default(0).notNull(),
+  showOnPortfolio: boolean("show_on_portfolio").default(true).notNull(),
+  showOnStore: boolean("show_on_store").default(true).notNull(),
 });
 
 export const photos = pgTable("photos", {
@@ -299,10 +305,44 @@ export const newsItems = pgTable("news_items", {
   isActive: boolean("is_active").default(true).notNull(),
   priority: integer("priority").default(0).notNull(), // Higher priority shows first
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  // Blog post fields
+  slug: varchar("slug").unique(),
+  body: text("body"), // full body markdown/html
+  category: varchar("category").default("Creative"), // e.g. "Creative" / "Travel"
+  author: varchar("author").default("Chris McNulty"),
+  imageUrl: text("image_url"),
 }, (table) => [
   index("idx_news_items_publish_date").on(table.publishDate),
   index("idx_news_items_active").on(table.isActive),
+  index("idx_news_items_slug").on(table.slug),
 ]);
+
+// Calendar events
+export const events = pgTable("events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: varchar("title").notNull(),
+  slug: varchar("slug").unique(),
+  description: text("description"),
+  location: varchar("location"),
+  venueAddress: text("venue_address"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+  imageUrl: text("image_url"),
+  ctaUrl: text("cta_url"),
+  isActive: boolean("is_active").default(true).notNull(),
+  displayOrder: integer("display_order").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_events_start_date").on(table.startDate),
+  index("idx_events_active").on(table.isActive),
+]);
+
+export const insertEventSchema = createInsertSchema(events).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertEvent = z.infer<typeof insertEventSchema>;
+export type Event = typeof events.$inferSelect;
 
 export const insertNewsItemSchema = createInsertSchema(newsItems).omit({
   id: true,
@@ -329,9 +369,18 @@ export const products = pgTable("products", {
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  // Public store fields
+  slug: varchar("slug").unique(),
+  badge: varchar("badge"), // e.g. "New!", "Limited"
+  collectionId: varchar("collection_id").references(() => collections.id),
+  heroImageUrl: text("hero_image_url"), // override of photo image_url for the store card
+  showOnStore: boolean("show_on_store").default(true).notNull(),
+  basePriceCents: integer("base_price_cents"), // simple display price for store listing
 }, (table) => [
   index("idx_products_photo").on(table.photoId),
   index("idx_products_aspect_ratio").on(table.aspectRatio),
+  index("idx_products_slug").on(table.slug),
+  index("idx_products_collection").on(table.collectionId),
 ]);
 
 // Product variants (same product in different media types)
@@ -468,7 +517,7 @@ export const customers = pgTable("customers", {
 // Orders table - represents a purchase with potentially multiple items
 export const orders = pgTable("orders", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderNumber: varchar("order_number"), // Optional external order number (e.g., from Etsy, Amazon)
+  orderNumber: varchar("order_number").unique(), // Optional external order number (e.g., from Etsy, Amazon, or Stripe checkout session id)
   channelId: varchar("channel_id").notNull().references(() => salesChannels.id),
   customerId: varchar("customer_id").references(() => customers.id),
   

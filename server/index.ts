@@ -6,7 +6,13 @@ import { setupVite, serveStatic, log } from "./vite";
 import "./twilio";
 
 const app = express();
-app.use(express.json({ limit: '50mb' }));
+// Stripe webhooks require the raw request body for signature verification, so
+// the JSON parser is skipped for that path. Everything else goes through JSON.
+const jsonParser = express.json({ limit: '50mb' });
+app.use((req, res, next) => {
+  if (req.originalUrl === '/api/webhooks/stripe') return next();
+  return jsonParser(req, res, next);
+});
 app.use(express.urlencoded({ extended: false }));
 
 app.use((req, res, next) => {

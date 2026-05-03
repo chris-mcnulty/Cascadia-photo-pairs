@@ -1,7 +1,27 @@
-# Cascadia Oceanic Photo Voting App
+# Cascadia Oceanic Photo Voting App + Public Site
 
 ## Overview
-This is a full-stack photo voting application designed to rank landscape photography through a tournament-style voting system. It tracks user votes, wins, losses, and overall photo rankings. Key features include an admin dashboard for statistics and settings, purchase link management, real-time voting analytics, and intelligent photo editing. The business vision is to establish a platform for showcasing and ranking photographic talent, with future potential for curated contests, integrated sales, and evolution into a multi-instance architecture (Synozur) to support professional decision-making across visual and text-based content comparison.
+A full-stack web application that combines the public-facing photographer site for chrismcnulty.net (Home, Portfolio, Store with Stripe checkout, Calendar, Biography, News & Updates) with a tournament-style photo voting tool ("Photo Pairs") and a comprehensive admin/business backend. The voting tool tracks user votes, wins, losses, and overall photo rankings; the public site sells ChromaLuxe metal prints sourced from the same product catalog. The business vision is to establish a platform for showcasing and ranking photographic talent, with future potential for curated contests, integrated sales, and evolution into a multi-instance architecture (Synozur) to support professional decision-making across visual and text-based content comparison.
+
+## Public Site (chrismcnulty.net)
+- **Routes** (in `client/src/App.tsx`): `/` Home, `/portfolio`, `/portfolio/:slug`, `/store`, `/store/category/:slug`, `/store/:slug` (PDP), `/cart`, `/checkout`, `/biography`, `/calendar`, `/news`, `/news/:slug`. The voting experience moved from `/` to `/photo-pairs` (re-export of `pages/home.tsx` from `pages/photo-pairs.tsx`).
+- **Layout**: `client/src/components/public-layout.tsx` provides the mountain hero (`client/public/hero-mountains.png` generated locally to avoid wixstatic 403 hotlink), "Chris McNulty" wordmark, top nav with Log In + cart icon (count badge), and footer.
+- **Cart**: `client/src/contexts/cart-context.tsx` is a React context backed by `localStorage` (key `cmn-public-cart-v1`). Items are keyed by `productId::mediaType::sizeLabel`.
+- **SEO**: `client/src/hooks/use-seo.ts` sets per-page `<title>` plus OpenGraph/Twitter description and image meta tags.
+- **API** (appended at the end of `server/routes.ts`):
+  - `GET /api/public/collections` and `/:slug`
+  - `GET /api/public/products?category=<slug>` and `/:slug` (the detail endpoint also returns `sizeOptions[]` joined from `product_sizes` + `retail_prices` filtered by `is_current=true` and matching aspect ratio)
+  - `GET /api/public/news` and `/:slug`
+  - `GET /api/public/events`
+  - `GET /api/checkout/status` (returns `{available: boolean}`)
+  - `POST /api/checkout/create-session` (creates a Stripe Checkout Session and returns `{url}`)
+- **Stripe**: `server/stripe.ts` uses the Replit Stripe connector via `getUncachableStripeClient()`. The checkout page (`client/src/pages/public/checkout.tsx`) gracefully degrades to a "coming soon" message when `available=false`.
+- **Schema additions** (applied via direct SQL, not `drizzle-kit push` which is interactive):
+  - `collections`: `slug`, `hero_image_url`, `display_order`, `show_on_portfolio`, `show_on_store`
+  - `products`: `slug`, `badge`, `collection_id`, `hero_image_url`, `show_on_store`, `base_price_cents`
+  - `news_items`: `slug`, `body`, `category`, `author`, `image_url`
+  - new table `events` (id, title, slug, description, location, venue_address, start_date, end_date, image_url, cta_url, is_active, display_order, created_at)
+- **Seeded data**: 5 collections (all-products, seascapes, landscapes, cityscapes, gifts), 24 active products with slugs+badges (8 marked "New!")+hero images mapped from the live Wix sitemap + collection_id + base_price_cents=9900, 3 events, and 9 news items pulled from the live Wix RSS feed.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.

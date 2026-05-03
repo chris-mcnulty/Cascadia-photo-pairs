@@ -1090,3 +1090,72 @@ export type EmailCampaignRecipient = typeof emailCampaignRecipients.$inferSelect
 export type InsertEmailCampaignRecipient = z.infer<typeof insertEmailCampaignRecipientSchema>;
 export type EmailCampaignEvent = typeof emailCampaignEvents.$inferSelect;
 export type InsertEmailCampaignEvent = z.infer<typeof insertEmailCampaignEventSchema>;
+
+// ============== Web traffic / analytics (Task #7) ==============
+
+// One row per page view. visitorHash is a daily-rotated SHA-256 of (IP+UA+salt)
+// so unique-visitor counts are possible without ever storing IPs.
+export const pageViews = pgTable("page_views", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull(),
+  visitorHash: varchar("visitor_hash").notNull(),
+  path: text("path").notNull(),
+  referrer: text("referrer"),
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  device: text("device"),         // mobile | tablet | desktop | bot
+  isBot: boolean("is_bot").default(false).notNull(),
+  userId: varchar("user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_page_views_session").on(t.sessionId),
+  index("idx_page_views_path").on(t.path),
+  index("idx_page_views_created").on(t.createdAt),
+]);
+
+// Funnel + engagement events keyed off the same sessionId as page_views.
+export const trafficEvents = pgTable("traffic_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull(),
+  eventType: text("event_type").notNull(),  // cart_started | checkout_started | order_completed | vote_cast | other
+  path: text("path"),
+  metadata: jsonb("metadata"),
+  userId: varchar("user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_traffic_events_session").on(t.sessionId),
+  index("idx_traffic_events_type").on(t.eventType),
+  index("idx_traffic_events_created").on(t.createdAt),
+]);
+
+// Sliding 30-min sessions. Stores entry path + first-touch attribution.
+export const trafficSessions = pgTable("traffic_sessions", {
+  id: varchar("id").primaryKey(),
+  visitorHash: varchar("visitor_hash").notNull(),
+  firstSeenAt: timestamp("first_seen_at").defaultNow().notNull(),
+  lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
+  pageViewCount: integer("page_view_count").default(0).notNull(),
+  entryPath: text("entry_path"),
+  referrer: text("referrer"),
+  utmSource: text("utm_source"),
+  utmMedium: text("utm_medium"),
+  utmCampaign: text("utm_campaign"),
+  device: text("device"),
+  isBot: boolean("is_bot").default(false).notNull(),
+}, (t) => [
+  index("idx_traffic_sessions_visitor").on(t.visitorHash),
+  index("idx_traffic_sessions_last_seen").on(t.lastSeenAt),
+  index("idx_traffic_sessions_first_seen").on(t.firstSeenAt),
+]);
+
+// Daily-rotated salt for visitorHash. Old rows naturally break linkage.
+export const dailyTrafficSalts = pgTable("daily_traffic_salts", {
+  day: varchar("day").primaryKey(),  // YYYY-MM-DD UTC
+  salt: text("salt").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type PageView = typeof pageViews.$inferSelect;
+export type TrafficEvent = typeof trafficEvents.$inferSelect;
+export type TrafficSession = typeof trafficSessions.$inferSelect;

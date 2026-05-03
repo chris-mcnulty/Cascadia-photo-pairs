@@ -12,6 +12,7 @@ import AdminSettings from "@/components/admin-settings";
 import PhotoManager from "@/components/photo-manager";
 import AdminLogin from "@/components/admin-login";
 import AdminAnalytics from "@/components/admin-analytics";
+import TrafficDashboard from "@/components/admin/traffic-dashboard";
 import UserManagement from "@/components/admin/user-management";
 import ContestSettings from "@/components/admin/contest-settings";
 import ContestReport from "@/components/admin/contest-report";
@@ -29,7 +30,7 @@ import ProductSizesManagement from "@/components/admin/business/product-sizes-ma
 import SalesManagement from "@/components/admin/business/sales-management";
 import ExpenseTracker from "@/components/admin/business/expense-tracker";
 import { CSVImport } from "@/components/admin/business/csv-import";
-import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell, MessageSquare, Link2, Briefcase, ChevronDown, LayoutDashboard, Package, Package2, Building2, Receipt, Upload, DollarSign, Tag, Share2 } from "lucide-react";
+import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell, MessageSquare, Link2, Briefcase, ChevronDown, LayoutDashboard, Package, Package2, Building2, Receipt, Upload, DollarSign, Tag, Share2, Activity } from "lucide-react";
 import { Link } from "wouter";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
@@ -37,7 +38,7 @@ import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
 type BusinessSubTab = "dashboard" | "products" | "skus" | "inventory" | "suppliers" | "sizes" | "sales" | "expenses" | "import";
 
 function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"analytics" | "photos" | "pairs" | "users" | "communication" | "social" | "settings" | "business">("analytics");
+  const [activeTab, setActiveTab] = useState<"analytics" | "traffic" | "photos" | "pairs" | "users" | "communication" | "social" | "settings" | "business">("analytics");
   const [businessSubTab, setBusinessSubTab] = useState<BusinessSubTab>("dashboard");
   const { logout, isAuthenticated, sessionId } = useAuth();
   
@@ -156,6 +157,16 @@ function AdminDashboard() {
             <BarChart3 className="w-4 h-4 mr-1 sm:mr-2" />
             <span className="hidden sm:inline">Analytics</span>
             <span className="sm:hidden">Data</span>
+          </Button>
+          <Button
+            variant={activeTab === "traffic" ? "default" : "outline"}
+            onClick={() => setActiveTab("traffic")}
+            className="flex items-center text-sm"
+            size="sm"
+            data-testid="button-traffic-tab"
+          >
+            <Activity className="w-4 h-4 mr-1 sm:mr-2" />
+            Traffic
           </Button>
           <Button
             variant={activeTab === "photos" ? "default" : "outline"}
@@ -310,6 +321,7 @@ function AdminDashboard() {
 
         {/* Tab Content */}
         {activeTab === "analytics" && <AdminAnalytics />}
+        {activeTab === "traffic" && <TrafficDashboard />}
         {activeTab === "photos" && <PhotoManager />}
         {activeTab === "pairs" && <PairsManagement />}
         {activeTab === "users" && <UserManagement />}

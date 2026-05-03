@@ -4774,6 +4774,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Social publisher (Instagram + Facebook)
   registerSocialRoutes(app, isAuthenticated, getCurrentAdminUser);
+
+  // Unified web traffic analytics
+  const { registerAnalyticsRoutes } = await import("./analytics/routes");
+  registerAnalyticsRoutes(app, isAuthenticated);
   startSocialScheduler();
 
   // Email campaigns and centralized contact management

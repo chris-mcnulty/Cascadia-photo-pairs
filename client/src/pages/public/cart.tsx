@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useCart, itemKey } from "@/contexts/cart-context";
 import { useSEO } from "@/hooks/use-seo";
 import { Trash2, Minus, Plus, CheckCircle2, AlertCircle } from "lucide-react";
+import { trackEvent } from "@/lib/analytics";
 
 interface OrderConfirmation {
   orderId: string;
@@ -16,6 +17,13 @@ export default function Cart() {
   useSEO({ title: "Cart", description: "Your shopping cart at chrismcnulty.net." });
   const { items, updateQuantity, removeItem, subtotalCents, count, clear } = useCart();
   const [location] = useLocation();
+  const cartStartedFired = useRef(false);
+  useEffect(() => {
+    if (count > 0 && !cartStartedFired.current) {
+      cartStartedFired.current = true;
+      trackEvent("cart_started", { path: "/cart", metadata: { items: count, subtotalCents } });
+    }
+  }, [count, subtotalCents]);
   const [statusBanner, setStatusBanner] = useState<
     | { kind: "success"; order?: OrderConfirmation }
     | { kind: "cancel" }
@@ -50,6 +58,12 @@ export default function Cart() {
       })
       .then((order) => {
         setStatusBanner({ kind: "success", order });
+        try {
+          trackEvent("order_completed", {
+            path: "/cart",
+            metadata: { orderId: order.orderId, totalCents: order.totalCents },
+          });
+        } catch { /* analytics never throws */ }
         clear();
       })
       .catch((err) => {

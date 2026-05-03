@@ -28,6 +28,8 @@ import CalendarPage from "@/pages/public/calendar";
 import News from "@/pages/public/news";
 import NewsPost from "@/pages/public/news-post";
 import Unsubscribe from "@/pages/unsubscribe";
+import PrivacyAnalytics from "@/pages/public/privacy-analytics";
+import RouteTracker from "@/components/route-tracker";
 
 function Router() {
   return (
@@ -62,6 +64,7 @@ function Router() {
       <Route path="/profile" component={Profile} />
       <Route path="/user-settings" component={Profile} />
       <Route path="/unsubscribe" component={Unsubscribe} />
+      <Route path="/privacy/analytics" component={PrivacyAnalytics} />
 
       <Route component={NotFound} />
     </Switch>
@@ -74,6 +77,7 @@ function App() {
       <TooltipProvider>
         <CartProvider>
           <Toaster />
+          <RouteTracker />
           <Router />
         </CartProvider>
       </TooltipProvider>

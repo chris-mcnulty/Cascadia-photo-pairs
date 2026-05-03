@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/cart-context";
 import { useSEO } from "@/hooks/use-seo";
 import { useToast } from "@/hooks/use-toast";
+import { trackEvent } from "@/lib/analytics";
 
 export default function Checkout() {
   useSEO({ title: "Checkout", description: "Secure checkout for prints from chrismcnulty.net." });
@@ -14,6 +15,12 @@ export default function Checkout() {
   const [stripeAvailable, setStripeAvailable] = useState<boolean | null>(null);
 
   useEffect(() => {
+    if (items.length > 0) {
+      trackEvent("checkout_started", {
+        path: "/checkout",
+        metadata: { items: items.length, subtotalCents },
+      });
+    }
     fetch("/api/checkout/status")
       .then((r) => r.json())
       .then((d) => setStripeAvailable(!!d.available))

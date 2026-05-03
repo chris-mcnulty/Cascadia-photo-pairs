@@ -304,7 +304,10 @@ export default function PublicLayout({
           </div>
         </div>
         <div className="border-t border-gray-200 py-4 text-center text-xs text-gray-500">
-          © {new Date().getFullYear()} Cascadia Oceanic LLC. All rights reserved.
+          © {new Date().getFullYear()} Cascadia Oceanic LLC. All rights reserved.{" "}
+          <Link href="/privacy/analytics" className="hover:text-cascadia-green underline-offset-4 hover:underline" data-testid="link-privacy-analytics">
+            Analytics &amp; Privacy
+          </Link>
         </div>
       </footer>
     </div>

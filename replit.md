@@ -44,6 +44,7 @@ Preferred communication style: Simple, everyday language.
 - **Mobile Experience**: Optimized UI with touch/swipe gestures, consistent with PWA.
 - **RSS News Integration**: Configurable system for news feeds.
 - **Social Publisher**: System for scheduling and publishing posts to Instagram & Facebook via CSV import, tracking clicks, and managing social accounts. It includes token management and a scheduler with exponential backoff for retries.
+- **Unified Web Traffic Reporting**: Self-hosted page-view logging (`page_views`, `traffic_events`, `traffic_sessions`) plus optional GA4 tag (lazy-loaded only when `VITE_GA4_MEASUREMENT_ID` is set; manual `page_view` per route change). Privacy-preserving: short-lived `cmnAnalyticsSid` cookie (HttpOnly, SameSite=Lax, 30-min sliding) and a daily-rotating SHA-256 visitor hash (`daily_traffic_salts`) — raw IPs are never persisted. Referrers are normalized to scheme+host only; event metadata is allow-listed (≤8 scalar fields, ≤200 chars). Public ingestion: `POST /api/analytics/page`, `POST /api/analytics/event` (never throw). Admin Traffic dashboard (under admin → Traffic) unifies web views, social `/go` clicks, and email open/click events with timeline overlay, top pages, referrers, conversion funnel (Visits → Store views → Cart started → Checkout started → Order completed), and voting engagement. Public privacy page at `/privacy/analytics`.
 
 ## External Dependencies
 

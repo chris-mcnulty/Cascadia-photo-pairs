@@ -96,14 +96,17 @@ export async function publishFacebookPagePost(args: {
   try {
     const token = args.accessToken;
     // /{page-id}/photos with url + caption posts the photo to the Page feed.
+    // Page feed photo publish: Meta's documented endpoint for an image post
+    // on a Page is /{page-id}/photos with `url` (image), `caption` (text),
+    // and `link` (clickable destination). The API attaches `link` as a real
+    // outbound link rather than appending it to the caption text.
     const result = await metaFetch(`/${args.pageId}/photos`, {
       method: "POST",
       token,
       body: {
         url: args.imageUrl,
-        caption: args.link
-          ? `${args.caption}\n\n${args.link}`
-          : args.caption,
+        caption: args.caption,
+        link: args.link,
         published: "true",
       },
     });

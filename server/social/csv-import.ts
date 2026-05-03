@@ -90,7 +90,7 @@ export async function isHostPublic(hostname: string): Promise<boolean> {
   }
 }
 
-async function isImageUrlReachable(url: string): Promise<boolean> {
+export async function validateImageUrl(url: string): Promise<boolean> {
   if (url.startsWith("data:")) return false;
   if (!HTTPS_RE.test(url)) return false;
   let parsed: URL;
@@ -119,7 +119,7 @@ export async function parseSocialCsv(args: {
   csvContent: string;
   filename: string;
   accounts: SocialAccount[];
-  validateImages?: boolean;
+  validateImages?: boolean; // default true; never disabled by client input
 }): Promise<SocialCsvDryRun> {
   const cleanContent = args.csvContent.replace(/^\uFEFF/, "");
   const records = parse(cleanContent, {
@@ -184,7 +184,7 @@ export async function parseSocialCsv(args: {
           errors.push(`Image URL must be HTTPS: ${u}`);
           continue;
         }
-        const reachable = await isImageUrlReachable(u);
+        const reachable = await validateImageUrl(u);
         if (!reachable) {
           errors.push(`Image URL is not publicly fetchable: ${u}`);
         }

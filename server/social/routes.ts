@@ -25,7 +25,7 @@ import {
   publishFacebookPagePost,
   publishInstagramPost,
 } from "./meta-client";
-import { parseSocialCsv, isHostPublic } from "./csv-import";
+import { parseSocialCsv, isHostPublic, validateImageUrl } from "./csv-import";
 import { encryptToken } from "./token-crypto";
 
 function trackedBaseUrl(): string {
@@ -148,7 +148,8 @@ export function registerSocialRoutes(
 
   const connectSchema = z.object({
     platform: z.enum(["instagram", "facebook"]),
-    displayName: z.string().min(1),
+    // Optional — discovered from Meta during validation if omitted
+    displayName: z.string().min(1).optional(),
     pageId: z.string().min(1).optional(),
     igUserId: z.string().min(1).optional(),
     accessToken: z.string().min(20),
@@ -282,7 +283,7 @@ export function registerSocialRoutes(
           csvContent: req.file.buffer.toString("utf8"),
           filename: req.file.originalname,
           accounts,
-          validateImages: req.body.skipImageValidation !== "true",
+          validateImages: true,
         });
         // Enrich each row with a preview of the rendered caption + tracked URL
         // so admins see exactly what will be published.
@@ -322,8 +323,19 @@ export function registerSocialRoutes(
           csvContent: req.file.buffer.toString("utf8"),
           filename: req.file.originalname,
           accounts,
-          validateImages: req.body.skipImageValidation !== "true",
+          validateImages: true,
         });
+        if (dry.invalidRows > 0) {
+          // Hard-stop on commit if any row failed validation. Admin must fix
+          // the CSV; we never queue a row that didn't pass image+URL checks.
+          return res.status(400).json({
+            error: `Refusing to commit: ${dry.invalidRows} row(s) failed validation`,
+            details: dry.rows.filter((r) => r.errors.length).map((r) => ({
+              row: r.rowIndex,
+              errors: r.errors,
+            })),
+          });
+        }
 
         // Pre-allocate tracked slugs OUTSIDE the transaction (each call hits
         // its own auto-commit) so the actual insert is purely local writes
@@ -422,6 +434,34 @@ export function registerSocialRoutes(
   app.post("/api/admin/social/posts", isAuthenticated, async (req, res) => {
     try {
       const body = adhocSchema.parse(req.body);
+      // Apply the same validation rules as the CSV pipeline.
+      const urls = body.mediaUrls || [];
+      if (!urls.length) return res.status(400).json({ error: "At least one image URL is required" });
+      if (body.platform === "instagram" && urls.length > 10)
+        return res.status(400).json({ error: "Instagram allows max 10 carousel images" });
+      const imageErrors: string[] = [];
+      for (const u of urls) {
+        const ok = await validateImageUrl(u);
+        if (!ok) imageErrors.push(u);
+      }
+      if (imageErrors.length) {
+        return res.status(400).json({
+          error: `Image URL(s) failed validation (must be HTTPS + public host + reachable): ${imageErrors.join(", ")}`,
+        });
+      }
+      if (body.linkUrl) {
+        try {
+          const parsed = new URL(body.linkUrl);
+          if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+            return res.status(400).json({ error: "Link must be http(s)" });
+          }
+          if (!(await isHostPublic(parsed.hostname))) {
+            return res.status(400).json({ error: "Link target must be a public host" });
+          }
+        } catch {
+          return res.status(400).json({ error: "Invalid link URL" });
+        }
+      }
       const slug = await uniqueSlug();
       const [created] = await db
         .insert(socialPosts)

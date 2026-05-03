@@ -43,7 +43,6 @@ export default function SocialImport() {
   const { toast } = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [campaignName, setCampaignName] = useState("");
-  const [skipImageValidation, setSkipImageValidation] = useState(false);
   const [dryRun, setDryRun] = useState<DryRun | null>(null);
 
   const dryMutation = useMutation({
@@ -51,7 +50,6 @@ export default function SocialImport() {
       if (!file) throw new Error("Pick a CSV first");
       const fd = new FormData();
       fd.append("file", file);
-      if (skipImageValidation) fd.append("skipImageValidation", "true");
       const sessionId = localStorage.getItem("admin-session-id");
       const authToken = localStorage.getItem("auth-token");
       const headers: Record<string, string> = {};
@@ -76,7 +74,6 @@ export default function SocialImport() {
       const fd = new FormData();
       fd.append("file", file);
       if (campaignName) fd.append("campaignName", campaignName);
-      if (skipImageValidation) fd.append("skipImageValidation", "true");
       const sessionId = localStorage.getItem("admin-session-id");
       const authToken = localStorage.getItem("auth-token");
       const headers: Record<string, string> = {};
@@ -131,15 +128,8 @@ export default function SocialImport() {
               placeholder="e.g. spring2026"
             />
           </div>
-          <div className="flex items-end">
-            <label className="text-sm flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={skipImageValidation}
-                onChange={(e) => setSkipImageValidation(e.target.checked)}
-              />
-              Skip image-URL HEAD check (faster, less safe)
-            </label>
+          <div className="flex items-end text-xs text-gray-500">
+            All image URLs are validated server-side (HTTPS, public host, HEAD 200).
           </div>
         </div>
 

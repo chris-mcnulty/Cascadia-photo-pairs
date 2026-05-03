@@ -45,6 +45,9 @@ async function tick() {
   } catch (e) {
     console.error("[social-scheduler] tick error", e);
   }
+  // Always flush — recoverStuckPosts may have queued failures even when
+  // there were no claimed rows to publish.
+  await flushFailureEmail();
 }
 
 async function igDailyCount(accountId: string): Promise<number> {
@@ -83,20 +86,32 @@ async function recoverStuckPosts() {
     console.warn(
       `[social-scheduler] marked ${rows.length} stuck posting rows as failed`
     );
-    notifyFailures(rows.map((r) => r.id)).catch(() => {});
+    for (const r of rows) recordFailure(r.id);
   }
 }
 
-async function notifyFailures(postIds: string[]) {
+// Per-tick failure batching: collect failed post IDs during a tick and send
+// a single email at the end of the tick rather than one email per failure.
+let tickFailures: string[] = [];
+function recordFailure(postId: string) {
+  tickFailures.push(postId);
+}
+async function flushFailureEmail() {
+  const ids = tickFailures;
+  tickFailures = [];
   const to = process.env.SOCIAL_FAILURE_EMAIL;
-  if (!to || !postIds.length) return;
-  const list = postIds.map((id) => `- ${id}`).join("\n");
-  await sendEmail(
-    to,
-    `[Cascadia social] ${postIds.length} post(s) need attention`,
-    `<p>The following social post(s) failed and may need manual review:</p><pre>${list}</pre>` +
-      `<p>Open the admin → Social → Post Queue → Failed tab.</p>`
-  );
+  if (!to || !ids.length) return;
+  const list = ids.map((id) => `- ${id}`).join("\n");
+  try {
+    await sendEmail(
+      to,
+      `[Cascadia social] ${ids.length} post(s) need attention`,
+      `<p>The following social post(s) failed during the last scheduler tick and may need manual review:</p><pre>${list}</pre>` +
+        `<p>Open the admin → Social → Post Queue → Failed tab.</p>`
+    );
+  } catch (e) {
+    console.warn("[social-scheduler] failure email send failed", e);
+  }
 }
 
 async function processOnce() {
@@ -131,6 +146,7 @@ async function processOnce() {
       console.error("[social-scheduler] publishOne crash", e);
     });
   }
+  await flushFailureEmail();
 }
 
 async function publishOne(row: any) {
@@ -266,6 +282,6 @@ async function markFailed(
         updatedAt: new Date(),
       })
       .where(eq(socialPosts.id, postId));
-    notifyFailures([postId]).catch(() => {});
+    recordFailure(postId);
   }
 }

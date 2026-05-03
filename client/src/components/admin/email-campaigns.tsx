@@ -34,6 +34,7 @@ import {
   Upload,
   TestTube,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 type Contact = {
   id: string;
@@ -858,7 +859,7 @@ function CampaignsPanel() {
                 <th className="p-2">Name</th>
                 <th className="p-2">Subject</th>
                 <th className="p-2">Status</th>
-                <th className="p-2">Sent</th>
+                <th className="p-2">Progress</th>
                 <th className="p-2">Opens</th>
                 <th className="p-2">Clicks</th>
                 <th className="p-2"></th>
@@ -874,9 +875,8 @@ function CampaignsPanel() {
                   <td className="p-2 font-medium">{c.name}</td>
                   <td className="p-2">{c.subject}</td>
                   <td className="p-2"><CampaignStatusBadge status={c.status} /></td>
-                  <td className="p-2 text-xs">
-                    {c.sentCount}/{c.totalRecipients}
-                    {c.failedCount > 0 ? ` (${c.failedCount} failed)` : ""}
+                  <td className="p-2 text-xs min-w-[180px]">
+                    <CampaignProgress campaign={c} />
                   </td>
                   <td className="p-2 text-xs" data-testid={`campaign-opens-${c.id}`}>
                     {c.trackOpens ? (
@@ -1094,6 +1094,57 @@ function RecipientEventsDialog({ recipient, onClose }: { recipient: Recipient; o
         <DialogFooter><Button onClick={onClose}>Close</Button></DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function CampaignProgress({ campaign }: { campaign: Campaign }) {
+  const total = campaign.totalRecipients || 0;
+  const sent = campaign.sentCount || 0;
+  const failed = campaign.failedCount || 0;
+  const skipped = campaign.unsubscribedCount || 0;
+  const processed = sent + failed + skipped;
+  const remaining = Math.max(0, total - processed);
+  const isActive = campaign.status === "sending" || campaign.status === "queued";
+  const pct = total > 0 ? Math.min(100, Math.round((processed / total) * 100)) : 0;
+
+  if (total === 0 && !isActive) {
+    return <span className="text-gray-400">—</span>;
+  }
+
+  return (
+    <div className="space-y-1" data-testid={`campaign-progress-${campaign.id}`}>
+      <div className="flex items-center gap-2 whitespace-nowrap">
+        <span data-testid={`campaign-sent-${campaign.id}`}>
+          <span className="text-green-700 font-medium">{sent}</span> sent
+        </span>
+        <span className="text-gray-400">·</span>
+        <span data-testid={`campaign-failed-${campaign.id}`}>
+          <span className={failed > 0 ? "text-red-600 font-medium" : "text-gray-600"}>
+            {failed}
+          </span>{" "}
+          failed
+        </span>
+        <span className="text-gray-400">·</span>
+        <span data-testid={`campaign-remaining-${campaign.id}`}>
+          <span className={isActive && remaining > 0 ? "text-blue-700 font-medium" : "text-gray-600"}>
+            {remaining}
+          </span>{" "}
+          remaining
+        </span>
+      </div>
+      {(isActive || (total > 0 && pct < 100)) && (
+        <Progress value={pct} className="h-1.5" data-testid={`campaign-progress-bar-${campaign.id}`} />
+      )}
+      <div className="text-[10px] text-gray-500">
+        {processed}/{total}
+        {skipped > 0 && (
+          <span className="ml-1" data-testid={`campaign-skipped-${campaign.id}`}>
+            · {skipped} skipped
+          </span>
+        )}
+        {isActive && <span className="ml-1 text-blue-600">· live</span>}
+      </div>
+    </div>
   );
 }
 

@@ -49,6 +49,7 @@ import {
 import { sendVerificationEmail, sendPasswordResetEmail } from "./email";
 import { sendAdminMFACode, isEmailServiceAvailable, isSMSServiceAvailable } from "./sendgrid";
 import { rssService } from "./rss-service";
+import { registerCampaignRoutes } from "./routes/campaigns";
 import { z } from "zod";
 import multer from "multer";
 import { importWixProducts, importWixOrders } from "./csv-import";
@@ -4774,6 +4775,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Social publisher (Instagram + Facebook)
   registerSocialRoutes(app, isAuthenticated, getCurrentAdminUser);
   startSocialScheduler();
+
+  // Email campaigns and centralized contact management
+  registerCampaignRoutes(app, isAuthenticated);
 
   const httpServer = createServer(app);
   return httpServer;

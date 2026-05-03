@@ -107,7 +107,12 @@ export const settings = pgTable("settings", {
   // Pairs Feature Configuration
   pairsEnabled: boolean("pairs_enabled").default(false).notNull(),
   pairsMinInterval: integer("pairs_min_interval").default(10).notNull(), // Minimum votes between pairs
-  pairsMaxInterval: integer("pairs_max_interval").default(15).notNull() // Maximum votes between pairs
+  pairsMaxInterval: integer("pairs_max_interval").default(15).notNull(), // Maximum votes between pairs
+  // Email campaign settings
+  campaignFromName: text("campaign_from_name").default("Cascadia Oceanic"),
+  campaignFromEmail: text("campaign_from_email").default("cascadia@chrismcnulty.net"),
+  campaignReplyTo: text("campaign_reply_to").default("cascadia@chrismcnulty.net"),
+  campaignMailingAddress: text("campaign_mailing_address").default("Cascadia Oceanic LLC, Seattle, WA, USA"),
 });
 
 // Photo pairs table for direct comparisons  
@@ -909,6 +914,122 @@ export const insertSocialCsvImportSchema = createInsertSchema(socialCsvImports).
   createdAt: true,
 });
 
+// ============================================
+// EMAIL CAMPAIGNS & CENTRALIZED CONTACTS
+// ============================================
+
+export const contacts = pgTable("contacts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").notNull().unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  source: varchar("source").notNull().default("manual"), // "user", "customer", "manual", "csv"
+  sourceUserId: varchar("source_user_id").references(() => users.id),
+  sourceCustomerId: varchar("source_customer_id").references(() => customers.id),
+  tags: text("tags").array().notNull().default(sql`ARRAY[]::text[]`),
+  marketingOptIn: boolean("marketing_opt_in").default(false).notNull(),
+  unsubscribeToken: varchar("unsubscribe_token").notNull().unique(),
+  unsubscribedAt: timestamp("unsubscribed_at"),
+  lastEmailedAt: timestamp("last_emailed_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_contacts_email").on(table.email),
+  index("idx_contacts_source").on(table.source),
+  index("idx_contacts_opt_in").on(table.marketingOptIn),
+]);
+
+export const contactLists = pgTable("contact_lists", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull().unique(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const contactListMembers = pgTable("contact_list_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  listId: varchar("list_id").notNull().references(() => contactLists.id, { onDelete: "cascade" }),
+  contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+  addedAt: timestamp("added_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_clm_list").on(table.listId),
+  index("idx_clm_contact").on(table.contactId),
+  uniqueIndex("idx_clm_unique").on(table.listId, table.contactId),
+]);
+
+export const emailCampaigns = pgTable("email_campaigns", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name").notNull(),
+  subject: varchar("subject").notNull(),
+  fromName: varchar("from_name").notNull(),
+  fromEmail: varchar("from_email").notNull(),
+  replyTo: varchar("reply_to"),
+  bodyHtml: text("body_html").notNull(),
+  listId: varchar("list_id").references(() => contactLists.id),
+  status: varchar("status").notNull().default("draft"), // "draft", "queued", "sending", "sent", "failed"
+  sentCount: integer("sent_count").default(0).notNull(),
+  failedCount: integer("failed_count").default(0).notNull(),
+  unsubscribedCount: integer("unsubscribed_count").default(0).notNull(),
+  totalRecipients: integer("total_recipients").default(0).notNull(),
+  scheduledFor: timestamp("scheduled_for"),
+  sentAt: timestamp("sent_at"),
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_email_campaigns_status").on(table.status),
+  index("idx_email_campaigns_list").on(table.listId),
+]);
+
+export const emailCampaignRecipients = pgTable("email_campaign_recipients", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  campaignId: varchar("campaign_id").notNull().references(() => emailCampaigns.id, { onDelete: "cascade" }),
+  contactId: varchar("contact_id").notNull().references(() => contacts.id, { onDelete: "cascade" }),
+  email: varchar("email").notNull(),
+  status: varchar("status").notNull().default("pending"), // "pending", "sent", "failed", "skipped", "unsubscribed"
+  sendgridMessageId: varchar("sendgrid_message_id"),
+  errorMessage: text("error_message"),
+  sentAt: timestamp("sent_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_ecr_campaign").on(table.campaignId),
+  index("idx_ecr_contact").on(table.contactId),
+  index("idx_ecr_status").on(table.status),
+  uniqueIndex("idx_ecr_unique").on(table.campaignId, table.contactId),
+]);
+
+export const insertContactSchema = createInsertSchema(contacts).omit({
+  id: true,
+  unsubscribeToken: true,
+  unsubscribedAt: true,
+  lastEmailedAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertContactListSchema = createInsertSchema(contactLists).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertContactListMemberSchema = createInsertSchema(contactListMembers).omit({
+  id: true,
+  addedAt: true,
+});
+export const insertEmailCampaignSchema = createInsertSchema(emailCampaigns).omit({
+  id: true,
+  sentCount: true,
+  failedCount: true,
+  unsubscribedCount: true,
+  totalRecipients: true,
+  sentAt: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertEmailCampaignRecipientSchema = createInsertSchema(emailCampaignRecipients).omit({
+  id: true,
+  createdAt: true,
+});
+
 export type SocialAccount = typeof socialAccounts.$inferSelect;
 export type InsertSocialAccount = z.infer<typeof insertSocialAccountSchema>;
 export type SocialPost = typeof socialPosts.$inferSelect;
@@ -916,3 +1037,14 @@ export type InsertSocialPost = z.infer<typeof insertSocialPostSchema>;
 export type SocialCsvImport = typeof socialCsvImports.$inferSelect;
 export type InsertSocialCsvImport = z.infer<typeof insertSocialCsvImportSchema>;
 export type SocialClick = typeof socialClicks.$inferSelect;
+
+export type Contact = typeof contacts.$inferSelect;
+export type InsertContact = z.infer<typeof insertContactSchema>;
+export type ContactList = typeof contactLists.$inferSelect;
+export type InsertContactList = z.infer<typeof insertContactListSchema>;
+export type ContactListMember = typeof contactListMembers.$inferSelect;
+export type InsertContactListMember = z.infer<typeof insertContactListMemberSchema>;
+export type EmailCampaign = typeof emailCampaigns.$inferSelect;
+export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;
+export type EmailCampaignRecipient = typeof emailCampaignRecipients.$inferSelect;
+export type InsertEmailCampaignRecipient = z.infer<typeof insertEmailCampaignRecipientSchema>;

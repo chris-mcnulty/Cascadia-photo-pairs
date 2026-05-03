@@ -36,6 +36,10 @@ export default function AdminSettings() {
     pairsEnabled: false,
     pairsMinInterval: 4,
     pairsMaxInterval: 8,
+    campaignFromName: "",
+    campaignFromEmail: "",
+    campaignReplyTo: "",
+    campaignMailingAddress: "",
   });
 
   const updateSettingsMutation = useMutation({
@@ -124,6 +128,10 @@ export default function AdminSettings() {
         pairsEnabled: settings.pairsEnabled !== undefined ? settings.pairsEnabled : false,
         pairsMinInterval: settings.pairsMinInterval || 4,
         pairsMaxInterval: settings.pairsMaxInterval || 8,
+        campaignFromName: settings.campaignFromName || "Cascadia Oceanic",
+        campaignFromEmail: settings.campaignFromEmail || "cascadia@chrismcnulty.net",
+        campaignReplyTo: settings.campaignReplyTo || "cascadia@chrismcnulty.net",
+        campaignMailingAddress: settings.campaignMailingAddress || "",
       });
     }
   }, [settings]);
@@ -411,6 +419,54 @@ export default function AdminSettings() {
             />
             <div className="text-sm text-gray-500">
               URL or path to your terms of service page (shown in footer).
+            </div>
+          </div>
+
+          {/* Email Campaign Defaults */}
+          <div className="space-y-2 border-t pt-6">
+            <h3 className="text-lg font-semibold">Email Marketing Defaults</h3>
+            <p className="text-sm text-gray-500">Used as defaults for new campaigns and the marketing email footer.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="campaignFromName">From name</Label>
+              <Input
+                id="campaignFromName"
+                value={formData.campaignFromName}
+                onChange={(e) => setFormData(prev => ({ ...prev, campaignFromName: e.target.value }))}
+                placeholder="Cascadia Oceanic"
+                data-testid="input-campaign-from-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="campaignFromEmail">From email</Label>
+              <Input
+                id="campaignFromEmail"
+                value={formData.campaignFromEmail}
+                onChange={(e) => setFormData(prev => ({ ...prev, campaignFromEmail: e.target.value }))}
+                placeholder="cascadia@chrismcnulty.net"
+                data-testid="input-campaign-from-email"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="campaignReplyTo">Reply-to email</Label>
+              <Input
+                id="campaignReplyTo"
+                value={formData.campaignReplyTo}
+                onChange={(e) => setFormData(prev => ({ ...prev, campaignReplyTo: e.target.value }))}
+                placeholder="cascadia@chrismcnulty.net"
+                data-testid="input-campaign-reply-to"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="campaignMailingAddress">Mailing address (CAN-SPAM)</Label>
+              <Input
+                id="campaignMailingAddress"
+                value={formData.campaignMailingAddress}
+                onChange={(e) => setFormData(prev => ({ ...prev, campaignMailingAddress: e.target.value }))}
+                placeholder="Cascadia Oceanic LLC, City, State"
+                data-testid="input-campaign-address"
+              />
             </div>
           </div>
 

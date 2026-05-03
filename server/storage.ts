@@ -270,7 +270,11 @@ export class MemStorage implements IStorage {
       announcementType: "info",
       pairsEnabled: false,
       pairsMinInterval: 10,
-      pairsMaxInterval: 15
+      pairsMaxInterval: 15,
+      campaignFromName: "Cascadia Oceanic",
+      campaignFromEmail: "cascadia@chrismcnulty.net",
+      campaignReplyTo: "cascadia@chrismcnulty.net",
+      campaignMailingAddress: "Cascadia Oceanic LLC, Boston, MA",
     };
     
     // Initialize with sample photos (using stock photo URLs)

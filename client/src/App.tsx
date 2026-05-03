@@ -27,6 +27,7 @@ import Biography from "@/pages/public/biography";
 import CalendarPage from "@/pages/public/calendar";
 import News from "@/pages/public/news";
 import NewsPost from "@/pages/public/news-post";
+import Unsubscribe from "@/pages/unsubscribe";
 
 function Router() {
   return (
@@ -60,6 +61,7 @@ function Router() {
       <Route path="/user-stats" component={UserStats} />
       <Route path="/profile" component={Profile} />
       <Route path="/user-settings" component={Profile} />
+      <Route path="/unsubscribe" component={Unsubscribe} />
 
       <Route component={NotFound} />
     </Switch>

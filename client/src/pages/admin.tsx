@@ -17,6 +17,7 @@ import ContestSettings from "@/components/admin/contest-settings";
 import ContestReport from "@/components/admin/contest-report";
 import AnnouncementSettings from "@/components/admin/announcement-settings";
 import NewsManagement from "@/components/admin/news-management";
+import EmailCampaigns from "@/components/admin/email-campaigns";
 import { PairsManagement } from "@/components/admin/pairs-management";
 import SocialManagement from "@/components/admin/social/social-management";
 import BusinessDashboard from "@/components/admin/business/business-dashboard";
@@ -318,6 +319,7 @@ function AdminDashboard() {
             <ContestSettings />
             <AnnouncementSettings />
             <NewsManagement />
+            <EmailCampaigns />
           </div>
         )}
         {activeTab === "business" && (

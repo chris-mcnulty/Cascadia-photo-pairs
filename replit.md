@@ -40,6 +40,7 @@ Preferred communication style: Simple, everyday language.
 - **User Features**: Personalized statistics, contest entry, favorites, purchase history, and client-side leaderboard.
 - **Photo Management**: Inline editing, drag-and-drop uploads, smart photo source handling, and collection organization.
 - **Communication**: Email notifications (welcome, verification, contest).
+- **Email Marketing**: Centralized contacts (`contacts`, `contact_lists`, `email_campaigns`) with branded HTML shell, SendGrid send pipeline (separate from transactional, click-tracking off), tokenized one-click unsubscribe at `/unsubscribe?t=<token>`, idempotent backfill from users + customers (dedup by lower(email)), and admin UI under Communication → Email Marketing tab. Configure defaults under Settings → Email Marketing Defaults. Public routes: `GET/POST /api/unsubscribe/:token`. Admin routes (auth required): `/api/admin/contacts`, `/api/admin/contact-lists`, `/api/admin/campaigns`.
 - **Mobile Experience**: Optimized UI with touch/swipe gestures, consistent with PWA.
 - **RSS News Integration**: Configurable system for news feeds.
 - **Social Publisher**: System for scheduling and publishing posts to Instagram & Facebook via CSV import, tracking clicks, and managing social accounts. It includes token management and a scheduler with exponential backoff for retries.

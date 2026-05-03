@@ -96,25 +96,30 @@ export function registerSocialRoutes(
       if (!post || !post.linkUrl) {
         return res.status(404).send("Link not found");
       }
-      // Increment click counter (fire-and-forget; best-effort)
-      try {
-        await db
-          .update(socialPosts)
-          .set({ clickCount: sql`${socialPosts.clickCount} + 1` })
-          .where(eq(socialPosts.id, post.id));
-        const ipHash = crypto
-          .createHash("sha256")
-          .update(String(req.ip || "") + (process.env.SESSION_SECRET || ""))
-          .digest("hex")
-          .slice(0, 16);
-        await db.insert(socialClicks).values({
-          postId: post.id,
-          userAgent: req.headers["user-agent"] || null,
-          referer: (req.headers.referer as string) || null,
-          ipHash,
-        });
-      } catch (e) {
-        console.warn("[social] click tracking failed", e);
+      // Increment click counter (fire-and-forget; best-effort).
+      // Bot/crawler clicks are excluded from analytics counts (Task #7).
+      const ua = (req.headers["user-agent"] as string) || "";
+      const looksBot = /bot|crawl|spider|preview|slurp|monitor|fetch|curl|wget|http|axios|postman|node-fetch/i.test(ua);
+      if (!looksBot) {
+        try {
+          await db
+            .update(socialPosts)
+            .set({ clickCount: sql`${socialPosts.clickCount} + 1` })
+            .where(eq(socialPosts.id, post.id));
+          const ipHash = crypto
+            .createHash("sha256")
+            .update(String(req.ip || "") + (process.env.SESSION_SECRET || ""))
+            .digest("hex")
+            .slice(0, 16);
+          await db.insert(socialClicks).values({
+            postId: post.id,
+            userAgent: ua || null,
+            referer: (req.headers.referer as string) || null,
+            ipHash,
+          });
+        } catch (e) {
+          console.warn("[social] click tracking failed", e);
+        }
       }
 
       // Append UTM params (re-check host is public to defend against

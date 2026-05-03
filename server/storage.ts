@@ -230,12 +230,14 @@ export interface IStorage {
 export class MemStorage implements IStorage {
   private photos: Map<string, Photo>;
   private votes: Map<string, Vote>;
+  private pairVotes: Map<string, PairVote>;
   private settings: Settings;
   private voterSessions: Set<string>;
 
   constructor() {
     this.photos = new Map();
     this.votes = new Map();
+    this.pairVotes = new Map();
     this.voterSessions = new Set();
     this.settings = {
       id: "main",
@@ -435,6 +437,9 @@ export class MemStorage implements IStorage {
       loserPhotoId: insertVote.loserPhotoId || insertVote.photoId,
       voterType: insertVote.voterType || "user",
       userId: insertVote.userId || null,
+      sessionId: insertVote.sessionId ?? null,
+      visitorHash: insertVote.visitorHash ?? null,
+      isBot: insertVote.isBot ?? false,
       timestamp: new Date().toISOString(),
     };
     this.votes.set(id, vote);
@@ -735,11 +740,35 @@ export class MemStorage implements IStorage {
   }
 
   async createPairVote(vote: InsertPairVote): Promise<PairVote> {
-    throw new Error("Pairs functionality not implemented in MemStorage");
+    const id = randomUUID();
+    const newVote: PairVote = {
+      id,
+      pairId: vote.pairId,
+      winnerPhotoId: vote.winnerPhotoId,
+      loserPhotoId: vote.loserPhotoId,
+      voterType: vote.voterType || "user",
+      userId: vote.userId || null,
+      sessionId: vote.sessionId ?? null,
+      visitorHash: vote.visitorHash ?? null,
+      isBot: vote.isBot ?? false,
+      timestamp: new Date(),
+    };
+    this.pairVotes.set(id, newVote);
+    return newVote;
   }
 
   async getPairVoteStats(pairId: string): Promise<{ photo1Wins: number; photo2Wins: number; totalVotes: number }> {
-    return { photo1Wins: 0, photo2Wins: 0, totalVotes: 0 };
+    const rows = Array.from(this.pairVotes.values()).filter((v) => v.pairId === pairId);
+    const pair = await this.getPhotoPair(pairId);
+    let photo1Wins = 0;
+    let photo2Wins = 0;
+    if (pair) {
+      for (const v of rows) {
+        if (v.winnerPhotoId === pair.photo1Id) photo1Wins++;
+        else if (v.winnerPhotoId === pair.photo2Id) photo2Wins++;
+      }
+    }
+    return { photo1Wins, photo2Wins, totalVotes: rows.length };
   }
 
   async getPhotoPerformanceInPairs(photoId: string): Promise<{ wins: number; losses: number; winRate: number }> {
@@ -970,11 +999,14 @@ export class DatabaseStorage implements IStorage {
       loserPhotoId: insertVote.loserPhotoId || insertVote.photoId,
       voterType: insertVote.voterType || "user",
       userId: insertVote.userId || null,
+      sessionId: insertVote.sessionId ?? null,
+      visitorHash: insertVote.visitorHash ?? null,
+      isBot: insertVote.isBot ?? false,
       timestamp: new Date().toISOString(),
     };
 
     const [savedVote] = await db.insert(votes).values(vote).returning();
-    
+
     // Update photo vote count
     await db
       .update(photos)

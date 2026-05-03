@@ -883,6 +883,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const voteData = insertVoteSchema.parse(req.body);
       const { winnerPhotoId, loserPhotoId } = req.body;
+      // Task #7 unified-traffic linkage: snapshot the analytics session id
+      // (set by htmlCollectorMiddleware/api ingestion) onto the vote row so
+      // dashboard metrics derive from the actual votes table.
+      const { readSessionCookie, isBotUA, visitorHashFor } = await import("./analytics/middleware");
+      const analyticsSid = readSessionCookie(req) || null;
+      const ua = (req.headers["user-agent"] as string) || "";
+      const voteIsBot = isBotUA(ua);
+      let voteVisitorHash: string | null = null;
+      try {
+        voteVisitorHash = analyticsSid ? await visitorHashFor(req) : null;
+      } catch {
+        voteVisitorHash = null;
+      }
       
       // Determine voter type and user ID
       let voterType = 'user';
@@ -919,7 +932,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         winnerPhotoId: winnerPhotoId || voteData.photoId,
         loserPhotoId: loserPhotoId || voteData.photoId,
         voterType,
-        userId
+        userId,
+        sessionId: analyticsSid || undefined,
+        visitorHash: voteVisitorHash || undefined,
+        isBot: voteIsBot,
       });
       
       // Record comparison stats
@@ -941,7 +957,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             winnerPhotoId,
             loserPhotoId,
             voterType,
-            userId
+            userId,
+            sessionId: analyticsSid || undefined,
+            visitorHash: voteVisitorHash || undefined,
+            isBot: voteIsBot,
           });
           console.log(`Recorded pair vote for pair ${pair.id}`);
         }
@@ -2004,12 +2023,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const loserPhotoId = pair.photo1Id === winnerPhotoId ? pair.photo2Id : pair.photo1Id;
 
+      const { readSessionCookie, isBotUA, visitorHashFor } = await import("./analytics/middleware");
+      const analyticsSid2 = readSessionCookie(req) || undefined;
+      const ua2 = (req.headers["user-agent"] as string) || "";
+      let visitorHash2: string | undefined;
+      try {
+        visitorHash2 = analyticsSid2 ? await visitorHashFor(req) : undefined;
+      } catch {
+        visitorHash2 = undefined;
+      }
+
       const pairVote = await storage.createPairVote({
         pairId,
         winnerPhotoId,
         loserPhotoId,
         voterType,
-        userId
+        userId,
+        sessionId: analyticsSid2,
+        visitorHash: visitorHash2,
+        isBot: isBotUA(ua2),
       });
 
       res.json(pairVote);

@@ -338,15 +338,20 @@ export function registerAnalyticsRoutes(
       const [evt] = await db.select({ n: sql<number>`count(*)::int` })
         .from(trafficEvents).where(and(gte(trafficEvents.createdAt, since), lte(trafficEvents.createdAt, until)));
 
+      // Bot UA filter — symmetric with page_views via ?includeBots=1 toggle.
+      const includeBotsOverview = req.query.includeBots === "1";
+      const notBotUaSocial = includeBotsOverview ? sql`true` : sql`coalesce(${socialClicks.userAgent}, '') !~* 'bot|crawl|spider|preview|slurp|monitor|fetch|curl|wget|headless|axios|postman|node-fetch'`;
+      const notBotUaEmail = includeBotsOverview ? sql`true` : sql`coalesce(${emailCampaignEvents.userAgent}, '') !~* 'bot|crawl|spider|preview|slurp|monitor|fetch|curl|wget|headless|axios|postman|node-fetch'`;
+
       const [sc] = await db.select({ n: sql<number>`count(*)::int` })
-        .from(socialClicks).where(and(gte(socialClicks.clickedAt, since), lte(socialClicks.clickedAt, until)));
+        .from(socialClicks).where(and(gte(socialClicks.clickedAt, since), lte(socialClicks.clickedAt, until), notBotUaSocial));
 
       const [emailOpens] = await db.select({ n: sql<number>`count(*)::int` })
         .from(emailCampaignEvents)
-        .where(and(gte(emailCampaignEvents.occurredAt, since), lte(emailCampaignEvents.occurredAt, until), eq(emailCampaignEvents.eventType, "open")));
+        .where(and(gte(emailCampaignEvents.occurredAt, since), lte(emailCampaignEvents.occurredAt, until), eq(emailCampaignEvents.eventType, "open"), notBotUaEmail));
       const [emailClicks] = await db.select({ n: sql<number>`count(*)::int` })
         .from(emailCampaignEvents)
-        .where(and(gte(emailCampaignEvents.occurredAt, since), lte(emailCampaignEvents.occurredAt, until), eq(emailCampaignEvents.eventType, "click")));
+        .where(and(gte(emailCampaignEvents.occurredAt, since), lte(emailCampaignEvents.occurredAt, until), eq(emailCampaignEvents.eventType, "click"), notBotUaEmail));
 
       res.json({
         days,
@@ -384,11 +389,13 @@ export function registerAnalyticsRoutes(
           ) x
          GROUP BY bucket ORDER BY bucket
       `);
+      const botUaPattern = `bot|crawl|spider|preview|slurp|monitor|fetch|curl|wget|headless|axios|postman|node-fetch`;
       const scRows = await db.execute(sql`
         SELECT ${granularity === "hour" ? sql`date_trunc('hour', clicked_at)` : sql`date_trunc('day', clicked_at)`} AS bucket,
                count(*)::int AS social_clicks
           FROM social_clicks
          WHERE clicked_at >= ${since} AND clicked_at <= ${until}
+           ${includeBots ? sql`` : sql`AND coalesce(user_agent, '') !~* ${botUaPattern}`}
          GROUP BY bucket ORDER BY bucket
       `);
       const emRows = await db.execute(sql`
@@ -397,6 +404,7 @@ export function registerAnalyticsRoutes(
                sum(case when event_type = 'click' then 1 else 0 end)::int AS email_clicks
           FROM email_campaign_events
          WHERE occurred_at >= ${since} AND occurred_at <= ${until}
+           ${includeBots ? sql`` : sql`AND coalesce(user_agent, '') !~* ${botUaPattern}`}
          GROUP BY bucket ORDER BY bucket
       `);
 
@@ -477,6 +485,7 @@ export function registerAnalyticsRoutes(
   app.get("/api/admin/analytics/referrers", isAuthenticated, async (req, res) => {
     try {
       const { since, until, days } = rangeFromQuery(req.query);
+      const includeBotsReferrers = req.query.includeBots === "1";
       const classified = await db.execute(sql`
         SELECT
           CASE
@@ -488,7 +497,8 @@ export function registerAnalyticsRoutes(
           END AS source,
           count(*)::int AS sessions
         FROM traffic_sessions
-        WHERE first_seen_at >= ${since} AND first_seen_at <= ${until} AND is_bot = false
+        WHERE first_seen_at >= ${since} AND first_seen_at <= ${until}
+          ${includeBotsReferrers ? sql`` : sql`AND is_bot = false`}
         GROUP BY source
         ORDER BY sessions DESC
       `);
@@ -497,18 +507,20 @@ export function registerAnalyticsRoutes(
           coalesce(nullif(regexp_replace(referrer, '^https?://([^/]+).*$', '\\1'), ''), '(direct)') AS host,
           count(*)::int AS sessions
         FROM traffic_sessions
-        WHERE first_seen_at >= ${since} AND first_seen_at <= ${until} AND is_bot = false
+        WHERE first_seen_at >= ${since} AND first_seen_at <= ${until}
+          ${includeBotsReferrers ? sql`` : sql`AND is_bot = false`}
         GROUP BY host
         ORDER BY sessions DESC
         LIMIT 50
       `);
+      const notBotUaSocial = includeBotsReferrers ? sql`true` : sql`coalesce(${socialClicks.userAgent}, '') !~* 'bot|crawl|spider|preview|slurp|monitor|fetch|curl|wget|headless|axios|postman|node-fetch'`;
       const goRows = await db.select({
         platform: socialPosts.platform,
         clicks: sql<number>`count(${socialClicks.id})::int`,
       })
         .from(socialClicks)
         .innerJoin(socialPosts, eq(socialPosts.id, socialClicks.postId))
-        .where(and(gte(socialClicks.clickedAt, since), lte(socialClicks.clickedAt, until)))
+        .where(and(gte(socialClicks.clickedAt, since), lte(socialClicks.clickedAt, until), notBotUaSocial))
         .groupBy(socialPosts.platform)
         .orderBy(sql`count(${socialClicks.id}) desc`);
 
@@ -594,45 +606,58 @@ export function registerAnalyticsRoutes(
           eq(pageViews.isBot, false),
         ));
 
-      // Voting sessions = distinct sessions that emitted a `vote_cast` event.
-      // Returning voters = distinct visitor_hashes appearing in 2+ voting sessions.
+      // Voting metrics derive from the votes/pair_votes tables themselves
+      // (which now carry session_id + visitor_hash + is_bot via Task #7
+      // linkage), not from a separate client beacon. is_bot=false is
+      // enforced everywhere so crawler-generated rows are excluded.
       type CountRow = { n: number };
       const vsRowsRes = await db.execute(sql`
-        SELECT count(distinct session_id)::int AS n
-          FROM traffic_events
-         WHERE event_type = 'vote_cast'
-           AND created_at >= ${since} AND created_at <= ${until}
+        SELECT count(distinct sid)::int AS n FROM (
+          SELECT session_id AS sid FROM votes
+           WHERE is_bot = false AND session_id IS NOT NULL
+             AND timestamp::timestamptz >= ${since} AND timestamp::timestamptz <= ${until}
+          UNION ALL
+          SELECT session_id AS sid FROM pair_votes
+           WHERE is_bot = false AND session_id IS NOT NULL
+             AND timestamp >= ${since} AND timestamp <= ${until}
+        ) s
       `);
-      const vsRows = (vsRowsRes as unknown as { rows: CountRow[] }).rows;
-      const votingSessions = vsRows[0]?.n || 0;
+      const votingSessions = ((vsRowsRes as unknown as { rows: CountRow[] }).rows[0]?.n) || 0;
 
       const voterRowsRes = await db.execute(sql`
-        SELECT count(*)::int AS n FROM (
-          SELECT pv.visitor_hash
-            FROM traffic_events te
-            JOIN page_views pv ON pv.session_id = te.session_id
-           WHERE te.event_type = 'vote_cast'
-             AND te.created_at >= ${since} AND te.created_at <= ${until}
-           GROUP BY pv.visitor_hash
+        SELECT count(distinct vh)::int AS n FROM (
+          SELECT visitor_hash AS vh FROM votes
+           WHERE is_bot = false AND visitor_hash IS NOT NULL
+             AND timestamp::timestamptz >= ${since} AND timestamp::timestamptz <= ${until}
+          UNION ALL
+          SELECT visitor_hash AS vh FROM pair_votes
+           WHERE is_bot = false AND visitor_hash IS NOT NULL
+             AND timestamp >= ${since} AND timestamp <= ${until}
         ) v
       `);
       const distinctVoters = ((voterRowsRes as unknown as { rows: CountRow[] }).rows[0]?.n) || 0;
 
+      // Returning voter = visitor_hash that has voted in any session prior to
+      // its earliest session within the window (i.e. not their first-ever vote).
       const returningVotersRowsRes = await db.execute(sql`
-        SELECT count(*)::int AS n FROM (
-          SELECT pv.visitor_hash
-            FROM traffic_events te
-            JOIN page_views pv ON pv.session_id = te.session_id
-           WHERE te.event_type = 'vote_cast'
-             AND te.created_at >= ${since} AND te.created_at <= ${until}
-           GROUP BY pv.visitor_hash
-          HAVING count(distinct te.session_id) > 1
-        ) r
+        WITH v AS (
+          SELECT visitor_hash, session_id, timestamp::timestamptz AS t FROM votes
+           WHERE is_bot = false AND visitor_hash IS NOT NULL
+          UNION ALL
+          SELECT visitor_hash, session_id, timestamp AS t FROM pair_votes
+           WHERE is_bot = false AND visitor_hash IS NOT NULL
+        )
+        SELECT count(distinct visitor_hash)::int AS n FROM v
+         WHERE t >= ${since} AND t <= ${until}
+           AND visitor_hash IN (
+             SELECT visitor_hash FROM v
+              WHERE t < ${since}
+           )
       `);
       const returningVoters = ((returningVotersRowsRes as unknown as { rows: CountRow[] }).rows[0]?.n) || 0;
 
-      const vRowsRes = await db.execute(sql`SELECT count(*)::int AS n FROM votes WHERE timestamp::timestamp >= ${since} AND timestamp::timestamp <= ${until}`);
-      const pRowsRes = await db.execute(sql`SELECT count(*)::int AS n FROM pair_votes WHERE timestamp >= ${since} AND timestamp <= ${until}`);
+      const vRowsRes = await db.execute(sql`SELECT count(*)::int AS n FROM votes WHERE is_bot = false AND timestamp::timestamptz >= ${since} AND timestamp::timestamptz <= ${until}`);
+      const pRowsRes = await db.execute(sql`SELECT count(*)::int AS n FROM pair_votes WHERE is_bot = false AND timestamp >= ${since} AND timestamp <= ${until}`);
       const vrows = (vRowsRes as unknown as { rows: CountRow[] }).rows;
       const prows = (pRowsRes as unknown as { rows: CountRow[] }).rows;
 

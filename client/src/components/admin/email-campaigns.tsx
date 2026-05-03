@@ -1,5 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Image from "@tiptap/extension-image";
+import Link from "@tiptap/extension-link";
+import Placeholder from "@tiptap/extension-placeholder";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +38,17 @@ import {
   RefreshCw,
   Upload,
   TestTube,
+  Bold as BoldIcon,
+  Italic as ItalicIcon,
+  Heading2,
+  List,
+  ListOrdered,
+  Link as LinkIcon,
+  Image as ImageIcon,
+  Undo2,
+  Redo2,
+  Quote,
+  Pilcrow,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
@@ -1173,8 +1189,50 @@ function CampaignEditor({ campaign, onClose }: { campaign?: Campaign; onClose: (
   const [trackClicks, setTrackClicks] = useState(campaign?.trackClicks ?? true);
   const [testEmail, setTestEmail] = useState("");
   const [previewHtml, setPreviewHtml] = useState<string>("");
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const { data: lists = [] } = useQuery<ContactList[]>({ queryKey: ["/api/admin/contact-lists"] });
+
+  // Live preview: re-render through renderBrandedEmail whenever bodyHtml changes (debounced).
+  useEffect(() => {
+    if (!bodyHtml) {
+      setPreviewHtml("");
+      return;
+    }
+    setPreviewLoading(true);
+    let cancelled = false;
+    const handle = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/admin/campaigns/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...authHeaders() },
+          credentials: "include",
+          body: JSON.stringify({ bodyHtml }),
+        });
+        if (cancelled) return;
+        if (res.ok) {
+          setPreviewHtml(await res.text());
+        } else {
+          const msg = res.status === 401 ? "Sign in expired — re-open the dialog." : `Preview failed (${res.status}).`;
+          setPreviewHtml(
+            `<p style="font-family:sans-serif;padding:1rem;color:#b91c1c">${msg}</p>`,
+          );
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setPreviewHtml(
+            `<p style="font-family:sans-serif;padding:1rem;color:#b91c1c">Preview failed: ${(e as Error).message}</p>`,
+          );
+        }
+      } finally {
+        if (!cancelled) setPreviewLoading(false);
+      }
+    }, 500);
+    return () => {
+      cancelled = true;
+      clearTimeout(handle);
+    };
+  }, [bodyHtml]);
 
   type CampaignPayload = {
     name: string;
@@ -1282,34 +1340,17 @@ function CampaignEditor({ campaign, onClose }: { campaign?: Campaign; onClose: (
           <div>
             <div className="flex items-center justify-between mb-1">
               <Label>Live preview</Label>
-              <Button
-                size="sm"
-                variant="outline"
-                type="button"
-                onClick={async () => {
-                  try {
-                    const res = await fetch("/api/admin/campaigns/preview", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      credentials: "include",
-                      body: JSON.stringify({ bodyHtml }),
-                    });
-                    setPreviewHtml(await res.text());
-                  } catch {
-                    toast({ title: "Preview failed", variant: "destructive" });
-                  }
-                }}
-                disabled={!bodyHtml}
-                data-testid="button-refresh-preview"
-              >
-                Refresh preview
-              </Button>
+              {previewLoading && (
+                <span className="text-xs text-gray-500 flex items-center gap-1" data-testid="preview-loading">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Updating preview…
+                </span>
+              )}
             </div>
             <iframe
               title="campaign-preview"
-              className="w-full h-80 border rounded bg-white"
+              className="w-full h-96 border rounded bg-white"
               sandbox=""
-              srcDoc={previewHtml || "<p style='font-family:sans-serif;padding:1rem;color:#666'>Click \"Refresh preview\" to render the branded email.</p>"}
+              srcDoc={previewHtml || "<p style='font-family:sans-serif;padding:1rem;color:#666'>Start typing in the editor above to see a live branded preview.</p>"}
               data-testid="iframe-campaign-preview"
             />
           </div>
@@ -1360,45 +1401,181 @@ function CampaignEditor({ campaign, onClose }: { campaign?: Campaign; onClose: (
 }
 
 // ---------- rich text editor ----------
-// Minimal contentEditable editor with a toolbar (B/I/H2/list/link) plus a
-// "raw HTML" toggle for advanced edits. State lives in the parent so
-// the field round-trips through useState/save.
+// TipTap-based WYSIWYG editor with image insertion (photo library + upload)
+// and an escape-hatch raw HTML mode for advanced edits.
+type PhotoLite = { id: string; title: string; imageUrl: string; category?: string };
+
 function RichEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const ref = useRef<HTMLDivElement | null>(null);
   const [rawMode, setRawMode] = useState(false);
+  const [showImagePicker, setShowImagePicker] = useState(false);
 
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ heading: { levels: [2, 3] } }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+        HTMLAttributes: { style: "max-width:100%;height:auto;" },
+      }),
+      Placeholder.configure({
+        placeholder: "Write your email here. Use the toolbar to format text, add links, or insert images…",
+      }),
+    ],
+    content: value || "",
+    editorProps: {
+      attributes: {
+        class:
+          "min-h-[260px] p-3 text-sm focus:outline-none prose prose-sm max-w-none campaign-editor",
+        "data-testid": "editor-body",
+      },
+    },
+    onUpdate: ({ editor }) => {
+      const html = editor.getHTML();
+      // TipTap returns "<p></p>" for empty document; treat as empty string.
+      onChange(html === "<p></p>" ? "" : html);
+    },
+  });
+
+  // Sync external value changes (e.g. switching campaigns or toggling raw mode).
   useEffect(() => {
-    if (!rawMode && ref.current && ref.current.innerHTML !== value) {
-      ref.current.innerHTML = value;
+    if (!editor || rawMode) return;
+    const current = editor.getHTML();
+    const incoming = value || "";
+    const normalizedCurrent = current === "<p></p>" ? "" : current;
+    if (normalizedCurrent !== incoming) {
+      editor.commands.setContent(incoming || "", { emitUpdate: false });
     }
-  }, [rawMode, value]);
+  }, [editor, value, rawMode]);
 
-  const exec = (cmd: string, arg?: string) => {
-    document.execCommand(cmd, false, arg);
-    if (ref.current) onChange(ref.current.innerHTML);
+  const insertImage = (src: string, alt = "") => {
+    if (!editor || !src) return;
+    editor.chain().focus().setImage({ src, alt }).run();
+  };
+
+  const insertLink = () => {
+    if (!editor) return;
+    const previous = editor.getAttributes("link").href as string | undefined;
+    const url = window.prompt("Link URL", previous || "https://");
+    if (url === null) return;
+    if (url === "") {
+      editor.chain().focus().extendMarkRange("link").unsetLink().run();
+      return;
+    }
+    editor.chain().focus().extendMarkRange("link").setLink({ href: url }).run();
   };
 
   return (
     <div className="border rounded">
       <div className="flex flex-wrap items-center gap-1 border-b p-1 bg-gray-50">
-        <Button type="button" size="sm" variant="ghost" onClick={() => exec("bold")} data-testid="rt-bold"><strong>B</strong></Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => exec("italic")} data-testid="rt-italic"><em>I</em></Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => exec("formatBlock", "<h2>")} data-testid="rt-h2">H2</Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => exec("formatBlock", "<p>")} data-testid="rt-p">P</Button>
-        <Button type="button" size="sm" variant="ghost" onClick={() => exec("insertUnorderedList")} data-testid="rt-ul">• List</Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          onClick={() => {
-            const url = prompt("Link URL");
-            if (url) exec("createLink", url);
-          }}
-          data-testid="rt-link"
-        >Link</Button>
+        <ToolbarBtn
+          editor={editor}
+          onClick={() => editor?.chain().focus().toggleBold().run()}
+          active={editor?.isActive("bold")}
+          testId="rt-bold"
+          title="Bold"
+        >
+          <BoldIcon className="w-4 h-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          editor={editor}
+          onClick={() => editor?.chain().focus().toggleItalic().run()}
+          active={editor?.isActive("italic")}
+          testId="rt-italic"
+          title="Italic"
+        >
+          <ItalicIcon className="w-4 h-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          editor={editor}
+          onClick={() => editor?.chain().focus().toggleHeading({ level: 2 }).run()}
+          active={editor?.isActive("heading", { level: 2 })}
+          testId="rt-h2"
+          title="Heading"
+        >
+          <Heading2 className="w-4 h-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          editor={editor}
+          onClick={() => editor?.chain().focus().setParagraph().run()}
+          active={editor?.isActive("paragraph")}
+          testId="rt-p"
+          title="Paragraph"
+        >
+          <Pilcrow className="w-4 h-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          editor={editor}
+          onClick={() => editor?.chain().focus().toggleBulletList().run()}
+          active={editor?.isActive("bulletList")}
+          testId="rt-ul"
+          title="Bullet list"
+        >
+          <List className="w-4 h-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          editor={editor}
+          onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+          active={editor?.isActive("orderedList")}
+          testId="rt-ol"
+          title="Numbered list"
+        >
+          <ListOrdered className="w-4 h-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          editor={editor}
+          onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+          active={editor?.isActive("blockquote")}
+          testId="rt-quote"
+          title="Quote"
+        >
+          <Quote className="w-4 h-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          editor={editor}
+          onClick={insertLink}
+          active={editor?.isActive("link")}
+          testId="rt-link"
+          title="Link"
+        >
+          <LinkIcon className="w-4 h-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          editor={editor}
+          onClick={() => setShowImagePicker(true)}
+          testId="rt-image"
+          title="Insert image"
+        >
+          <ImageIcon className="w-4 h-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          editor={editor}
+          onClick={() => editor?.chain().focus().undo().run()}
+          testId="rt-undo"
+          title="Undo"
+        >
+          <Undo2 className="w-4 h-4" />
+        </ToolbarBtn>
+        <ToolbarBtn
+          editor={editor}
+          onClick={() => editor?.chain().focus().redo().run()}
+          testId="rt-redo"
+          title="Redo"
+        >
+          <Redo2 className="w-4 h-4" />
+        </ToolbarBtn>
         <div className="ml-auto flex items-center gap-2 text-xs">
-          <label className="flex items-center gap-1">
-            <input type="checkbox" checked={rawMode} onChange={(e) => setRawMode(e.target.checked)} data-testid="rt-raw-toggle" />
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={rawMode}
+              onChange={(e) => setRawMode(e.target.checked)}
+              data-testid="rt-raw-toggle"
+            />
             Raw HTML
           </label>
         </div>
@@ -1412,16 +1589,218 @@ function RichEditor({ value, onChange }: { value: string; onChange: (v: string) 
           data-testid="textarea-body-raw"
         />
       ) : (
-        <div
-          ref={ref}
-          contentEditable
-          suppressContentEditableWarning
-          className="min-h-[240px] p-3 text-sm focus:outline-none prose prose-sm max-w-none"
-          onInput={(e) => onChange((e.target as HTMLDivElement).innerHTML)}
-          data-testid="editor-body"
-        />
+        <EditorContent editor={editor} />
       )}
+      <ImagePickerDialog
+        open={showImagePicker}
+        onOpenChange={setShowImagePicker}
+        onPick={(src, alt) => {
+          insertImage(src, alt);
+          setShowImagePicker(false);
+        }}
+      />
     </div>
+  );
+}
+
+function ToolbarBtn({
+  editor,
+  onClick,
+  active,
+  testId,
+  title,
+  children,
+}: {
+  editor: Editor | null;
+  onClick: () => void;
+  active?: boolean;
+  testId: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant={active ? "secondary" : "ghost"}
+      onClick={onClick}
+      disabled={!editor}
+      data-testid={testId}
+      title={title}
+      aria-label={title}
+      className="h-8 px-2"
+    >
+      {children}
+    </Button>
+  );
+}
+
+function ImagePickerDialog({
+  open,
+  onOpenChange,
+  onPick,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onPick: (src: string, alt: string) => void;
+}) {
+  const { toast } = useToast();
+  const [tab, setTab] = useState<"library" | "upload" | "url">("library");
+  const [search, setSearch] = useState("");
+  const [uploadBusy, setUploadBusy] = useState(false);
+  const [urlValue, setUrlValue] = useState("");
+  const [urlAlt, setUrlAlt] = useState("");
+
+  const { data: photos = [], isLoading } = useQuery<PhotoLite[]>({
+    queryKey: ["/api/photos"],
+    enabled: open && tab === "library",
+  });
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const usable = photos.filter(
+      (p) => p.imageUrl && !p.imageUrl.includes("[base64-truncated]") && !p.imageUrl.includes("[stored-in-db]"),
+    );
+    if (!q) return usable.slice(0, 60);
+    return usable
+      .filter((p) => p.title?.toLowerCase().includes(q) || (p.category || "").toLowerCase().includes(q))
+      .slice(0, 60);
+  }, [photos, search]);
+
+  const handleFile = (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Not an image", description: "Please choose an image file.", variant: "destructive" });
+      return;
+    }
+    // Inline images are base64-embedded into the email body, which is itself
+    // capped at 200 KB on the server. Allow ~120 KB of source bytes (≈160 KB
+    // base64) so a single embedded photo + body text stays under the limit.
+    if (file.size > 120 * 1024) {
+      toast({
+        title: "Image too large",
+        description:
+          "Inline images must be under ~120 KB. Resize the photo, or upload it to the photo library and pick it from there.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setUploadBusy(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      setUploadBusy(false);
+      const src = String(reader.result || "");
+      if (src) onPick(src, file.name.replace(/\.[^.]+$/, ""));
+    };
+    reader.onerror = () => {
+      setUploadBusy(false);
+      toast({ title: "Upload failed", description: "Could not read the file.", variant: "destructive" });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto" data-testid="dialog-image-picker">
+        <DialogHeader>
+          <DialogTitle>Insert image</DialogTitle>
+        </DialogHeader>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+          <TabsList>
+            <TabsTrigger value="library" data-testid="tab-image-library">Photo library</TabsTrigger>
+            <TabsTrigger value="upload" data-testid="tab-image-upload">Upload</TabsTrigger>
+            <TabsTrigger value="url" data-testid="tab-image-url">From URL</TabsTrigger>
+          </TabsList>
+          <TabsContent value="library" className="pt-3 space-y-3">
+            <Input
+              placeholder="Search by title or category…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              data-testid="input-image-search"
+            />
+            {isLoading ? (
+              <div className="py-8 text-center"><Loader2 className="w-6 h-6 animate-spin mx-auto" /></div>
+            ) : filtered.length === 0 ? (
+              <p className="text-sm text-gray-500 py-6 text-center" data-testid="text-no-photos">
+                No photos available. Upload an image or paste a URL instead.
+              </p>
+            ) : (
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-[55vh] overflow-y-auto">
+                {filtered.map((p) => (
+                  <button
+                    type="button"
+                    key={p.id}
+                    onClick={() => onPick(p.imageUrl, p.title || "")}
+                    className="border rounded overflow-hidden hover:ring-2 hover:ring-cascadia-blue text-left"
+                    data-testid={`button-pick-photo-${p.id}`}
+                  >
+                    <img
+                      src={p.imageUrl}
+                      alt={p.title}
+                      className="w-full h-24 object-cover bg-gray-100"
+                      loading="lazy"
+                    />
+                    <div className="p-1 text-[11px] truncate">{p.title}</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+          <TabsContent value="upload" className="pt-3 space-y-3">
+            <p className="text-sm text-gray-600">
+              Upload a small image (under ~120 KB) to embed inline in your email. For larger photos, add them to the photo library and pick from the Library tab.
+            </p>
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFile(f);
+              }}
+              disabled={uploadBusy}
+              data-testid="input-image-upload"
+            />
+            {uploadBusy && <p className="text-xs text-gray-500"><Loader2 className="w-3 h-3 animate-spin inline mr-1" />Reading file…</p>}
+          </TabsContent>
+          <TabsContent value="url" className="pt-3 space-y-3">
+            <div>
+              <Label>Image URL</Label>
+              <Input
+                value={urlValue}
+                onChange={(e) => setUrlValue(e.target.value)}
+                placeholder="https://example.com/photo.jpg"
+                data-testid="input-image-url"
+              />
+            </div>
+            <div>
+              <Label>Alt text (optional)</Label>
+              <Input
+                value={urlAlt}
+                onChange={(e) => setUrlAlt(e.target.value)}
+                placeholder="Describe the image"
+                data-testid="input-image-alt"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+              <Button
+                onClick={() => {
+                  if (!/^https?:\/\//i.test(urlValue.trim())) {
+                    toast({ title: "Invalid URL", description: "Use a full https:// URL.", variant: "destructive" });
+                    return;
+                  }
+                  onPick(urlValue.trim(), urlAlt);
+                  setUrlValue("");
+                  setUrlAlt("");
+                }}
+                data-testid="button-insert-image-url"
+              >
+                Insert
+              </Button>
+            </DialogFooter>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
   );
 }
 

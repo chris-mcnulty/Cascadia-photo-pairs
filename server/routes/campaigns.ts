@@ -16,6 +16,51 @@ import {
   errMsg,
 } from "../campaign-service";
 import { storage } from "../storage";
+import DOMPurify from "isomorphic-dompurify";
+
+// Sanitize campaign body HTML before save / preview / send.
+//
+// Per-attribute URI policy enforced via a DOMPurify hook:
+//   - `<a href>` only allows http(s)/mailto/tel and merge-token
+//     placeholders like {{unsubscribeUrl}}. `data:` is never permitted
+//     on links (phishing risk).
+//   - `<img src>` allows http(s) and `data:image/...;base64,...` for
+//     inline editor uploads.
+//   - `style` attributes are stripped — presentation is controlled by
+//     `renderBrandedEmail`.
+const HREF_OK = /^(?:(?:https?|mailto|tel):|\{\{|#|\/)/i;
+const IMG_SRC_OK = /^(?:https?:\/\/|\/|\{\{|data:image\/(?:png|jpe?g|gif|webp|svg\+xml);base64,)/i;
+let hookRegistered = false;
+function ensureHook() {
+  if (hookRegistered) return;
+  DOMPurify.addHook("uponSanitizeAttribute", (node, evt) => {
+    if (!evt) return;
+    const name = evt.attrName;
+    const val = String(evt.attrValue || "");
+    if (name === "href") {
+      if (!HREF_OK.test(val)) evt.keepAttr = false;
+    } else if (name === "src") {
+      const tag = (node as Element).tagName?.toLowerCase();
+      if (tag === "img" ? !IMG_SRC_OK.test(val) : !HREF_OK.test(val)) evt.keepAttr = false;
+    }
+  });
+  hookRegistered = true;
+}
+
+function sanitizeCampaignHtml(html: string): string {
+  ensureHook();
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      "a", "p", "br", "strong", "em", "u", "s", "b", "i",
+      "h1", "h2", "h3", "h4", "ul", "ol", "li", "blockquote",
+      "img", "hr", "span", "div", "code", "pre",
+    ],
+    ALLOWED_ATTR: ["href", "title", "target", "rel", "src", "alt", "width", "height"],
+    // Permissive URI regexp; the hook above narrows per-attribute.
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel|data):|\{\{|#|\/)/i,
+    ADD_ATTR: ["target"],
+  });
+}
 
 export function registerCampaignRoutes(app: Express, isAuthenticated: RequestHandler) {
   // ---------------- Public unsubscribe ----------------
@@ -399,6 +444,7 @@ export function registerCampaignRoutes(app: Express, isAuthenticated: RequestHan
         fromEmail: req.body?.fromEmail || settings.campaignFromEmail || "cascadia@chrismcnulty.net",
         replyTo: req.body?.replyTo || settings.campaignReplyTo || settings.campaignFromEmail || "cascadia@chrismcnulty.net",
       };
+      if (typeof body.bodyHtml === "string") body.bodyHtml = sanitizeCampaignHtml(body.bodyHtml);
       const data = insertEmailCampaignSchema.parse(body);
       res.json(await contactStorage.createCampaign(data));
     } catch (err) {
@@ -419,7 +465,8 @@ export function registerCampaignRoutes(app: Express, isAuthenticated: RequestHan
       const { applyMergeTokens } = await import("../campaign-service");
       const previewEmail = data.recipientEmail || "preview@example.com";
       const unsubscribeUrl = `${process.env.BASE_URL || "https://voting.chrismcnulty.net"}/unsubscribe?t=preview`;
-      const merged = applyMergeTokens(data.bodyHtml, {
+      const sanitizedBody = sanitizeCampaignHtml(data.bodyHtml);
+      const merged = applyMergeTokens(sanitizedBody, {
         firstName: "Preview",
         lastName: "Reader",
         email: previewEmail,
@@ -440,7 +487,9 @@ export function registerCampaignRoutes(app: Express, isAuthenticated: RequestHan
 
   app.patch("/api/admin/campaigns/:id", isAuthenticated, async (req, res) => {
     try {
-      const data = insertEmailCampaignSchema.partial().parse(req.body);
+      const body = { ...req.body };
+      if (typeof body.bodyHtml === "string") body.bodyHtml = sanitizeCampaignHtml(body.bodyHtml);
+      const data = insertEmailCampaignSchema.partial().parse(body);
       const row = await contactStorage.updateCampaign(req.params.id, data);
       if (!row) return res.status(404).json({ message: "Not found" });
       res.json(row);

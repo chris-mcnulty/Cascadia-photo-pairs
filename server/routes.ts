@@ -52,6 +52,8 @@ import { rssService } from "./rss-service";
 import { z } from "zod";
 import multer from "multer";
 import { importWixProducts, importWixOrders } from "./csv-import";
+import { registerSocialRoutes } from "./social/routes";
+import { startSocialScheduler } from "./social/scheduler";
 
 // Simple middleware for admin auth check (for pairs endpoints)
 const isAuthenticated = async (req: any, res: any, next: any) => {
@@ -4768,6 +4770,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(isInvalidRequest ? 404 : 500).json({ error: message });
     }
   });
+
+  // Social publisher (Instagram + Facebook)
+  registerSocialRoutes(app, isAuthenticated, getCurrentAdminUser);
+  startSocialScheduler();
 
   const httpServer = createServer(app);
   return httpServer;

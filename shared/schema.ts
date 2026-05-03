@@ -811,3 +811,104 @@ export type ExpenseCategory = typeof expenseCategories.$inferSelect;
 export type InsertExpenseCategory = z.infer<typeof insertExpenseCategorySchema>;
 export type Expense = typeof expenses.$inferSelect;
 export type InsertExpense = z.infer<typeof insertExpenseSchema>;
+
+// ============================================
+// SOCIAL PUBLISHER (Instagram + Facebook)
+// ============================================
+
+export const socialAccounts = pgTable("social_accounts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  platform: varchar("platform").notNull(), // 'instagram' | 'facebook'
+  displayName: varchar("display_name").notNull(),
+  externalId: varchar("external_id").notNull(), // Page ID (FB) or IG User ID
+  pageId: varchar("page_id"), // FB Page ID (also used to resolve IG accounts)
+  tokenSecretKey: varchar("token_secret_key").notNull(), // env var name where the token lives
+  tokenLastFour: varchar("token_last_four"), // last 4 chars only, for UI display
+  tokenExpiresAt: timestamp("token_expires_at"), // null = never-expires page token
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_social_accounts_platform").on(table.platform),
+  index("idx_social_accounts_active").on(table.isActive),
+]);
+
+export const socialCsvImports = pgTable("social_csv_imports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  filename: varchar("filename").notNull(),
+  campaignName: varchar("campaign_name"), // used for utm_campaign default
+  rowCount: integer("row_count").default(0).notNull(),
+  successCount: integer("success_count").default(0).notNull(),
+  failedCount: integer("failed_count").default(0).notNull(),
+  status: varchar("status").default("pending").notNull(), // pending | queued | done | partial
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const socialPosts = pgTable("social_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  accountId: varchar("account_id").notNull().references(() => socialAccounts.id),
+  platform: varchar("platform").notNull(), // 'instagram' | 'facebook'
+  caption: text("caption").notNull(),
+  mediaUrls: text("media_urls").array().notNull().default(sql`ARRAY[]::text[]`), // first is primary; >1 = IG carousel
+  linkUrl: text("link_url"), // destination URL (before tracking wrap)
+  trackedSlug: varchar("tracked_slug").unique(), // 8-char base62 for /go/:slug
+  utmCampaign: varchar("utm_campaign"),
+  firstComment: text("first_comment"),
+  scheduledAt: timestamp("scheduled_at").notNull(),
+  status: varchar("status").default("scheduled").notNull(), // draft | scheduled | posting | posted | failed
+  externalPostId: varchar("external_post_id"), // ID returned by Meta
+  externalPermalink: text("external_permalink"),
+  errorMessage: text("error_message"),
+  attemptCount: integer("attempt_count").default(0).notNull(),
+  nextRetryAt: timestamp("next_retry_at"),
+  postedAt: timestamp("posted_at"),
+  clickCount: integer("click_count").default(0).notNull(),
+  csvImportId: varchar("csv_import_id").references(() => socialCsvImports.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => [
+  index("idx_social_posts_status").on(table.status),
+  index("idx_social_posts_scheduled").on(table.scheduledAt),
+  index("idx_social_posts_account").on(table.accountId),
+  index("idx_social_posts_csv").on(table.csvImportId),
+  index("idx_social_posts_tracked_slug").on(table.trackedSlug),
+  index("idx_social_posts_account_external").on(table.accountId, table.externalPostId),
+]);
+
+export const socialClicks = pgTable("social_clicks", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").notNull().references(() => socialPosts.id),
+  clickedAt: timestamp("clicked_at").defaultNow().notNull(),
+  userAgent: text("user_agent"),
+  referer: text("referer"),
+  ipHash: varchar("ip_hash"),
+}, (table) => [
+  index("idx_social_clicks_post").on(table.postId),
+  index("idx_social_clicks_at").on(table.clickedAt),
+]);
+
+export const insertSocialAccountSchema = createInsertSchema(socialAccounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertSocialPostSchema = createInsertSchema(socialPosts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  attemptCount: true,
+  clickCount: true,
+});
+export const insertSocialCsvImportSchema = createInsertSchema(socialCsvImports).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type SocialAccount = typeof socialAccounts.$inferSelect;
+export type InsertSocialAccount = z.infer<typeof insertSocialAccountSchema>;
+export type SocialPost = typeof socialPosts.$inferSelect;
+export type InsertSocialPost = z.infer<typeof insertSocialPostSchema>;
+export type SocialCsvImport = typeof socialCsvImports.$inferSelect;
+export type InsertSocialCsvImport = z.infer<typeof insertSocialCsvImportSchema>;
+export type SocialClick = typeof socialClicks.$inferSelect;

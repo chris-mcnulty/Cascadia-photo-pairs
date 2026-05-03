@@ -883,9 +883,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const voteData = insertVoteSchema.parse(req.body);
       const { winnerPhotoId, loserPhotoId } = req.body;
-      // Task #7 unified-traffic linkage: snapshot the analytics session id
-      // (set by htmlCollectorMiddleware/api ingestion) onto the vote row so
-      // dashboard metrics derive from the actual votes table.
+      // Snapshot the analytics session id (set by htmlCollectorMiddleware /
+      // api ingestion) onto the vote row so dashboard metrics derive from
+      // the actual votes table rather than a separate client beacon.
       const { readSessionCookie, isBotUA, visitorHashFor } = await import("./analytics/middleware");
       const analyticsSid = readSessionCookie(req) || null;
       const ua = (req.headers["user-agent"] as string) || "";

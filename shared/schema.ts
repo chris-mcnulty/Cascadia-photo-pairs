@@ -64,7 +64,7 @@ export const votes = pgTable("votes", {
   loserPhotoId: varchar("loser_photo_id").notNull().references(() => photos.id),
   voterType: text("voter_type").default("user").notNull(), // "admin" or "user"
   userId: varchar("user_id").references(() => users.id), // Track which user voted
-  // Task #7 unified-traffic linkage. sessionId joins to traffic_sessions / page_views
+  // Analytics linkage. sessionId joins to traffic_sessions / page_views
   // so voting metrics derive from the actual votes table rather than a separate
   // best-effort beacon. isBot lets aggregate queries exclude crawler-generated rows.
   sessionId: varchar("session_id"),
@@ -142,7 +142,7 @@ export const pairVotes = pgTable("pair_votes", {
   loserPhotoId: varchar("loser_photo_id").notNull().references(() => photos.id),
   voterType: text("voter_type").default("user").notNull(), // "admin" or "user"
   userId: varchar("user_id").references(() => users.id),
-  // Task #7 unified-traffic linkage; see votes table for rationale.
+  // Analytics linkage; see votes table for rationale.
   sessionId: varchar("session_id"),
   visitorHash: varchar("visitor_hash"),
   isBot: boolean("is_bot").default(false).notNull(),
@@ -1104,7 +1104,7 @@ export type InsertEmailCampaignRecipient = z.infer<typeof insertEmailCampaignRec
 export type EmailCampaignEvent = typeof emailCampaignEvents.$inferSelect;
 export type InsertEmailCampaignEvent = z.infer<typeof insertEmailCampaignEventSchema>;
 
-// ============== Web traffic / analytics (Task #7) ==============
+// ============== Web traffic / analytics ==============
 
 // One row per page view. visitorHash is a daily-rotated SHA-256 of (IP+UA+salt)
 // so unique-visitor counts are possible without ever storing IPs.

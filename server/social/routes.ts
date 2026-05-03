@@ -97,7 +97,7 @@ export function registerSocialRoutes(
         return res.status(404).send("Link not found");
       }
       // Increment click counter (fire-and-forget; best-effort).
-      // Bot/crawler clicks are excluded from analytics counts (Task #7).
+      // Bot/crawler clicks are excluded from analytics counts.
       const ua = (req.headers["user-agent"] as string) || "";
       const looksBot = /bot|crawl|spider|preview|slurp|monitor|fetch|curl|wget|http|axios|postman|node-fetch/i.test(ua);
       if (!looksBot) {

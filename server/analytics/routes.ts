@@ -486,10 +486,12 @@ export function registerAnalyticsRoutes(
     try {
       const { since, until, days } = rangeFromQuery(req.query);
       const includeBotsReferrers = req.query.includeBots === "1";
+      // /go/:slug is a server-side 302 (no HTML collector hit), so tracked-
+      // link traffic is surfaced separately via the trackedLinkClicks block
+      // below rather than the traffic_sessions classification.
       const classified = await db.execute(sql`
         SELECT
           CASE
-            WHEN entry_path LIKE '/go/%' THEN 'tracked-link'
             WHEN referrer IS NULL OR referrer = '' THEN 'direct'
             WHEN referrer ~* '(google|bing|duckduckgo|yahoo|ecosia|brave|startpage)\\.' THEN 'search'
             WHEN referrer ~* '(facebook|instagram|twitter|t\\.co|x\\.com|linkedin|reddit|pinterest|tiktok|youtube|threads)' THEN 'social'
@@ -501,6 +503,12 @@ export function registerAnalyticsRoutes(
           ${includeBotsReferrers ? sql`` : sql`AND is_bot = false`}
         GROUP BY source
         ORDER BY sessions DESC
+      `);
+      const trackedLinkClicksRow = await db.execute(sql`
+        SELECT count(*)::int AS sessions
+          FROM social_clicks
+         WHERE clicked_at >= ${since} AND clicked_at <= ${until}
+           ${includeBotsReferrers ? sql`` : sql`AND coalesce(user_agent, '') !~* 'bot|crawl|spider|preview|slurp|monitor|fetch|curl|wget|headless|axios|postman|node-fetch'`}
       `);
       const webRows = await db.execute(sql`
         SELECT
@@ -525,11 +533,13 @@ export function registerAnalyticsRoutes(
         .orderBy(sql`count(${socialClicks.id}) desc`);
 
       type RefRow = Record<string, unknown>;
+      const trackedLinkClicks = ((trackedLinkClicksRow as unknown as { rows: { sessions: number }[] }).rows[0]?.sessions) || 0;
       res.json({
         days,
         sources: (classified as unknown as { rows: RefRow[] }).rows,
         web: (webRows as unknown as { rows: RefRow[] }).rows,
         social: goRows,
+        trackedLinkClicks,
       });
     } catch (e) {
       console.error("[analytics] referrers error:", e);
@@ -606,10 +616,10 @@ export function registerAnalyticsRoutes(
           eq(pageViews.isBot, false),
         ));
 
-      // Voting metrics derive from the votes/pair_votes tables themselves
-      // (which now carry session_id + visitor_hash + is_bot via Task #7
-      // linkage), not from a separate client beacon. is_bot=false is
-      // enforced everywhere so crawler-generated rows are excluded.
+      // Voting metrics derive from votes/pair_votes themselves (which carry
+      // session_id + visitor_hash + is_bot), not from a separate client
+      // beacon. is_bot=false is enforced everywhere so crawler-generated
+      // rows are excluded.
       type CountRow = { n: number };
       const vsRowsRes = await db.execute(sql`
         SELECT count(distinct sid)::int AS n FROM (

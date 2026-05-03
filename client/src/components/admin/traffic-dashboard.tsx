@@ -68,31 +68,64 @@ export default function TrafficDashboard() {
     return h;
   })();
 
+  // 30s polling so admins watching the dashboard see fresh numbers.
+  const refetchInterval = 30_000;
   const { data: overview } = useQuery<Overview>({
     queryKey: ["/api/admin/analytics/overview", days],
     queryFn: () => fetch(`/api/admin/analytics/overview?days=${days}`, { headers }).then((r) => r.json()),
+    refetchInterval,
   });
   const { data: timeline } = useQuery<{ series: TimelinePoint[] }>({
     queryKey: ["/api/admin/analytics/timeline", days, granularity],
     queryFn: () =>
       fetch(`/api/admin/analytics/timeline?days=${days}&granularity=${granularity}`, { headers }).then((r) => r.json()),
+    refetchInterval,
   });
   const { data: topPages } = useQuery<{ rows: TopPage[] }>({
     queryKey: ["/api/admin/analytics/top-pages", days],
     queryFn: () => fetch(`/api/admin/analytics/top-pages?days=${days}`, { headers }).then((r) => r.json()),
+    refetchInterval,
   });
   const { data: referrers } = useQuery<RefBlock>({
     queryKey: ["/api/admin/analytics/referrers", days],
     queryFn: () => fetch(`/api/admin/analytics/referrers?days=${days}`, { headers }).then((r) => r.json()),
+    refetchInterval,
   });
   const { data: funnel } = useQuery<{ steps: FunnelStep[] }>({
     queryKey: ["/api/admin/analytics/funnel", days],
     queryFn: () => fetch(`/api/admin/analytics/funnel?days=${days}`, { headers }).then((r) => r.json()),
+    refetchInterval,
   });
   const { data: voting } = useQuery<Voting>({
     queryKey: ["/api/admin/analytics/voting", days],
     queryFn: () => fetch(`/api/admin/analytics/voting?days=${days}`, { headers }).then((r) => r.json()),
+    refetchInterval,
   });
+
+  function downloadCsv(filename: string, headerRow: string[], rows: (string | number)[][]) {
+    const esc = (v: string | number) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const csv = [headerRow.map(esc).join(","), ...rows.map((r) => r.map(esc).join(","))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+
+  const funnelWithDrop = useMemo(() => {
+    const steps = funnel?.steps || [];
+    const top = steps[0]?.value || 0;
+    return steps.map((s, i) => ({
+      ...s,
+      pctOfTop: top > 0 ? (s.value / top) * 100 : 0,
+      dropFromPrev: i > 0 && steps[i - 1].value > 0
+        ? ((steps[i - 1].value - s.value) / steps[i - 1].value) * 100
+        : 0,
+    }));
+  }, [funnel]);
 
   const series = useMemo(
     () => (timeline?.series || []).map((p) => ({ ...p, label: shortDate(p.bucket) })),
@@ -120,10 +153,35 @@ export default function TrafficDashboard() {
             <SelectItem value="hour">Hourly</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="outline" size="sm" asChild>
-          <a href={`/api/admin/analytics/timeline?days=${days}&granularity=${granularity}`} target="_blank" rel="noopener noreferrer">
-            JSON
-          </a>
+        <Button
+          variant="outline"
+          size="sm"
+          data-testid="button-export-pages-csv"
+          onClick={() =>
+            downloadCsv(
+              `top-pages-${days}d.csv`,
+              ["path", "views", "sessions", "visitors"],
+              (topPages?.rows || []).map((r) => [r.path, r.views, r.sessions, r.visitors]),
+            )
+          }
+        >
+          Export top pages
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          data-testid="button-export-timeline-csv"
+          onClick={() =>
+            downloadCsv(
+              `timeline-${days}d-${granularity}.csv`,
+              ["bucket", "webViews", "webSessions", "socialClicks", "emailOpens", "emailClicks"],
+              (timeline?.series || []).map((p) => [
+                p.bucket, p.webViews, p.webSessions, p.socialClicks, p.emailOpens, p.emailClicks,
+              ]),
+            )
+          }
+        >
+          Export timeline
         </Button>
       </div>
 
@@ -165,16 +223,38 @@ export default function TrafficDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader><CardTitle>Conversion funnel</CardTitle></CardHeader>
-          <CardContent style={{ height: 280 }}>
-            <ResponsiveContainer>
-              <BarChart data={funnel?.steps || []} layout="vertical" margin={{ left: 60 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" allowDecimals={false} />
-                <YAxis type="category" dataKey="name" width={140} />
-                <Tooltip />
-                <Bar dataKey="value" fill="#2a5434" />
-              </BarChart>
-            </ResponsiveContainer>
+          <CardContent>
+            <div style={{ height: 220 }}>
+              <ResponsiveContainer>
+                <BarChart data={funnelWithDrop} layout="vertical" margin={{ left: 60 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" allowDecimals={false} />
+                  <YAxis type="category" dataKey="name" width={140} />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#2a5434" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <table className="w-full text-xs mt-3">
+              <thead className="text-left text-gray-500">
+                <tr>
+                  <th>Step</th>
+                  <th className="text-right">Sessions</th>
+                  <th className="text-right">% of top</th>
+                  <th className="text-right">Drop vs prev</th>
+                </tr>
+              </thead>
+              <tbody>
+                {funnelWithDrop.map((s, i) => (
+                  <tr key={s.name} className="border-t">
+                    <td className="py-1">{s.name}</td>
+                    <td className="py-1 text-right">{fmt(s.value)}</td>
+                    <td className="py-1 text-right">{s.pctOfTop.toFixed(1)}%</td>
+                    <td className="py-1 text-right">{i === 0 ? "—" : `${s.dropFromPrev.toFixed(1)}%`}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </CardContent>
         </Card>
 

@@ -146,13 +146,30 @@ export function registerAnalyticsRoutes(
     });
   });
 
+  app.get("/api/admin/analytics/health", isAuthenticated, async (_req, res) => {
+    try {
+      const [pv] = await db.select({ n: sql<number>`count(*)::int` }).from(pageViews);
+      const [ev] = await db.select({ n: sql<number>`count(*)::int` }).from(trafficEvents);
+      const [se] = await db.select({ n: sql<number>`count(*)::int` }).from(trafficSessions);
+      res.json({
+        ok: true,
+        ga4Configured: !!process.env.VITE_GA4_MEASUREMENT_ID,
+        ga4MeasurementId: process.env.VITE_GA4_MEASUREMENT_ID || null,
+        totals: { pageViews: pv?.n || 0, trafficEvents: ev?.n || 0, trafficSessions: se?.n || 0 },
+      });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
   // ---------------- Ingestion ----------------
   app.post("/api/analytics/page", async (req, res) => {
     try {
       const path = safePath(req.body?.path);
       if (!path) return res.status(400).json({ error: "Invalid path" });
       const ua = (req.headers["user-agent"] as string) || "";
-      // Always record but flag bot views so admins can filter.
+      // Skip bot writes entirely so analytics tables don't bloat with crawler noise.
+      if (isBotUA(ua)) return res.json({ ok: true, skipped: "bot" });
       const referrer = normalizeReferrer(req.body?.referrer);
       const utm = {
         source: safeStr(req.body?.utmSource, 128),
@@ -232,7 +249,7 @@ export function registerAnalyticsRoutes(
         .from(trafficEvents).where(gte(trafficEvents.createdAt, since));
 
       const [sc] = await db.select({ n: sql<number>`count(*)::int` })
-        .from(socialClicks).where(gte(socialClicks.createdAt, since));
+        .from(socialClicks).where(gte(socialClicks.clickedAt, since));
 
       const [emailOpens] = await db.select({ n: sql<number>`count(*)::int` })
         .from(emailCampaignEvents)
@@ -278,10 +295,10 @@ export function registerAnalyticsRoutes(
          GROUP BY bucket ORDER BY bucket
       `);
       const scRows = await db.execute(sql`
-        SELECT ${granularity === "hour" ? sql`date_trunc('hour', created_at)` : sql`date_trunc('day', created_at)`} AS bucket,
+        SELECT ${granularity === "hour" ? sql`date_trunc('hour', clicked_at)` : sql`date_trunc('day', clicked_at)`} AS bucket,
                count(*)::int AS social_clicks
           FROM social_clicks
-         WHERE created_at >= ${since}
+         WHERE clicked_at >= ${since}
          GROUP BY bucket ORDER BY bucket
       `);
       const emRows = await db.execute(sql`
@@ -364,7 +381,7 @@ export function registerAnalyticsRoutes(
       })
         .from(socialClicks)
         .innerJoin(socialPosts, eq(socialPosts.id, socialClicks.postId))
-        .where(gte(socialClicks.createdAt, since))
+        .where(gte(socialClicks.clickedAt, since))
         .groupBy(socialPosts.platform)
         .orderBy(sql`count(${socialClicks.id}) desc`);
 

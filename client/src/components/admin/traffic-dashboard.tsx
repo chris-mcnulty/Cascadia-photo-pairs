@@ -58,6 +58,12 @@ function shortDate(s: string) {
 export default function TrafficDashboard() {
   const [days, setDays] = useState<number>(30);
   const [granularity, setGranularity] = useState<"day" | "hour">("day");
+  const [from, setFrom] = useState<string>("");
+  const [to, setTo] = useState<string>("");
+
+  // When a custom range is set, prefer it over `days`.
+  const rangeQs = from ? `from=${encodeURIComponent(from)}${to ? `&to=${encodeURIComponent(to)}` : ""}` : `days=${days}`;
+  const rangeKey = from ? `${from}..${to || "now"}` : `${days}d`;
 
   const headers = (() => {
     const sid = localStorage.getItem("admin-session-id");
@@ -71,34 +77,34 @@ export default function TrafficDashboard() {
   // 30s polling so admins watching the dashboard see fresh numbers.
   const refetchInterval = 30_000;
   const { data: overview } = useQuery<Overview>({
-    queryKey: ["/api/admin/analytics/overview", days],
-    queryFn: () => fetch(`/api/admin/analytics/overview?days=${days}`, { headers }).then((r) => r.json()),
+    queryKey: ["/api/admin/analytics/overview", rangeKey],
+    queryFn: () => fetch(`/api/admin/analytics/overview?${rangeQs}`, { headers }).then((r) => r.json()),
     refetchInterval,
   });
   const { data: timeline } = useQuery<{ series: TimelinePoint[] }>({
-    queryKey: ["/api/admin/analytics/timeline", days, granularity],
+    queryKey: ["/api/admin/analytics/timeline", rangeKey, granularity],
     queryFn: () =>
-      fetch(`/api/admin/analytics/timeline?days=${days}&granularity=${granularity}`, { headers }).then((r) => r.json()),
+      fetch(`/api/admin/analytics/timeline?${rangeQs}&granularity=${granularity}`, { headers }).then((r) => r.json()),
     refetchInterval,
   });
   const { data: topPages } = useQuery<{ rows: TopPage[] }>({
-    queryKey: ["/api/admin/analytics/top-pages", days],
-    queryFn: () => fetch(`/api/admin/analytics/top-pages?days=${days}`, { headers }).then((r) => r.json()),
+    queryKey: ["/api/admin/analytics/top-pages", rangeKey],
+    queryFn: () => fetch(`/api/admin/analytics/top-pages?${rangeQs}`, { headers }).then((r) => r.json()),
     refetchInterval,
   });
   const { data: referrers } = useQuery<RefBlock>({
-    queryKey: ["/api/admin/analytics/referrers", days],
-    queryFn: () => fetch(`/api/admin/analytics/referrers?days=${days}`, { headers }).then((r) => r.json()),
+    queryKey: ["/api/admin/analytics/referrers", rangeKey],
+    queryFn: () => fetch(`/api/admin/analytics/referrers?${rangeQs}`, { headers }).then((r) => r.json()),
     refetchInterval,
   });
   const { data: funnel } = useQuery<{ steps: FunnelStep[] }>({
-    queryKey: ["/api/admin/analytics/funnel", days],
-    queryFn: () => fetch(`/api/admin/analytics/funnel?days=${days}`, { headers }).then((r) => r.json()),
+    queryKey: ["/api/admin/analytics/funnel", rangeKey],
+    queryFn: () => fetch(`/api/admin/analytics/funnel?${rangeQs}`, { headers }).then((r) => r.json()),
     refetchInterval,
   });
   const { data: voting } = useQuery<Voting>({
-    queryKey: ["/api/admin/analytics/voting", days],
-    queryFn: () => fetch(`/api/admin/analytics/voting?days=${days}`, { headers }).then((r) => r.json()),
+    queryKey: ["/api/admin/analytics/voting", rangeKey],
+    queryFn: () => fetch(`/api/admin/analytics/voting?${rangeQs}`, { headers }).then((r) => r.json()),
     refetchInterval,
   });
 
@@ -136,16 +142,33 @@ export default function TrafficDashboard() {
     <div className="space-y-6" data-testid="traffic-dashboard">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-2xl font-medium text-gray-900 mr-auto">Traffic</h2>
-        <Select value={String(days)} onValueChange={(v) => setDays(Number(v))}>
-          <SelectTrigger className="w-32" data-testid="select-days"><SelectValue /></SelectTrigger>
+        <Select value={from ? "custom" : String(days)} onValueChange={(v) => { if (v !== "custom") { setFrom(""); setTo(""); setDays(Number(v)); } }}>
+          <SelectTrigger className="w-36" data-testid="select-days"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="1">Last 24h</SelectItem>
             <SelectItem value="7">Last 7 days</SelectItem>
             <SelectItem value="30">Last 30 days</SelectItem>
             <SelectItem value="90">Last 90 days</SelectItem>
             <SelectItem value="365">Last year</SelectItem>
+            <SelectItem value="custom">Custom range</SelectItem>
           </SelectContent>
         </Select>
+        <input
+          type="date"
+          aria-label="From date"
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+          className="border rounded h-9 px-2 text-sm"
+          data-testid="input-from-date"
+        />
+        <input
+          type="date"
+          aria-label="To date"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+          className="border rounded h-9 px-2 text-sm"
+          data-testid="input-to-date"
+        />
         <Select value={granularity} onValueChange={(v) => setGranularity(v as "day" | "hour")}>
           <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
           <SelectContent>

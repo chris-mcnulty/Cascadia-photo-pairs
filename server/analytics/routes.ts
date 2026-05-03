@@ -26,9 +26,11 @@ import {
   votes,
   pairVotes,
 } from "@shared/schema";
-import { and, desc, eq, gte, sql, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, lte, sql, inArray } from "drizzle-orm";
 import {
+  classifyBrowser,
   classifyDevice,
+  countryFromHeaders,
   isBotUA,
   newSessionId,
   readSessionCookie,
@@ -41,6 +43,25 @@ function clampDays(raw: unknown, def = 30, max = 365): number {
   const n = Number(raw);
   if (!Number.isFinite(n) || n <= 0) return def;
   return Math.min(Math.floor(n), max);
+}
+
+function rangeFromQuery(query: any): { since: Date; until: Date; days: number } {
+  const now = new Date();
+  const from = typeof query.from === "string" ? new Date(query.from) : null;
+  const to = typeof query.to === "string" ? new Date(query.to) : null;
+  if (from && !isNaN(from.getTime())) {
+    // For YYYY-MM-DD inputs, extend `to` to end-of-day so the range is inclusive.
+    let end: Date = now;
+    if (to && !isNaN(to.getTime())) {
+      end = /^\d{4}-\d{2}-\d{2}$/.test(String(query.to))
+        ? new Date(to.getTime() + 24 * 3600 * 1000 - 1)
+        : to;
+    }
+    const days = Math.max(1, Math.ceil((end.getTime() - from.getTime()) / (24 * 3600 * 1000)));
+    return { since: from, until: end, days };
+  }
+  const days = clampDays(query.days, 30);
+  return { since: new Date(now.getTime() - days * 24 * 3600 * 1000), until: now, days };
 }
 
 function safePath(p: unknown): string | null {
@@ -98,10 +119,12 @@ async function ensureSession(req: Request, res: Response, opts: {
   path?: string | null;
   referrer?: string | null;
   utm?: { source?: string | null; medium?: string | null; campaign?: string | null };
-}): Promise<{ sid: string; visitorHash: string; isBot: boolean; device: string }> {
+}): Promise<{ sid: string; visitorHash: string; isBot: boolean; device: string; browser: string; country: string | null }> {
   const ua = (req.headers["user-agent"] as string) || "";
   const isBot = isBotUA(ua);
   const device = classifyDevice(ua);
+  const browser = classifyBrowser(ua);
+  const country = countryFromHeaders(req);
   const visitorHash = await visitorHashFor(req);
 
   let sid = readSessionCookie(req);
@@ -109,11 +132,22 @@ async function ensureSession(req: Request, res: Response, opts: {
     const [existing] = await db.select().from(trafficSessions).where(eq(trafficSessions.id, sid));
     const stale = !existing || (Date.now() - new Date(existing.lastSeenAt).getTime() > SESSION_TTL_MS);
     if (existing && !stale) {
-      await db.update(trafficSessions)
-        .set({ lastSeenAt: new Date() })
-        .where(eq(trafficSessions.id, sid));
+      // Backfill browser/country/device on existing sessions if they were
+      // captured before those columns existed (or on a header-less request).
+      const patch: Record<string, unknown> = { lastSeenAt: new Date() };
+      if (!existing.browser && browser) patch.browser = browser;
+      if (!existing.country && country) patch.country = country;
+      if (!existing.device && device) patch.device = device;
+      await db.update(trafficSessions).set(patch).where(eq(trafficSessions.id, sid));
       setSessionCookie(res, sid);
-      return { sid, visitorHash, isBot: existing.isBot, device: existing.device || device };
+      return {
+        sid,
+        visitorHash,
+        isBot: existing.isBot,
+        device: existing.device || device,
+        browser: existing.browser || browser,
+        country: existing.country || country,
+      };
     }
     sid = undefined;
   }
@@ -128,10 +162,12 @@ async function ensureSession(req: Request, res: Response, opts: {
     utmMedium: opts.utm?.medium || null,
     utmCampaign: opts.utm?.campaign || null,
     device,
+    browser,
+    country,
     isBot,
   });
   setSessionCookie(res, sid);
-  return { sid, visitorHash, isBot, device };
+  return { sid, visitorHash, isBot, device, browser, country };
 }
 
 export function registerAnalyticsRoutes(
@@ -176,7 +212,7 @@ export function registerAnalyticsRoutes(
         medium: safeStr(req.body?.utmMedium, 128),
         campaign: safeStr(req.body?.utmCampaign, 128),
       };
-      const { sid, visitorHash, isBot, device } = await ensureSession(req, res, { path, referrer, utm });
+      const { sid, visitorHash, isBot, device, browser, country } = await ensureSession(req, res, { path, referrer, utm });
 
       await db.insert(pageViews).values({
         sessionId: sid,
@@ -187,6 +223,8 @@ export function registerAnalyticsRoutes(
         utmMedium: utm.medium,
         utmCampaign: utm.campaign,
         device,
+        browser,
+        country,
         isBot,
         userId: null,
       });
@@ -206,6 +244,8 @@ export function registerAnalyticsRoutes(
 
   app.post("/api/analytics/event", async (req, res) => {
     try {
+      const ua = (req.headers["user-agent"] as string) || "";
+      if (isBotUA(ua)) return res.json({ ok: true, skipped: "bot" });
       const eventType = safeStr(req.body?.eventType, 64);
       if (!eventType) return res.status(400).json({ error: "eventType required" });
       const allowed = new Set(["cart_started", "checkout_started", "order_completed", "vote_cast", "other"]);
@@ -234,8 +274,7 @@ export function registerAnalyticsRoutes(
 
   app.get("/api/admin/analytics/overview", isAuthenticated, async (req, res) => {
     try {
-      const days = clampDays(req.query.days, 30);
-      const since = sinceDate(days);
+      const { since, until, days } = rangeFromQuery(req.query);
       const includeBots = req.query.includeBots === "1";
       const botFilter = includeBots ? sql`true` : sql`${pageViews.isBot} = false`;
 
@@ -243,20 +282,20 @@ export function registerAnalyticsRoutes(
         n: sql<number>`count(*)::int`,
         sessions: sql<number>`count(distinct ${pageViews.sessionId})::int`,
         visitors: sql<number>`count(distinct ${pageViews.visitorHash})::int`,
-      }).from(pageViews).where(and(gte(pageViews.createdAt, since), botFilter));
+      }).from(pageViews).where(and(gte(pageViews.createdAt, since), lte(pageViews.createdAt, until), botFilter));
 
       const [evt] = await db.select({ n: sql<number>`count(*)::int` })
-        .from(trafficEvents).where(gte(trafficEvents.createdAt, since));
+        .from(trafficEvents).where(and(gte(trafficEvents.createdAt, since), lte(trafficEvents.createdAt, until)));
 
       const [sc] = await db.select({ n: sql<number>`count(*)::int` })
-        .from(socialClicks).where(gte(socialClicks.clickedAt, since));
+        .from(socialClicks).where(and(gte(socialClicks.clickedAt, since), lte(socialClicks.clickedAt, until)));
 
       const [emailOpens] = await db.select({ n: sql<number>`count(*)::int` })
         .from(emailCampaignEvents)
-        .where(and(gte(emailCampaignEvents.occurredAt, since), eq(emailCampaignEvents.eventType, "open")));
+        .where(and(gte(emailCampaignEvents.occurredAt, since), lte(emailCampaignEvents.occurredAt, until), eq(emailCampaignEvents.eventType, "open")));
       const [emailClicks] = await db.select({ n: sql<number>`count(*)::int` })
         .from(emailCampaignEvents)
-        .where(and(gte(emailCampaignEvents.occurredAt, since), eq(emailCampaignEvents.eventType, "click")));
+        .where(and(gte(emailCampaignEvents.occurredAt, since), lte(emailCampaignEvents.occurredAt, until), eq(emailCampaignEvents.eventType, "click")));
 
       res.json({
         days,
@@ -277,8 +316,7 @@ export function registerAnalyticsRoutes(
 
   app.get("/api/admin/analytics/timeline", isAuthenticated, async (req, res) => {
     try {
-      const days = clampDays(req.query.days, 30);
-      const since = sinceDate(days);
+      const { since, until, days } = rangeFromQuery(req.query);
       const granularity = req.query.granularity === "hour" ? "hour" : "day";
       const trunc = granularity === "hour" ? sql`date_trunc('hour', x.t)` : sql`date_trunc('day', x.t)`;
 
@@ -289,7 +327,7 @@ export function registerAnalyticsRoutes(
                count(distinct x.session_id)::int AS web_sessions
           FROM (
             SELECT created_at AS t, session_id FROM page_views
-             WHERE created_at >= ${since}
+             WHERE created_at >= ${since} AND created_at <= ${until}
                ${includeBots ? sql`` : sql`AND is_bot = false`}
           ) x
          GROUP BY bucket ORDER BY bucket
@@ -298,7 +336,7 @@ export function registerAnalyticsRoutes(
         SELECT ${granularity === "hour" ? sql`date_trunc('hour', clicked_at)` : sql`date_trunc('day', clicked_at)`} AS bucket,
                count(*)::int AS social_clicks
           FROM social_clicks
-         WHERE clicked_at >= ${since}
+         WHERE clicked_at >= ${since} AND clicked_at <= ${until}
          GROUP BY bucket ORDER BY bucket
       `);
       const emRows = await db.execute(sql`
@@ -306,7 +344,7 @@ export function registerAnalyticsRoutes(
                sum(case when event_type = 'open' then 1 else 0 end)::int AS email_opens,
                sum(case when event_type = 'click' then 1 else 0 end)::int AS email_clicks
           FROM email_campaign_events
-         WHERE occurred_at >= ${since}
+         WHERE occurred_at >= ${since} AND occurred_at <= ${until}
          GROUP BY bucket ORDER BY bucket
       `);
 
@@ -338,17 +376,17 @@ export function registerAnalyticsRoutes(
 
   app.get("/api/admin/analytics/top-pages", isAuthenticated, async (req, res) => {
     try {
-      const days = clampDays(req.query.days, 30);
-      const since = sinceDate(days);
+      const { since, until, days } = rangeFromQuery(req.query);
       const limit = clampDays(req.query.limit, 25, 200);
       const rows = await db.select({
         path: pageViews.path,
         views: sql<number>`count(*)::int`,
         sessions: sql<number>`count(distinct ${pageViews.sessionId})::int`,
         visitors: sql<number>`count(distinct ${pageViews.visitorHash})::int`,
+        avgViewsPerSession: sql<number>`round(count(*)::numeric / nullif(count(distinct ${pageViews.sessionId}),0), 2)`,
       })
         .from(pageViews)
-        .where(and(gte(pageViews.createdAt, since), eq(pageViews.isBot, false)))
+        .where(and(gte(pageViews.createdAt, since), lte(pageViews.createdAt, until), eq(pageViews.isBot, false)))
         .groupBy(pageViews.path)
         .orderBy(sql`count(*) desc`)
         .limit(limit);
@@ -361,32 +399,45 @@ export function registerAnalyticsRoutes(
 
   app.get("/api/admin/analytics/referrers", isAuthenticated, async (req, res) => {
     try {
-      const days = clampDays(req.query.days, 30);
-      const since = sinceDate(days);
-      // Web referrers (group by host)
+      const { since, until, days } = rangeFromQuery(req.query);
+      const classified = await db.execute(sql`
+        SELECT
+          CASE
+            WHEN entry_path LIKE '/go/%' THEN 'tracked-link'
+            WHEN referrer IS NULL OR referrer = '' THEN 'direct'
+            WHEN referrer ~* '(google|bing|duckduckgo|yahoo|ecosia|brave|startpage)\\.' THEN 'search'
+            WHEN referrer ~* '(facebook|instagram|twitter|t\\.co|x\\.com|linkedin|reddit|pinterest|tiktok|youtube|threads)' THEN 'social'
+            ELSE 'other'
+          END AS source,
+          count(*)::int AS sessions
+        FROM traffic_sessions
+        WHERE first_seen_at >= ${since} AND first_seen_at <= ${until} AND is_bot = false
+        GROUP BY source
+        ORDER BY sessions DESC
+      `);
       const webRows = await db.execute(sql`
         SELECT
           coalesce(nullif(regexp_replace(referrer, '^https?://([^/]+).*$', '\\1'), ''), '(direct)') AS host,
           count(*)::int AS sessions
         FROM traffic_sessions
-        WHERE first_seen_at >= ${since} AND is_bot = false
+        WHERE first_seen_at >= ${since} AND first_seen_at <= ${until} AND is_bot = false
         GROUP BY host
         ORDER BY sessions DESC
         LIMIT 50
       `);
-      // /go redirects per platform/post
       const goRows = await db.select({
         platform: socialPosts.platform,
         clicks: sql<number>`count(${socialClicks.id})::int`,
       })
         .from(socialClicks)
         .innerJoin(socialPosts, eq(socialPosts.id, socialClicks.postId))
-        .where(gte(socialClicks.clickedAt, since))
+        .where(and(gte(socialClicks.clickedAt, since), lte(socialClicks.clickedAt, until)))
         .groupBy(socialPosts.platform)
         .orderBy(sql`count(${socialClicks.id}) desc`);
 
       res.json({
         days,
+        sources: (classified as any).rows,
         web: (webRows as any).rows,
         social: goRows,
       });
@@ -398,37 +449,32 @@ export function registerAnalyticsRoutes(
 
   app.get("/api/admin/analytics/funnel", isAuthenticated, async (req, res) => {
     try {
-      const days = clampDays(req.query.days, 30);
-      const since = sinceDate(days);
+      const { since, until, days } = rangeFromQuery(req.query);
 
-      // Step 1: any view
       const [step1] = await db.select({ n: sql<number>`count(distinct ${pageViews.sessionId})::int` })
         .from(pageViews)
-        .where(and(gte(pageViews.createdAt, since), eq(pageViews.isBot, false)));
+        .where(and(gte(pageViews.createdAt, since), lte(pageViews.createdAt, until), eq(pageViews.isBot, false)));
 
-      // Step 2: any view of /store or /store/* or /portfolio
       const [step2] = await db.select({ n: sql<number>`count(distinct ${pageViews.sessionId})::int` })
         .from(pageViews)
         .where(and(
           gte(pageViews.createdAt, since),
+          lte(pageViews.createdAt, until),
           eq(pageViews.isBot, false),
           sql`(${pageViews.path} = '/store' OR ${pageViews.path} LIKE '/store/%')`,
         ));
 
-      // Step 3: cart_started events
       const [step3] = await db.select({ n: sql<number>`count(distinct ${trafficEvents.sessionId})::int` })
         .from(trafficEvents)
-        .where(and(gte(trafficEvents.createdAt, since), eq(trafficEvents.eventType, "cart_started")));
+        .where(and(gte(trafficEvents.createdAt, since), lte(trafficEvents.createdAt, until), eq(trafficEvents.eventType, "cart_started")));
 
-      // Step 4: checkout_started events
       const [step4] = await db.select({ n: sql<number>`count(distinct ${trafficEvents.sessionId})::int` })
         .from(trafficEvents)
-        .where(and(gte(trafficEvents.createdAt, since), eq(trafficEvents.eventType, "checkout_started")));
+        .where(and(gte(trafficEvents.createdAt, since), lte(trafficEvents.createdAt, until), eq(trafficEvents.eventType, "checkout_started")));
 
-      // Step 5: order_completed events
       const [step5] = await db.select({ n: sql<number>`count(distinct ${trafficEvents.sessionId})::int` })
         .from(trafficEvents)
-        .where(and(gte(trafficEvents.createdAt, since), eq(trafficEvents.eventType, "order_completed")));
+        .where(and(gte(trafficEvents.createdAt, since), lte(trafficEvents.createdAt, until), eq(trafficEvents.eventType, "order_completed")));
 
       res.json({
         days,
@@ -448,20 +494,19 @@ export function registerAnalyticsRoutes(
 
   app.get("/api/admin/analytics/voting", isAuthenticated, async (req, res) => {
     try {
-      const days = clampDays(req.query.days, 30);
-      const since = sinceDate(days);
+      const { since, until, days } = rangeFromQuery(req.query);
       const [pv] = await db.select({
         n: sql<number>`count(*)::int`,
         sessions: sql<number>`count(distinct ${pageViews.sessionId})::int`,
       }).from(pageViews)
         .where(and(
           gte(pageViews.createdAt, since),
+          lte(pageViews.createdAt, until),
           eq(pageViews.isBot, false),
           eq(pageViews.path, "/photo-pairs"),
         ));
-      // votes.timestamp is text → cast for comparison
-      const vrows = (await db.execute(sql`SELECT count(*)::int AS n FROM votes WHERE timestamp::timestamp >= ${since}`)).rows as any[];
-      const prows = (await db.execute(sql`SELECT count(*)::int AS n FROM pair_votes WHERE timestamp >= ${since}`)).rows as any[];
+      const vrows = (await db.execute(sql`SELECT count(*)::int AS n FROM votes WHERE timestamp::timestamp >= ${since} AND timestamp::timestamp <= ${until}`)).rows as any[];
+      const prows = (await db.execute(sql`SELECT count(*)::int AS n FROM pair_votes WHERE timestamp >= ${since} AND timestamp <= ${until}`)).rows as any[];
 
       res.json({
         days,

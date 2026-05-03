@@ -27,6 +27,24 @@ export function isBotUA(ua?: string): boolean {
   return !!ua && BOT_RE.test(ua);
 }
 
+export function classifyBrowser(ua?: string): string {
+  if (!ua) return "unknown";
+  if (/edg\//i.test(ua)) return "Edge";
+  if (/opr\/|opera/i.test(ua)) return "Opera";
+  if (/chrome\//i.test(ua) && !/chromium/i.test(ua)) return "Chrome";
+  if (/firefox\//i.test(ua)) return "Firefox";
+  if (/safari\//i.test(ua) && !/chrome/i.test(ua)) return "Safari";
+  return "other";
+}
+
+export function countryFromHeaders(req: Request): string | null {
+  const h = req.headers;
+  const v = (h["cf-ipcountry"] || h["x-vercel-ip-country"] || h["x-country-code"]) as string | undefined;
+  if (!v || typeof v !== "string") return null;
+  const c = v.trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(c) ? c : null;
+}
+
 function utcDay(d = new Date()): string {
   return d.toISOString().slice(0, 10);
 }

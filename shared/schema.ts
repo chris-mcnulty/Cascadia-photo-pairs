@@ -1104,7 +1104,9 @@ export const pageViews = pgTable("page_views", {
   utmSource: text("utm_source"),
   utmMedium: text("utm_medium"),
   utmCampaign: text("utm_campaign"),
-  device: text("device"),         // mobile | tablet | desktop | bot
+  device: text("device"),
+  browser: text("browser"),
+  country: text("country"),
   isBot: boolean("is_bot").default(false).notNull(),
   userId: varchar("user_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -1142,6 +1144,8 @@ export const trafficSessions = pgTable("traffic_sessions", {
   utmMedium: text("utm_medium"),
   utmCampaign: text("utm_campaign"),
   device: text("device"),
+  browser: text("browser"),
+  country: text("country"),
   isBot: boolean("is_bot").default(false).notNull(),
 }, (t) => [
   index("idx_traffic_sessions_visitor").on(t.visitorHash),
@@ -1156,6 +1160,14 @@ export const dailyTrafficSalts = pgTable("daily_traffic_salts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const insertPageViewSchema = createInsertSchema(pageViews).omit({ id: true, createdAt: true });
+export const insertTrafficEventSchema = createInsertSchema(trafficEvents).omit({ id: true, createdAt: true });
+export const insertTrafficSessionSchema = createInsertSchema(trafficSessions).omit({ firstSeenAt: true, lastSeenAt: true });
+export const insertDailyTrafficSaltSchema = createInsertSchema(dailyTrafficSalts).omit({ createdAt: true });
+
 export type PageView = typeof pageViews.$inferSelect;
+export type InsertPageView = z.infer<typeof insertPageViewSchema>;
 export type TrafficEvent = typeof trafficEvents.$inferSelect;
+export type InsertTrafficEvent = z.infer<typeof insertTrafficEventSchema>;
 export type TrafficSession = typeof trafficSessions.$inferSelect;
+export type InsertTrafficSession = z.infer<typeof insertTrafficSessionSchema>;

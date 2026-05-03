@@ -29,11 +29,7 @@ function redactToken(input: string, token?: string): string {
   return input.split(token).join("<redacted>");
 }
 
-function getToken(secretKey: string): string {
-  const t = process.env[secretKey];
-  if (!t) throw new Error(`Missing access token secret: ${secretKey}`);
-  return t;
-}
+// Token is now passed in directly (decrypted by the caller); no env lookup.
 
 interface FetchOpts {
   method?: "GET" | "POST";
@@ -92,13 +88,13 @@ async function metaFetch(path: string, opts: FetchOpts): Promise<any> {
 
 export async function publishFacebookPagePost(args: {
   pageId: string;
-  tokenSecretKey: string;
+  accessToken: string;
   caption: string;
   imageUrl: string;
   link?: string;
 }): Promise<PublishResponse> {
   try {
-    const token = getToken(args.tokenSecretKey);
+    const token = args.accessToken;
     // /{page-id}/photos with url + caption posts the photo to the Page feed.
     const result = await metaFetch(`/${args.pageId}/photos`, {
       method: "POST",
@@ -175,7 +171,7 @@ async function igWaitForContainer(
 
 export async function publishInstagramPost(args: {
   igUserId: string;
-  tokenSecretKey: string;
+  accessToken: string;
   caption: string;
   mediaUrls: string[]; // 1 = single image, 2-10 = carousel
 }): Promise<PublishResponse> {
@@ -189,7 +185,7 @@ export async function publishInstagramPost(args: {
         retryable: false,
       };
 
-    const token = getToken(args.tokenSecretKey);
+    const token = args.accessToken;
 
     let creationId: string;
 

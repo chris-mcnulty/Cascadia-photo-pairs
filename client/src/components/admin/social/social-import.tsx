@@ -22,6 +22,8 @@ interface DryRunRow {
   accountName: string;
   errors: string[];
   warnings: string[];
+  previewTrackedUrl?: string;
+  previewCaption?: string;
 }
 interface DryRun {
   filename: string;
@@ -29,6 +31,7 @@ interface DryRun {
   totalRows: number;
   validRows: number;
   invalidRows: number;
+  baseUrl?: string;
 }
 
 const SAMPLE_CSV = `platform,caption,image_url,additional_image_urls,link,scheduled_at,utm_campaign,first_comment,account
@@ -200,13 +203,22 @@ export default function SocialImport() {
                   {dryRun.rows.map((r) => (
                     <tr
                       key={r.rowIndex}
-                      className={r.errors.length ? "bg-red-50" : ""}
+                      className={r.errors.length ? "bg-red-50 align-top" : "align-top"}
                       data-testid={`row-dryrun-${r.rowIndex}`}
                     >
                       <td className="p-2">{r.rowIndex}</td>
                       <td className="p-2">{r.platform}</td>
                       <td className="p-2">{r.accountName}</td>
-                      <td className="p-2 max-w-xs truncate">{r.caption}</td>
+                      <td className="p-2 max-w-md">
+                        <div className="whitespace-pre-wrap">
+                          {r.previewCaption || r.caption}
+                        </div>
+                        {r.previewTrackedUrl && (
+                          <div className="text-[10px] text-gray-500 mt-1 break-all">
+                            tracked → {r.previewTrackedUrl}
+                          </div>
+                        )}
+                      </td>
                       <td className="p-2">
                         {r.mediaUrls.length > 1
                           ? `${r.mediaUrls.length} (carousel)`

@@ -822,7 +822,8 @@ export const socialAccounts = pgTable("social_accounts", {
   displayName: varchar("display_name").notNull(),
   externalId: varchar("external_id").notNull(), // Page ID (FB) or IG User ID
   pageId: varchar("page_id"), // FB Page ID (also used to resolve IG accounts)
-  tokenSecretKey: varchar("token_secret_key").notNull(), // env var name where the token lives
+  tokenSecretKey: varchar("token_secret_key"), // legacy: env var name (kept for back-compat)
+  accessTokenEncrypted: text("access_token_encrypted"), // AES-256-GCM ciphertext (durable)
   tokenLastFour: varchar("token_last_four"), // last 4 chars only, for UI display
   tokenExpiresAt: timestamp("token_expires_at"), // null = never-expires page token
   isActive: boolean("is_active").default(true).notNull(),
@@ -874,6 +875,9 @@ export const socialPosts = pgTable("social_posts", {
   index("idx_social_posts_csv").on(table.csvImportId),
   index("idx_social_posts_tracked_slug").on(table.trackedSlug),
   index("idx_social_posts_account_external").on(table.accountId, table.externalPostId),
+  index("uniq_social_posts_account_external_post")
+    .on(table.accountId, table.externalPostId)
+    .where(sql`external_post_id IS NOT NULL`),
 ]);
 
 export const socialClicks = pgTable("social_clicks", {

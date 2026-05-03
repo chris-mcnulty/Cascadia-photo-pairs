@@ -17,6 +17,8 @@ import {
   publishFacebookPagePost,
   publishInstagramPost,
 } from "./meta-client";
+import { loadAccountToken } from "./token-crypto";
+import { sendEmail } from "../email";
 
 const TICK_MS = 60_000;
 const MAX_ATTEMPTS = 5;
@@ -60,28 +62,41 @@ async function igDailyCount(accountId: string): Promise<number> {
   return rows[0]?.c ?? 0;
 }
 
-// Stuck-post recovery: if a post has been in `posting` for >10 minutes, the
-// publisher process likely crashed mid-call. Reset to `scheduled` so the next
-// tick can retry it (subject to MAX_ATTEMPTS).
+// Stuck-post recovery: if a post has been in `posting` for >10 minutes the
+// publisher process likely crashed mid-call. Mark FAILED (not auto-retry) so
+// the admin must explicitly check whether the post made it to Meta and then
+// hit Retry — this prevents accidental double-publishes when the API call
+// actually succeeded but we crashed before recording externalPostId.
 async function recoverStuckPosts() {
   const cutoff = new Date(Date.now() - 10 * 60 * 1000);
   const result = await db.execute(sql`
     UPDATE social_posts
-       SET status = 'scheduled',
-           next_retry_at = now() + interval '1 minute',
-           error_message = COALESCE(error_message, '') ||
-             ' [recovered from stuck posting state]',
+       SET status = 'failed',
+           error_message = 'Server crashed while publishing — verify on Meta before retrying (may have published)',
            updated_at = now()
      WHERE status = 'posting'
        AND updated_at < ${cutoff}
-     RETURNING id
+     RETURNING id, account_id
   `);
   const rows: any[] = (result as any).rows || [];
   if (rows.length) {
     console.warn(
-      `[social-scheduler] recovered ${rows.length} stuck posting rows`
+      `[social-scheduler] marked ${rows.length} stuck posting rows as failed`
     );
+    notifyFailures(rows.map((r) => r.id)).catch(() => {});
   }
+}
+
+async function notifyFailures(postIds: string[]) {
+  const to = process.env.SOCIAL_FAILURE_EMAIL;
+  if (!to || !postIds.length) return;
+  const list = postIds.map((id) => `- ${id}`).join("\n");
+  await sendEmail(
+    to,
+    `[Cascadia social] ${postIds.length} post(s) need attention`,
+    `<p>The following social post(s) failed and may need manual review:</p><pre>${list}</pre>` +
+      `<p>Open the admin → Social → Post Queue → Failed tab.</p>`
+  );
 }
 
 async function processOnce() {
@@ -137,14 +152,17 @@ async function publishOne(row: any) {
     return;
   }
 
-  // Build effective caption with tracked link substitution
-  const baseUrl =
-    process.env.PUBLIC_BASE_URL ||
-    process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-      : "";
+  // Build effective caption with tracked link substitution.
+  // Precedence: explicit PUBLIC_BASE_URL → REPLIT_DEV_DOMAIN (https://) → none.
+  const explicitBase = process.env.PUBLIC_BASE_URL?.replace(/\/+$/, "");
+  const replitBase = process.env.REPLIT_DEV_DOMAIN
+    ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+    : "";
+  const baseUrl = explicitBase || replitBase || "";
   const trackedUrl =
-    row.tracked_slug && baseUrl ? `${baseUrl}/go/${row.tracked_slug}` : row.link_url || "";
+    row.tracked_slug && baseUrl
+      ? `${baseUrl}/go/${row.tracked_slug}`
+      : row.link_url || "";
   let caption: string = row.caption || "";
   if (caption.includes("{{link}}")) caption = caption.split("{{link}}").join(trackedUrl);
 
@@ -167,12 +185,20 @@ async function publishOne(row: any) {
     }
   }
 
+  let accessToken: string;
+  try {
+    accessToken = loadAccountToken(account);
+  } catch (e: any) {
+    await markFailed(postId, attempt, e.message, false);
+    return;
+  }
+
   let result;
   try {
     if (platform === "facebook") {
       result = await publishFacebookPagePost({
         pageId: account.externalId,
-        tokenSecretKey: account.tokenSecretKey,
+        accessToken,
         caption,
         imageUrl: (row.media_urls || [])[0],
         link: trackedUrl || undefined,
@@ -180,7 +206,7 @@ async function publishOne(row: any) {
     } else {
       result = await publishInstagramPost({
         igUserId: account.externalId,
-        tokenSecretKey: account.tokenSecretKey,
+        accessToken,
         caption,
         mediaUrls: row.media_urls || [],
       });
@@ -240,5 +266,6 @@ async function markFailed(
         updatedAt: new Date(),
       })
       .where(eq(socialPosts.id, postId));
+    notifyFailures([postId]).catch(() => {});
   }
 }

@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SocialAccounts from "./social-accounts";
 import SocialImport from "./social-import";
 import SocialPostsList from "./social-posts";
+import SocialComposer from "./social-composer";
 
 export default function SocialManagement() {
   const [tab, setTab] = useState("accounts");
@@ -11,6 +12,9 @@ export default function SocialManagement() {
       <TabsList>
         <TabsTrigger value="accounts" data-testid="tab-social-accounts">
           Accounts
+        </TabsTrigger>
+        <TabsTrigger value="compose" data-testid="tab-social-compose">
+          Compose
         </TabsTrigger>
         <TabsTrigger value="import" data-testid="tab-social-import">
           Import CSV
@@ -21,6 +25,9 @@ export default function SocialManagement() {
       </TabsList>
       <TabsContent value="accounts">
         <SocialAccounts />
+      </TabsContent>
+      <TabsContent value="compose">
+        <SocialComposer />
       </TabsContent>
       <TabsContent value="import">
         <SocialImport />

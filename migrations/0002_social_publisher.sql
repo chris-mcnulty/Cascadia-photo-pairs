@@ -67,3 +67,10 @@ CREATE TABLE IF NOT EXISTS social_clicks (
 );
 CREATE INDEX IF NOT EXISTS idx_social_clicks_post ON social_clicks(post_id);
 CREATE INDEX IF NOT EXISTS idx_social_clicks_at ON social_clicks(clicked_at);
+
+-- Encrypted token storage + de-dup index (added later in development)
+ALTER TABLE social_accounts ALTER COLUMN token_secret_key DROP NOT NULL;
+ALTER TABLE social_accounts ADD COLUMN IF NOT EXISTS access_token_encrypted text;
+DROP INDEX IF EXISTS uniq_social_posts_account_external_post;
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_social_posts_account_external_post
+  ON social_posts(account_id, external_post_id) WHERE external_post_id IS NOT NULL;

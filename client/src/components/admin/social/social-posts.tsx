@@ -44,6 +44,10 @@ export default function SocialPostsList() {
   const { toast } = useToast();
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
+  const { data: quota = {} } = useQuery<
+    Record<string, { used: number; cap: number; remaining: number }>
+  >({ queryKey: ["/api/admin/social/quota"], refetchInterval: 60_000 });
+
   const { data: posts = [], isLoading } = useQuery<SocialPost[]>({
     queryKey: ["/api/admin/social/posts", statusFilter],
     queryFn: async () => {
@@ -109,6 +113,19 @@ export default function SocialPostsList() {
         </div>
       </CardHeader>
       <CardContent>
+        {Object.keys(quota).length > 0 && (
+          <div className="mb-3 flex flex-wrap gap-2 text-xs">
+            {Object.entries(quota).map(([id, q]) => (
+              <Badge
+                key={id}
+                variant={q.remaining < 5 ? "destructive" : "outline"}
+                data-testid={`badge-quota-${id}`}
+              >
+                IG {id.slice(0, 6)}: {q.remaining}/{q.cap} remaining
+              </Badge>
+            ))}
+          </div>
+        )}
         {isLoading ? (
           <p>Loading…</p>
         ) : posts.length === 0 ? (

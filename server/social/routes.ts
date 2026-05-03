@@ -26,6 +26,20 @@ import {
   publishInstagramPost,
 } from "./meta-client";
 import { parseSocialCsv, isHostPublic } from "./csv-import";
+import { encryptToken } from "./token-crypto";
+
+function trackedBaseUrl(): string {
+  const explicit = process.env.PUBLIC_BASE_URL?.replace(/\/+$/, "");
+  if (explicit) return explicit;
+  if (process.env.REPLIT_DEV_DOMAIN) return `https://${process.env.REPLIT_DEV_DOMAIN}`;
+  return "";
+}
+
+function renderCaption(caption: string, trackedUrl: string): string {
+  if (!caption) return caption;
+  if (caption.includes("{{link}}")) return caption.split("{{link}}").join(trackedUrl);
+  return caption;
+}
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -60,7 +74,7 @@ function publicAccount(a: SocialAccount) {
     pageId: a.pageId,
     tokenLastFour: a.tokenLastFour,
     tokenExpiresAt: a.tokenExpiresAt,
-    tokenConfigured: !!process.env[a.tokenSecretKey],
+    tokenConfigured: !!a.accessTokenEncrypted || !!(a.tokenSecretKey && process.env[a.tokenSecretKey]),
     isActive: a.isActive,
     createdAt: a.createdAt,
   };
@@ -178,11 +192,9 @@ export function registerSocialRoutes(
           .json({ error: `Token validation failed: ${v.error || "unknown"}` });
       }
 
-      // Persist token to env (process-level secret) under a unique key.
-      // This deliberately does not write to disk — operators can promote the
-      // value to a Replit Secret using the printed key for restart-persistence.
-      const tokenSecretKey = `META_TOKEN_${body.platform.toUpperCase()}_${externalId.replace(/[^A-Za-z0-9_]/g, "")}`;
-      process.env[tokenSecretKey] = body.accessToken;
+      // Encrypt the token with AES-256-GCM and store the ciphertext in the
+      // database. Survives restarts; raw token never written to disk in plain.
+      const accessTokenEncrypted = encryptToken(body.accessToken);
       const tokenLastFour = body.accessToken.slice(-4);
 
       const [created] = await db
@@ -192,7 +204,7 @@ export function registerSocialRoutes(
           displayName: body.displayName || v.displayName || externalId,
           externalId: v.externalId || externalId,
           pageId: body.pageId || null,
-          tokenSecretKey,
+          accessTokenEncrypted,
           tokenLastFour,
           tokenExpiresAt: v.expiresAt || null,
           isActive: true,
@@ -200,13 +212,10 @@ export function registerSocialRoutes(
         .returning();
 
       console.log(
-        `[social] connected ${body.platform} account ${created.id} (${created.displayName}); secret stored as ${tokenSecretKey}`
+        `[social] connected ${body.platform} account ${created.id} (${created.displayName}); token encrypted in DB`
       );
 
-      return res.json({
-        ...publicAccount(created),
-        tokenSecretKey, // returned ONCE so operator can promote to Replit Secret
-      });
+      return res.json(publicAccount(created));
     } catch (e: any) {
       console.error("[social] connect error", e);
       return res.status(400).json({ error: e.message });
@@ -251,7 +260,7 @@ export function registerSocialRoutes(
         return res.json({ deactivated: true });
       }
       await db.delete(socialAccounts).where(eq(socialAccounts.id, id));
-      // Clear in-memory token (operator must remove the Replit Secret manually if set)
+      // Clear any legacy in-memory token (DB ciphertext goes with the row)
       if (acc.tokenSecretKey) delete process.env[acc.tokenSecretKey];
       res.json({ deleted: true });
     } catch (e: any) {
@@ -275,7 +284,23 @@ export function registerSocialRoutes(
           accounts,
           validateImages: req.body.skipImageValidation !== "true",
         });
-        res.json(dry);
+        // Enrich each row with a preview of the rendered caption + tracked URL
+        // so admins see exactly what will be published.
+        const base = trackedBaseUrl();
+        const enriched = {
+          ...dry,
+          baseUrl: base,
+          rows: dry.rows.map((r) => {
+            const previewSlug = "PREVIEW";
+            const trackedUrl = r.link && base ? `${base}/go/${previewSlug}` : r.link || "";
+            return {
+              ...r,
+              previewTrackedUrl: trackedUrl,
+              previewCaption: renderCaption(r.caption, trackedUrl),
+            };
+          }),
+        };
+        res.json(enriched);
       } catch (e: any) {
         console.error("[social] dry-run error", e);
         res.status(400).json({ error: e.message });
@@ -300,52 +325,60 @@ export function registerSocialRoutes(
           validateImages: req.body.skipImageValidation !== "true",
         });
 
-        // Insert import header
-        const [imp] = await db
-          .insert(socialCsvImports)
-          .values({
-            filename: dry.filename,
-            campaignName,
-            rowCount: dry.totalRows,
-            successCount: 0,
-            failedCount: 0,
-            status: "queued",
-            createdBy: adminUser?.id || null,
-          })
-          .returning();
+        // Pre-allocate tracked slugs OUTSIDE the transaction (each call hits
+        // its own auto-commit) so the actual insert is purely local writes
+        // and can be wrapped in a single atomic transaction.
+        const validRows = dry.rows.filter((r) => !r.errors.length);
+        const slugs: string[] = [];
+        for (let i = 0; i < validRows.length; i++) slugs.push(await uniqueSlug());
 
-        // Insert valid rows as scheduled posts
-        let inserted = 0;
-        for (const row of dry.rows) {
-          if (row.errors.length) continue;
-          const slug = await uniqueSlug();
-          await db.insert(socialPosts).values({
-            accountId: row.accountId,
-            platform: row.platform,
-            caption: row.caption,
-            mediaUrls: row.mediaUrls,
-            linkUrl: row.link || null,
-            trackedSlug: slug,
-            utmCampaign: row.utmCampaign || campaignName || null,
-            firstComment: row.firstComment || null,
-            scheduledAt: row.scheduledAt,
-            status: "scheduled",
-            csvImportId: imp.id,
-          });
-          inserted++;
-        }
-        await db
-          .update(socialCsvImports)
-          .set({
-            successCount: inserted,
-            failedCount: dry.invalidRows,
-            status: dry.invalidRows ? "partial" : "done",
-          })
-          .where(eq(socialCsvImports.id, imp.id));
+        const result = await db.transaction(async (tx) => {
+          const [imp] = await tx
+            .insert(socialCsvImports)
+            .values({
+              filename: dry.filename,
+              campaignName,
+              rowCount: dry.totalRows,
+              successCount: 0,
+              failedCount: 0,
+              status: "queued",
+              createdBy: adminUser?.id || null,
+            })
+            .returning();
+
+          let inserted = 0;
+          for (let i = 0; i < validRows.length; i++) {
+            const row = validRows[i];
+            await tx.insert(socialPosts).values({
+              accountId: row.accountId,
+              platform: row.platform,
+              caption: row.caption,
+              mediaUrls: row.mediaUrls,
+              linkUrl: row.link || null,
+              trackedSlug: slugs[i],
+              utmCampaign: row.utmCampaign || campaignName || null,
+              firstComment: row.firstComment || null,
+              scheduledAt: row.scheduledAt,
+              status: "scheduled",
+              csvImportId: imp.id,
+            });
+            inserted++;
+          }
+          await tx
+            .update(socialCsvImports)
+            .set({
+              successCount: inserted,
+              failedCount: dry.invalidRows,
+              status: dry.invalidRows ? "partial" : "done",
+            })
+            .where(eq(socialCsvImports.id, imp.id));
+
+          return { importId: imp.id, inserted };
+        });
 
         res.json({
-          importId: imp.id,
-          inserted,
+          importId: result.importId,
+          inserted: result.inserted,
           skipped: dry.invalidRows,
           totalRows: dry.totalRows,
         });
@@ -441,6 +474,31 @@ export function registerSocialRoutes(
     } catch (e: any) {
       res.status(400).json({ error: e.message });
     }
+  });
+
+  // Remaining IG daily quota per account
+  app.get("/api/admin/social/quota", isAuthenticated, async (_req, res) => {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const igAccounts = await db
+      .select()
+      .from(socialAccounts)
+      .where(eq(socialAccounts.platform, "instagram"));
+    const out: Record<string, { used: number; cap: number; remaining: number }> = {};
+    for (const a of igAccounts) {
+      const [{ c }] = await db
+        .select({ c: sql<number>`count(*)::int` })
+        .from(socialPosts)
+        .where(
+          and(
+            eq(socialPosts.accountId, a.id),
+            eq(socialPosts.status, "posted"),
+            sql`${socialPosts.postedAt} >= ${since}`
+          )
+        );
+      const used = Number(c) || 0;
+      out[a.id] = { used, cap: 25, remaining: Math.max(0, 25 - used) };
+    }
+    res.json(out);
   });
 
   // Per-post click summary

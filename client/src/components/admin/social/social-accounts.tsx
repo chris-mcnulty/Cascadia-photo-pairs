@@ -49,7 +49,7 @@ export default function SocialAccounts() {
     accessToken: "",
   });
   const [validation, setValidation] = useState<{ ok: boolean; msg: string } | null>(null);
-  const [savedSecretKey, setSavedSecretKey] = useState<string | null>(null);
+  const [savedDisplay, setSavedDisplay] = useState<string | null>(null);
 
   const { data: accounts = [], isLoading } = useQuery<SocialAccount[]>({
     queryKey: ["/api/admin/social/accounts"],
@@ -78,7 +78,7 @@ export default function SocialAccounts() {
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/social/accounts"] });
-      setSavedSecretKey(data.tokenSecretKey || null);
+      setSavedDisplay(data.displayName || "Account");
       toast({ title: "Account connected", description: data.displayName });
     },
     onError: (e: any) =>
@@ -114,7 +114,7 @@ export default function SocialAccounts() {
       accessToken: "",
     });
     setValidation(null);
-    setSavedSecretKey(null);
+    setSavedDisplay(null);
   };
 
   return (
@@ -137,20 +137,17 @@ export default function SocialAccounts() {
             <DialogHeader>
               <DialogTitle>Connect Instagram or Facebook</DialogTitle>
             </DialogHeader>
-            {savedSecretKey ? (
+            {savedDisplay ? (
               <div className="space-y-3">
                 <p className="text-sm text-green-700 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4" /> Account connected.
+                  <CheckCircle2 className="w-4 h-4" /> {savedDisplay} connected.
                 </p>
-                <p className="text-sm">
-                  Your access token is stored in process memory under the
-                  environment-variable name below. To survive restarts, copy
-                  this key into your Replit Secrets and set its value to the
-                  long-lived token you pasted.
+                <p className="text-sm text-gray-700">
+                  Your access token has been encrypted and stored in the
+                  database. It survives restarts and is never returned by any
+                  read endpoint. To rotate it, remove this account and connect
+                  again with a fresh token.
                 </p>
-                <div className="bg-gray-100 p-3 rounded font-mono text-xs break-all">
-                  {savedSecretKey}
-                </div>
                 <DialogFooter>
                   <Button onClick={() => setOpen(false)}>Done</Button>
                 </DialogFooter>
@@ -268,7 +265,7 @@ export default function SocialAccounts() {
                       ID {a.externalId} · token …{a.tokenLastFour || "????"}
                       {!a.tokenConfigured && (
                         <span className="text-red-600 ml-2">
-                          (token not loaded — set secret {a.id.slice(0, 6)}…)
+                          (token missing — reconnect this account)
                         </span>
                       )}
                       {a.tokenExpiresAt && (

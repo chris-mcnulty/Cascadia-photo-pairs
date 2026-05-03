@@ -44,7 +44,18 @@ type WebRefRow = { host: string; sessions: number };
 type SocialRefRow = { platform: string; clicks: number };
 type RefBlock = { sources: SourceRow[]; web: WebRefRow[]; social: SocialRefRow[] };
 type FunnelStep = { name: string; value: number };
-type Voting = { pairsViews: number; pairsSessions: number; votesCast: number; pairVotesCast: number };
+type Voting = {
+  pairsViews: number;
+  pairsSessions: number;
+  votesCast: number;
+  pairVotesCast: number;
+  votingSessions: number;
+  totalSessions: number;
+  votingSessionShare: number;
+  distinctVoters: number;
+  returningVoters: number;
+  returningVoterRate: number;
+};
 
 function fmt(n: number): string {
   return new Intl.NumberFormat().format(n);
@@ -147,13 +158,11 @@ export default function TrafficDashboard() {
 
   const votesPerSession = (() => {
     const total = (voting?.votesCast || 0) + (voting?.pairVotesCast || 0);
-    const s = voting?.pairsSessions || 0;
+    const s = voting?.votingSessions || 0;
     return s > 0 ? total / s : 0;
   })();
-  const votingShare = (() => {
-    const total = overview?.sessions || 0;
-    return total > 0 ? ((voting?.pairsSessions || 0) / total) * 100 : 0;
-  })();
+  const votingShare = (voting?.votingSessionShare ?? 0) * 100;
+  const returningRate = (voting?.returningVoterRate ?? 0) * 100;
 
   return (
     <div className="space-y-6" data-testid="traffic-dashboard">
@@ -370,8 +379,12 @@ export default function TrafficDashboard() {
                     ["pairs_sessions", voting?.pairsSessions ?? 0],
                     ["votes_cast", voting?.votesCast ?? 0],
                     ["pair_votes_cast", voting?.pairVotesCast ?? 0],
-                    ["votes_per_pairs_session", votesPerSession.toFixed(3)],
+                    ["voting_sessions", voting?.votingSessions ?? 0],
+                    ["distinct_voters", voting?.distinctVoters ?? 0],
+                    ["returning_voters", voting?.returningVoters ?? 0],
+                    ["votes_per_voting_session", votesPerSession.toFixed(3)],
                     ["voting_session_share_pct", votingShare.toFixed(2)],
+                    ["returning_voter_rate_pct", returningRate.toFixed(2)],
                   ],
                 )
               }
@@ -382,11 +395,13 @@ export default function TrafficDashboard() {
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
               <Mini label="/photo-pairs views" value={voting?.pairsViews ?? 0} />
-              <Mini label="/photo-pairs sessions" value={voting?.pairsSessions ?? 0} />
+              <Mini label="Voting sessions" value={voting?.votingSessions ?? 0} />
               <Mini label="Votes cast" value={voting?.votesCast ?? 0} />
               <Mini label="Pair votes cast" value={voting?.pairVotesCast ?? 0} />
               <Mini label="Votes / voting session" value={Number(votesPerSession.toFixed(2))} />
               <Mini label="Voting session share" value={Number(votingShare.toFixed(1))} suffix="%" />
+              <Mini label="Distinct voters" value={voting?.distinctVoters ?? 0} />
+              <Mini label="Returning voter rate" value={Number(returningRate.toFixed(1))} suffix="%" />
             </div>
           </CardContent>
         </Card>

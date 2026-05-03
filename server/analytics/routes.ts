@@ -14,7 +14,7 @@
  *   GET /api/admin/analytics/funnel?days=30
  *   GET /api/admin/analytics/voting?days=30
  */
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction, RequestHandler } from "express";
 import { db } from "../db";
 import {
   pageViews,
@@ -47,7 +47,7 @@ function clampDays(raw: unknown, def = 30, max = 365): number {
   return Math.min(Math.floor(n), max);
 }
 
-function rangeFromQuery(query: any): { since: Date; until: Date; days: number } {
+function rangeFromQuery(query: Record<string, unknown>): { since: Date; until: Date; days: number } {
   const now = new Date();
   const from = typeof query.from === "string" ? new Date(query.from) : null;
   const to = typeof query.to === "string" ? new Date(query.to) : null;
@@ -221,7 +221,7 @@ export async function htmlCollectorMiddleware(req: Request, res: Response, next:
 
 export function registerAnalyticsRoutes(
   app: Express,
-  isAuthenticated: (req: any, res: any, next: any) => any,
+  isAuthenticated: RequestHandler,
 ) {
   app.get("/api/analytics/health", (_req, res) => {
     res.json({
@@ -242,8 +242,8 @@ export function registerAnalyticsRoutes(
         ga4MeasurementId: process.env.VITE_GA4_MEASUREMENT_ID || null,
         totals: { pageViews: pv?.n || 0, trafficEvents: ev?.n || 0, trafficSessions: se?.n || 0 },
       });
-    } catch (e: any) {
-      res.status(500).json({ ok: false, error: e.message });
+    } catch (e) {
+      res.status(500).json({ ok: false, error: (e as Error).message });
     }
   });
 
@@ -286,8 +286,8 @@ export function registerAnalyticsRoutes(
         .where(eq(trafficSessions.id, sid));
       // Avoid leaking the truncated UA-derived data; the client only needs the sid.
       res.json({ ok: true });
-    } catch (e: any) {
-      console.warn("[analytics] /page error:", e?.message);
+    } catch (e) {
+      console.warn("[analytics] /page error:", (e as Error)?.message);
       res.status(200).json({ ok: false }); // never fail the page over analytics
     }
   });
@@ -312,8 +312,8 @@ export function registerAnalyticsRoutes(
         userId: null,
       });
       res.json({ ok: true });
-    } catch (e: any) {
-      console.warn("[analytics] /event error:", e?.message);
+    } catch (e) {
+      console.warn("[analytics] /event error:", (e as Error)?.message);
       res.status(200).json({ ok: false });
     }
   });
@@ -359,9 +359,9 @@ export function registerAnalyticsRoutes(
         emailClicks: emailClicks?.n || 0,
         ga4Configured: !!process.env.VITE_GA4_MEASUREMENT_ID,
       });
-    } catch (e: any) {
+    } catch (e) {
       console.error("[analytics] overview error:", e);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: (e as Error).message });
     }
   });
 
@@ -416,17 +416,17 @@ export function registerAnalyticsRoutes(
         const cur = merged.get(key) || { bucket: key };
         merged.set(key, { ...cur, ...patch });
       };
-      for (const r of (pvRows as { rows: SqlRow[] }).rows) {
+      for (const r of (pvRows as unknown as { rows: SqlRow[] }).rows) {
         upsert(r.bucket, {
           web_views: Number(r.web_views) || 0,
           web_sessions: Number(r.web_sessions) || 0,
           web_visitors: Number(r.web_visitors) || 0,
         });
       }
-      for (const r of (scRows as { rows: SqlRow[] }).rows) {
+      for (const r of (scRows as unknown as { rows: SqlRow[] }).rows) {
         upsert(r.bucket, { social_clicks: Number(r.social_clicks) || 0 });
       }
-      for (const r of (emRows as { rows: SqlRow[] }).rows) {
+      for (const r of (emRows as unknown as { rows: SqlRow[] }).rows) {
         upsert(r.bucket, {
           email_opens: Number(r.email_opens) || 0,
           email_clicks: Number(r.email_clicks) || 0,
@@ -445,9 +445,9 @@ export function registerAnalyticsRoutes(
           emailClicks: r.email_clicks || 0,
         }));
       res.json({ days, granularity, series });
-    } catch (e: any) {
+    } catch (e) {
       console.error("[analytics] timeline error:", e);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: (e as Error).message });
     }
   });
 
@@ -468,9 +468,9 @@ export function registerAnalyticsRoutes(
         .orderBy(sql`count(*) desc`)
         .limit(limit);
       res.json({ days, rows });
-    } catch (e: any) {
+    } catch (e) {
       console.error("[analytics] top-pages error:", e);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: (e as Error).message });
     }
   });
 
@@ -512,15 +512,16 @@ export function registerAnalyticsRoutes(
         .groupBy(socialPosts.platform)
         .orderBy(sql`count(${socialClicks.id}) desc`);
 
+      type RefRow = Record<string, unknown>;
       res.json({
         days,
-        sources: (classified as any).rows,
-        web: (webRows as any).rows,
+        sources: (classified as unknown as { rows: RefRow[] }).rows,
+        web: (webRows as unknown as { rows: RefRow[] }).rows,
         social: goRows,
       });
-    } catch (e: any) {
+    } catch (e) {
       console.error("[analytics] referrers error:", e);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: (e as Error).message });
     }
   });
 
@@ -563,15 +564,15 @@ export function registerAnalyticsRoutes(
           { name: "Order completed", value: step5?.n || 0 },
         ],
       });
-    } catch (e: any) {
+    } catch (e) {
       console.error("[analytics] funnel error:", e);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: (e as Error).message });
     }
   });
 
   app.get("/api/admin/analytics/voting", isAuthenticated, async (req, res) => {
     try {
-      const { since, until, days } = rangeFromQuery(req.query);
+      const { since, until, days } = rangeFromQuery(req.query as Record<string, unknown>);
       const [pv] = await db.select({
         n: sql<number>`count(*)::int`,
         sessions: sql<number>`count(distinct ${pageViews.sessionId})::int`,
@@ -582,19 +583,76 @@ export function registerAnalyticsRoutes(
           eq(pageViews.isBot, false),
           eq(pageViews.path, "/photo-pairs"),
         ));
-      const vrows = (await db.execute(sql`SELECT count(*)::int AS n FROM votes WHERE timestamp::timestamp >= ${since} AND timestamp::timestamp <= ${until}`)).rows as any[];
-      const prows = (await db.execute(sql`SELECT count(*)::int AS n FROM pair_votes WHERE timestamp >= ${since} AND timestamp <= ${until}`)).rows as any[];
 
+      // Total non-bot sessions in window — denominator for voting-session share.
+      const [allSessions] = await db.select({
+        n: sql<number>`count(distinct ${pageViews.sessionId})::int`,
+      }).from(pageViews)
+        .where(and(
+          gte(pageViews.createdAt, since),
+          lte(pageViews.createdAt, until),
+          eq(pageViews.isBot, false),
+        ));
+
+      // Voting sessions = distinct sessions that emitted a `vote_cast` event.
+      // Returning voters = distinct visitor_hashes appearing in 2+ voting sessions.
+      type CountRow = { n: number };
+      const vsRowsRes = await db.execute(sql`
+        SELECT count(distinct session_id)::int AS n
+          FROM traffic_events
+         WHERE event_type = 'vote_cast'
+           AND created_at >= ${since} AND created_at <= ${until}
+      `);
+      const vsRows = (vsRowsRes as unknown as { rows: CountRow[] }).rows;
+      const votingSessions = vsRows[0]?.n || 0;
+
+      const voterRowsRes = await db.execute(sql`
+        SELECT count(*)::int AS n FROM (
+          SELECT pv.visitor_hash
+            FROM traffic_events te
+            JOIN page_views pv ON pv.session_id = te.session_id
+           WHERE te.event_type = 'vote_cast'
+             AND te.created_at >= ${since} AND te.created_at <= ${until}
+           GROUP BY pv.visitor_hash
+        ) v
+      `);
+      const distinctVoters = ((voterRowsRes as unknown as { rows: CountRow[] }).rows[0]?.n) || 0;
+
+      const returningVotersRowsRes = await db.execute(sql`
+        SELECT count(*)::int AS n FROM (
+          SELECT pv.visitor_hash
+            FROM traffic_events te
+            JOIN page_views pv ON pv.session_id = te.session_id
+           WHERE te.event_type = 'vote_cast'
+             AND te.created_at >= ${since} AND te.created_at <= ${until}
+           GROUP BY pv.visitor_hash
+          HAVING count(distinct te.session_id) > 1
+        ) r
+      `);
+      const returningVoters = ((returningVotersRowsRes as unknown as { rows: CountRow[] }).rows[0]?.n) || 0;
+
+      const vRowsRes = await db.execute(sql`SELECT count(*)::int AS n FROM votes WHERE timestamp::timestamp >= ${since} AND timestamp::timestamp <= ${until}`);
+      const pRowsRes = await db.execute(sql`SELECT count(*)::int AS n FROM pair_votes WHERE timestamp >= ${since} AND timestamp <= ${until}`);
+      const vrows = (vRowsRes as unknown as { rows: CountRow[] }).rows;
+      const prows = (pRowsRes as unknown as { rows: CountRow[] }).rows;
+
+      const totalSessions = allSessions?.n || 0;
       res.json({
         days,
         pairsViews: pv?.n || 0,
         pairsSessions: pv?.sessions || 0,
         votesCast: vrows[0]?.n || 0,
         pairVotesCast: prows[0]?.n || 0,
+        votingSessions,
+        totalSessions,
+        votingSessionShare: totalSessions > 0 ? votingSessions / totalSessions : 0,
+        distinctVoters,
+        returningVoters,
+        returningVoterRate: distinctVoters > 0 ? returningVoters / distinctVoters : 0,
       });
-    } catch (e: any) {
+    } catch (e) {
       console.error("[analytics] voting error:", e);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: (e as Error).message });
     }
   });
 }

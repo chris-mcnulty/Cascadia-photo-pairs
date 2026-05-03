@@ -156,7 +156,14 @@ export default function Home() {
         winnerPhotoId, 
         loserPhotoId 
       }, Object.keys(headers).length > 0 ? headers : undefined);
-      return response.json();
+      const json = await response.json();
+      try {
+        const { trackEvent } = await import("@/lib/analytics");
+        trackEvent("vote_cast", { metadata: { winnerPhotoId, loserPhotoId } });
+      } catch {
+        // analytics never throws
+      }
+      return json;
     },
     onSuccess: (data, variables) => {
       setVotesCount(prev => prev + 1);

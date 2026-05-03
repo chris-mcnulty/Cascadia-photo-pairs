@@ -2,21 +2,40 @@
  * Lightweight analytics client. Sends a beacon to the self-hosted endpoint on
  * every route change AND fires a corresponding GA4 page_view if a measurement
  * id is configured via VITE_GA4_MEASUREMENT_ID.
+ *
+ * Honors Do-Not-Track (navigator.doNotTrack === "1") and Global Privacy
+ * Control (navigator.globalPrivacyControl === true) by suppressing both the
+ * self-hosted beacon and GA4 entirely.
  */
 
 const GA4_ID = (import.meta.env.VITE_GA4_MEASUREMENT_ID as string | undefined) || "";
+
+type GtagFn = (...args: unknown[]) => void;
+type WindowWithGa = Window & {
+  dataLayer?: unknown[];
+  gtag?: GtagFn;
+};
+
+function isOptedOut(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const nav = navigator as Navigator & { globalPrivacyControl?: boolean; msDoNotTrack?: string };
+  if (nav.doNotTrack === "1" || nav.msDoNotTrack === "1") return true;
+  if (nav.globalPrivacyControl === true) return true;
+  return false;
+}
 
 let ga4Loaded = false;
 
 export function ensureGa4Loaded(): void {
   if (ga4Loaded || !GA4_ID || typeof window === "undefined") return;
+  if (isOptedOut()) return;
   ga4Loaded = true;
-  const w = window as unknown as { dataLayer?: any[]; gtag?: (...a: any[]) => void };
+  const w = window as WindowWithGa;
   w.dataLayer = w.dataLayer || [];
-  function gtag(..._args: any[]) {
-    w.dataLayer!.push(arguments);
-  }
-  w.gtag = gtag as any;
+  const gtag: GtagFn = function (...args: unknown[]) {
+    (w.dataLayer as unknown[]).push(args);
+  };
+  w.gtag = gtag;
   gtag("js", new Date());
   // Disable GA4 auto page_view; we fire it manually on route change
   gtag("config", GA4_ID, { send_page_view: false });
@@ -29,7 +48,7 @@ export function ensureGa4Loaded(): void {
 function utm(): { utmSource?: string; utmMedium?: string; utmCampaign?: string } {
   if (typeof window === "undefined") return {};
   const p = new URLSearchParams(window.location.search);
-  const out: any = {};
+  const out: { utmSource?: string; utmMedium?: string; utmCampaign?: string } = {};
   const s = p.get("utm_source");
   const m = p.get("utm_medium");
   const c = p.get("utm_campaign");
@@ -64,13 +83,14 @@ export function trackPageView(path: string, opts: { skipServer?: boolean } = {})
   if (typeof window === "undefined") return;
   if (path === lastPath) return;
   lastPath = path;
+  if (isOptedOut()) return;
   const referrer = document.referrer || undefined;
   if (!opts.skipServer) {
     send("/api/analytics/page", { path, referrer, ...utm() });
   }
   if (GA4_ID) {
     ensureGa4Loaded();
-    const w = window as any;
+    const w = window as WindowWithGa;
     if (typeof w.gtag === "function") {
       w.gtag("event", "page_view", {
         page_path: path,
@@ -81,8 +101,12 @@ export function trackPageView(path: string, opts: { skipServer?: boolean } = {})
   }
 }
 
-export function trackEvent(eventType: string, opts: { path?: string; metadata?: Record<string, any> } = {}): void {
+export function trackEvent(
+  eventType: string,
+  opts: { path?: string; metadata?: Record<string, unknown> } = {},
+): void {
   if (typeof window === "undefined") return;
+  if (isOptedOut()) return;
   send("/api/analytics/event", {
     eventType,
     path: opts.path || window.location.pathname,
@@ -90,7 +114,7 @@ export function trackEvent(eventType: string, opts: { path?: string; metadata?: 
   });
   if (GA4_ID) {
     ensureGa4Loaded();
-    const w = window as any;
+    const w = window as WindowWithGa;
     if (typeof w.gtag === "function") {
       w.gtag("event", eventType, opts.metadata || {});
     }

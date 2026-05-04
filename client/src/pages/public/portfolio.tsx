@@ -2,6 +2,7 @@ import { Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import PublicLayout from "@/components/public-layout";
 import { useSEO } from "@/hooks/use-seo";
+import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
 
 interface PublicCollection {
   id: string;
@@ -27,8 +28,12 @@ export default function Portfolio() {
   );
 
   return (
-    <PublicLayout heroTitle="Portfolio">
+    <PublicLayout heroTitle="Cascadia Oceanic · Portfolio">
       <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16">
+        <div className="flex items-center justify-center gap-3 mb-5">
+          <img src={cascadiaLogoPath} alt="Cascadia Oceanic" className="w-10 h-10 rounded-lg object-cover" />
+          <h2 className="text-2xl font-semibold text-cascadia-green tracking-wide">Cascadia Oceanic</h2>
+        </div>
         <p className="text-center text-gray-700 max-w-3xl mx-auto mb-12">
           A selection of work organized by subject. Each collection grows with the seasons —
           coastal weather, alpine evenings, and quiet urban detail.

@@ -3,6 +3,7 @@ import { Link, useRoute } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import PublicLayout from "@/components/public-layout";
 import { useSEO } from "@/hooks/use-seo";
+import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
 
 interface PublicCollection {
   id: string;
@@ -89,8 +90,17 @@ export default function Store() {
   }, [filtered, sort]);
 
   return (
-    <PublicLayout heroTitle="Store">
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-12 grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-10">
+    <PublicLayout heroTitle="Cascadia Oceanic · Store">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-10 pb-2">
+        <div className="flex items-center gap-3 mb-1">
+          <img src={cascadiaLogoPath} alt="Cascadia Oceanic" className="w-10 h-10 rounded-lg object-cover" />
+          <div>
+            <h2 className="text-2xl font-semibold text-cascadia-green tracking-wide leading-tight">Cascadia Oceanic</h2>
+            <p className="text-sm text-gray-500">ChromaLuxe metal prints &amp; fine-art archival paper by Chris McNulty</p>
+          </div>
+        </div>
+      </div>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-10">
         <aside className="space-y-8">
           <div>
             <h3 className="text-sm uppercase tracking-wider text-cascadia-green font-semibold mb-3">

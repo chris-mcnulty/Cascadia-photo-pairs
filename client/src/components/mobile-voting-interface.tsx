@@ -17,6 +17,7 @@ interface MobileVotingInterfaceProps {
   onToggleView?: () => void;
   onShowInstallGuide?: () => void;
   votesCount?: number;
+  showHeader?: boolean;
 }
 
 // Authentication status hook
@@ -67,7 +68,8 @@ export default function MobileVotingInterface({
   settings,
   onToggleView,
   onShowInstallGuide,
-  votesCount = 0
+  votesCount = 0,
+  showHeader = true,
 }: MobileVotingInterfaceProps) {
   const [photoA, photoB] = photoPair;
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
@@ -122,8 +124,8 @@ export default function MobileVotingInterface({
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Rich Mobile Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      {/* Rich Mobile Header — suppressed when wrapped inside PublicLayout */}
+      {showHeader && <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="flex items-center justify-between p-4">
           {/* Logo and Title */}
           <div className="flex items-center space-x-3">
@@ -249,7 +251,7 @@ export default function MobileVotingInterface({
             </div>
           </div>
         )}
-      </header>
+      </header>}
 
       {/* Announcements */}
       <SimpleAnnouncements />

@@ -381,6 +381,7 @@ export default function Home({
           onToggleView={() => setUseMobileInterface(false)}
           onShowInstallGuide={() => setShowInstallGuide(true)}
           votesCount={votesCount}
+          showHeader={showHeader}
         />
       ) : useFocusMode && photoPair ? (
         /* Focus Mode - Desktop Only */

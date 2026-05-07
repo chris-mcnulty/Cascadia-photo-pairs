@@ -9,10 +9,13 @@ const PRIMARY_NAV: { label: string; href: string }[] = [
   { label: "Home", href: "/home" },
   { label: "Portfolio", href: "/portfolio" },
   { label: "Store", href: "/store" },
-  { label: "Photo Pairs", href: "/" },
-  { label: "Leaderboard", href: "/leaderboard" },
   { label: "Calendar", href: "/calendar" },
   { label: "Biography", href: "/biography" },
+];
+
+const PAIRS_NAV: { label: string; href: string }[] = [
+  { label: "Photo Pairs", href: "/" },
+  { label: "Leaderboard", href: "/leaderboard" },
 ];
 
 const MORE_NAV: { label: string; href: string }[] = [
@@ -72,23 +75,24 @@ export default function PublicLayout({
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [pairsOpen, setPairsOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+  const pairsRef = useRef<HTMLDivElement>(null);
   const { count } = useCart();
   const { isAuthed, isAdmin } = useAuth();
 
   const adminItems = isAdmin ? [{ label: "Admin", href: "/admin" }] : [];
   const primaryItems = [...PRIMARY_NAV, ...adminItems];
-  const allNavItems = [...PRIMARY_NAV, ...MORE_NAV, ...adminItems];
+  const allNavItems = [...PRIMARY_NAV, ...PAIRS_NAV, ...MORE_NAV, ...adminItems];
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
-      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
-        setMoreOpen(false);
-      }
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setMoreOpen(false);
+      if (pairsRef.current && !pairsRef.current.contains(e.target as Node)) setPairsOpen(false);
     }
-    if (moreOpen) document.addEventListener("mousedown", onClickOutside);
+    if (moreOpen || pairsOpen) document.addEventListener("mousedown", onClickOutside);
     return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [moreOpen]);
+  }, [moreOpen, pairsOpen]);
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-gray-900 font-metronova">
@@ -220,11 +224,58 @@ export default function PublicLayout({
         <nav className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="hidden md:flex items-center justify-center gap-6 h-14">
-              {primaryItems.map((item) => {
-                const isActive =
-                  item.href === "/"
-                    ? location === "/" || location === "/photo-pairs"
-                    : location === item.href || location.startsWith(item.href + "/");
+              {/* Home, Portfolio, Store */}
+              {PRIMARY_NAV.slice(0, 3).map((item) => {
+                const isActive = location === item.href || location.startsWith(item.href + "/");
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`text-sm tracking-wide uppercase transition-colors ${isActive ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1" : "text-gray-700 hover:text-cascadia-green"}`}
+                    data-testid={`nav-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+
+              {/* Photo Pairs dropdown (contains Leaderboard) */}
+              <div ref={pairsRef} className="relative">
+                <button
+                  onClick={() => setPairsOpen((o) => !o)}
+                  className={`flex items-center gap-1 text-sm tracking-wide uppercase transition-colors ${
+                    PAIRS_NAV.some((i) => i.href === "/" ? location === "/" || location === "/photo-pairs" : location === i.href)
+                      ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1"
+                      : "text-gray-700 hover:text-cascadia-green"
+                  }`}
+                  data-testid="nav-photo-pairs"
+                  aria-expanded={pairsOpen}
+                >
+                  Photo Pairs <ChevronDown className={`w-3.5 h-3.5 transition-transform ${pairsOpen ? "rotate-180" : ""}`} />
+                </button>
+                {pairsOpen && (
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg py-1 min-w-[160px] z-50">
+                    {PAIRS_NAV.map((item) => {
+                      const isActive = item.href === "/" ? location === "/" || location === "/photo-pairs" : location === item.href;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setPairsOpen(false)}
+                          className={`block px-4 py-2 text-sm transition-colors ${isActive ? "text-cascadia-green font-semibold bg-gray-50" : "text-gray-700 hover:text-cascadia-green hover:bg-gray-50"}`}
+                          data-testid={`nav-pairs-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Calendar, Biography (+ Admin if applicable) */}
+              {[...PRIMARY_NAV.slice(3), ...adminItems].map((item) => {
+                const isActive = location === item.href || location.startsWith(item.href + "/");
                 const isAdminLink = item.label === "Admin";
                 return (
                   <Link
@@ -232,12 +283,8 @@ export default function PublicLayout({
                     href={item.href}
                     className={`text-sm tracking-wide uppercase transition-colors ${
                       isAdminLink
-                        ? isActive
-                          ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1"
-                          : "text-cascadia-green font-semibold hover:text-green-800"
-                        : isActive
-                          ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1"
-                          : "text-gray-700 hover:text-cascadia-green"
+                        ? isActive ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1" : "text-cascadia-green font-semibold hover:text-green-800"
+                        : isActive ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1" : "text-gray-700 hover:text-cascadia-green"
                     }`}
                     data-testid={`nav-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
                   >

@@ -86,15 +86,14 @@ export default function PublicLayout({
           style={{ minHeight: showHero ? "260px" : "120px" }}
           data-testid="public-hero"
         >
-          {/* Parallax background layer */}
+          {/* Background photo — position 35% shows mountains, not just sky */}
           <div
             aria-hidden="true"
             style={{
               position: "absolute",
               inset: 0,
               backgroundImage: `url('${HERO_PHOTO_URL}')`,
-              backgroundAttachment: "fixed",
-              backgroundPosition: "top center",
+              backgroundPosition: "center 35%",
               backgroundSize: "cover",
               backgroundRepeat: "no-repeat",
               zIndex: 0,
@@ -276,139 +275,131 @@ export default function PublicLayout({
 
       <main className="flex-1">{children}</main>
 
-      {/* Footer parallax band — anchored to bottom of image (lake/forest) */}
-      <div
-        aria-hidden="true"
+      {/* Footer — photo background showing the bottom slice of the image */}
+      <footer
         className={contentBleed ? "" : "mt-16"}
         style={{
           position: "relative",
-          height: "120px",
-          overflow: "hidden",
+          backgroundImage: `url('${HERO_PHOTO_URL}')`,
+          backgroundPosition: "center 85%",
+          backgroundSize: "cover",
+          backgroundRepeat: "no-repeat",
         }}
       >
+        {/* Dark overlay so text stays legible */}
         <div
+          aria-hidden="true"
           style={{
             position: "absolute",
             inset: 0,
-            backgroundImage: `url('${HERO_PHOTO_URL}')`,
-            backgroundAttachment: "fixed",
-            backgroundPosition: "bottom center",
-            backgroundSize: "cover",
-            backgroundRepeat: "no-repeat",
+            background: "linear-gradient(rgba(10,22,14,0.72), rgba(10,22,14,0.80))",
+            pointerEvents: "none",
           }}
         />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: "linear-gradient(rgba(10,25,15,0.45), rgba(10,25,15,0.55))",
-          }}
-        />
-      </div>
-
-      <footer className="bg-cascadia-light border-t border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-1 md:grid-cols-4 gap-8 text-sm">
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-3">Chris McNulty</h3>
-            <p className="text-gray-600 leading-relaxed">
-              Landscape and seascape photography from the Pacific Northwest and beyond.
-            </p>
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-3">Explore</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/portfolio" className="text-gray-600 hover:text-cascadia-green">
-                  Portfolio
-                </Link>
-              </li>
-              <li>
-                <Link href="/store" className="text-gray-600 hover:text-cascadia-green">
-                  Store
-                </Link>
-              </li>
-              <li>
-                <Link href="/" className="text-gray-600 hover:text-cascadia-green">
-                  Photo Pairs
-                </Link>
-              </li>
-              <li>
-                <Link href="/leaderboard" className="text-gray-600 hover:text-cascadia-green">
-                  Leaderboard
-                </Link>
-              </li>
-              <li>
-                <Link href="/calendar" className="text-gray-600 hover:text-cascadia-green">
-                  Calendar
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-3">About</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/biography" className="text-gray-600 hover:text-cascadia-green">
-                  Biography
-                </Link>
-              </li>
-              <li>
-                <Link href="/news" className="text-gray-600 hover:text-cascadia-green">
-                  News &amp; Updates
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-semibold text-gray-900 mb-3">Contact</h3>
-            <ul className="space-y-2 text-gray-600">
-              <li className="flex items-center gap-2">
-                <Mail className="w-4 h-4" />
-                <a href="mailto:hello@chrismcnulty.net" className="hover:text-cascadia-green">
-                  hello@chrismcnulty.net
+        <div className="relative z-10">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-1 md:grid-cols-4 gap-8 text-sm">
+            <div>
+              <h3 className="font-semibold text-white mb-3">Chris McNulty</h3>
+              <p className="text-white/70 leading-relaxed">
+                Landscape and seascape photography from the Pacific Northwest and beyond.
+              </p>
+            </div>
+            <div>
+              <h3 className="font-semibold text-white mb-3">Explore</h3>
+              <ul className="space-y-2">
+                <li>
+                  <Link href="/portfolio" className="text-white/70 hover:text-white">
+                    Portfolio
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/store" className="text-white/70 hover:text-white">
+                    Store
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/" className="text-white/70 hover:text-white">
+                    Photo Pairs
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/leaderboard" className="text-white/70 hover:text-white">
+                    Leaderboard
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/calendar" className="text-white/70 hover:text-white">
+                    Calendar
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold text-white mb-3">About</h3>
+              <ul className="space-y-2">
+                <li>
+                  <Link href="/biography" className="text-white/70 hover:text-white">
+                    Biography
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/news" className="text-white/70 hover:text-white">
+                    News &amp; Updates
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="font-semibold text-white mb-3">Contact</h3>
+              <ul className="space-y-2 text-white/70">
+                <li className="flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  <a href="mailto:hello@chrismcnulty.net" className="hover:text-white">
+                    hello@chrismcnulty.net
+                  </a>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Globe className="w-4 h-4" />
+                  Cascadia Oceanic LLC
+                </li>
+              </ul>
+              <div className="mt-4 flex gap-3">
+                <a
+                  href="https://www.instagram.com/chrismcnultynet/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                  className="text-white/60 hover:text-white"
+                >
+                  <FaInstagram className="w-4 h-4" />
                 </a>
-              </li>
-              <li className="flex items-center gap-2">
-                <Globe className="w-4 h-4" />
-                Cascadia Oceanic LLC
-              </li>
-            </ul>
-            <div className="mt-4 flex gap-3">
-              <a
-                href="https://www.instagram.com/chrismcnultynet/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="text-gray-500 hover:text-cascadia-green"
-              >
-                <FaInstagram className="w-4 h-4" />
-              </a>
-              <a
-                href="https://www.facebook.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-                className="text-gray-500 hover:text-cascadia-green"
-              >
-                <FaFacebookF className="w-4 h-4" />
-              </a>
-              <a
-                href="https://www.linkedin.com/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="LinkedIn"
-                className="text-gray-500 hover:text-cascadia-green"
-              >
-                <FaLinkedinIn className="w-4 h-4" />
-              </a>
+                <a
+                  href="https://www.facebook.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook"
+                  className="text-white/60 hover:text-white"
+                >
+                  <FaFacebookF className="w-4 h-4" />
+                </a>
+                <a
+                  href="https://www.linkedin.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="LinkedIn"
+                  className="text-white/60 hover:text-white"
+                >
+                  <FaLinkedinIn className="w-4 h-4" />
+                </a>
+              </div>
             </div>
           </div>
-        </div>
-        <div className="border-t border-gray-200 py-4 text-center text-xs text-gray-500">
-          © {new Date().getFullYear()} Cascadia Oceanic LLC. All rights reserved.{" "}
-          <Link href="/privacy/analytics" className="hover:text-cascadia-green underline-offset-4 hover:underline" data-testid="link-privacy-analytics">
-            Analytics &amp; Privacy
-          </Link>
+          <div className="border-t border-white/20 py-4 text-center text-xs text-white/50">
+            © {new Date().getFullYear()} Cascadia Oceanic LLC. All rights reserved.{" "}
+            <Link href="/privacy/analytics" className="hover:text-white underline-offset-4 hover:underline" data-testid="link-privacy-analytics">
+              Analytics &amp; Privacy
+            </Link>
+          </div>
         </div>
       </footer>
     </div>

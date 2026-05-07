@@ -6,6 +6,11 @@ A full-stack web application integrating a public-facing photographer site (chri
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+**CRITICAL — Photography site rules:**
+- NEVER use AI-generated images anywhere on this site. Every photo must be a real photograph taken by Chris McNulty.
+- Hero, footer, backgrounds, placeholders — all must use actual photos from the attached_assets/ library or from the database/Wix CDN URLs already in use.
+- When a real photo is not available for a placeholder, use a solid color or neutral CSS gradient — never a fake/generated image.
+
 ## System Architecture
 
 ### Frontend Architecture

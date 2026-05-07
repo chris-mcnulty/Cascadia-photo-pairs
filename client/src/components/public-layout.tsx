@@ -3,8 +3,7 @@ import { Link, useLocation } from "wouter";
 import { ShoppingCart, Menu, X, Mail, Globe } from "lucide-react";
 import { FaInstagram, FaFacebookF, FaLinkedinIn } from "react-icons/fa6";
 import { useCart } from "@/contexts/cart-context";
-
-const HERO_MOUNTAIN_URL = "/hero-mountains.png";
+const HERO_PHOTO_URL = "/hero-photo.jpg";
 
 const NAV_ITEMS: { label: string; href: string }[] = [
   { label: "Home", href: "/home" },
@@ -80,16 +79,37 @@ export default function PublicLayout({
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-gray-900 font-metronova">
-      {/* Hero with mountains and wordmark */}
+      {/* Hero with real photo and wordmark — parallax anchored to top of image (sky) */}
       <header className="relative">
         <div
-          className="relative w-full bg-center bg-cover bg-cascadia-green"
-          style={{
-            backgroundImage: `linear-gradient(rgba(20,40,30,0.45), rgba(20,40,30,0.35)), url('${HERO_MOUNTAIN_URL}')`,
-            minHeight: showHero ? "260px" : "120px",
-          }}
+          className="relative w-full bg-cascadia-green overflow-hidden"
+          style={{ minHeight: showHero ? "260px" : "120px" }}
           data-testid="public-hero"
         >
+          {/* Parallax background layer */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              backgroundImage: `url('${HERO_PHOTO_URL}')`,
+              backgroundAttachment: "fixed",
+              backgroundPosition: "top center",
+              backgroundSize: "cover",
+              backgroundRepeat: "no-repeat",
+              zIndex: 0,
+            }}
+          />
+          {/* Dark overlay for text legibility */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "linear-gradient(rgba(10,25,15,0.50), rgba(10,25,15,0.38))",
+              zIndex: 1,
+            }}
+          />
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-2 flex items-start justify-between">
             {/* Top utility row */}
             <div className="flex items-center gap-4 text-white/90 text-sm">
@@ -256,7 +276,37 @@ export default function PublicLayout({
 
       <main className="flex-1">{children}</main>
 
-      <footer className={`bg-cascadia-light border-t border-gray-200 ${contentBleed ? "mt-0" : "mt-16"}`}>
+      {/* Footer parallax band — anchored to bottom of image (lake/forest) */}
+      <div
+        aria-hidden="true"
+        className={contentBleed ? "" : "mt-16"}
+        style={{
+          position: "relative",
+          height: "120px",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: `url('${HERO_PHOTO_URL}')`,
+            backgroundAttachment: "fixed",
+            backgroundPosition: "bottom center",
+            backgroundSize: "cover",
+            backgroundRepeat: "no-repeat",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "linear-gradient(rgba(10,25,15,0.45), rgba(10,25,15,0.55))",
+          }}
+        />
+      </div>
+
+      <footer className="bg-cascadia-light border-t border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-1 md:grid-cols-4 gap-8 text-sm">
           <div>
             <h3 className="font-semibold text-gray-900 mb-3">Chris McNulty</h3>

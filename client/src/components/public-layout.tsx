@@ -1,23 +1,26 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, Menu, X, Mail, Globe } from "lucide-react";
+import { ShoppingCart, Menu, X, Mail, Globe, ChevronDown } from "lucide-react";
 import { FaInstagram, FaFacebookF, FaLinkedinIn } from "react-icons/fa6";
 import { useCart } from "@/contexts/cart-context";
 const HERO_PHOTO_URL = "/hero-photo.jpg";
 
-const NAV_ITEMS: { label: string; href: string }[] = [
+const PRIMARY_NAV: { label: string; href: string }[] = [
   { label: "Home", href: "/home" },
   { label: "Portfolio", href: "/portfolio" },
   { label: "Store", href: "/store" },
   { label: "Photo Pairs", href: "/" },
-  { label: "Leaderboard", href: "/leaderboard" },
   { label: "Calendar", href: "/calendar" },
   { label: "Biography", href: "/biography" },
+];
+
+const MORE_NAV: { label: string; href: string }[] = [
   { label: "News & Updates", href: "/news" },
   { label: "Music", href: "/music" },
   { label: "Books & Writing", href: "/books" },
   { label: "Podcasts", href: "/podcasts" },
   { label: "Professional", href: "/professional" },
+  { label: "Leaderboard", href: "/leaderboard" },
 ];
 
 function useAuth() {
@@ -68,14 +71,24 @@ export default function PublicLayout({
 }: PublicLayoutProps) {
   const [location] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
   const { count } = useCart();
   const { isAuthed, isAdmin } = useAuth();
 
-  const adminItems = isAdmin
-    ? [{ label: "Admin", href: "/admin" }]
-    : [];
+  const adminItems = isAdmin ? [{ label: "Admin", href: "/admin" }] : [];
+  const primaryItems = [...PRIMARY_NAV, ...adminItems];
+  const allNavItems = [...PRIMARY_NAV, ...MORE_NAV, ...adminItems];
 
-  const allNavItems = [...NAV_ITEMS, ...adminItems];
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    }
+    if (moreOpen) document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [moreOpen]);
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-gray-900 font-metronova">
@@ -207,7 +220,7 @@ export default function PublicLayout({
         <nav className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="hidden md:flex items-center justify-center gap-6 h-14">
-              {allNavItems.map((item) => {
+              {primaryItems.map((item) => {
                 const isActive =
                   item.href === "/"
                     ? location === "/" || location === "/photo-pairs"
@@ -232,6 +245,44 @@ export default function PublicLayout({
                   </Link>
                 );
               })}
+
+              {/* "More" dropdown for secondary pages */}
+              <div ref={moreRef} className="relative">
+                <button
+                  onClick={() => setMoreOpen((o) => !o)}
+                  className={`flex items-center gap-1 text-sm tracking-wide uppercase transition-colors ${
+                    MORE_NAV.some((i) => location === i.href || location.startsWith(i.href + "/"))
+                      ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1"
+                      : "text-gray-700 hover:text-cascadia-green"
+                  }`}
+                  data-testid="nav-more"
+                  aria-expanded={moreOpen}
+                >
+                  More <ChevronDown className={`w-3.5 h-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`} />
+                </button>
+                {moreOpen && (
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg py-1 min-w-[180px] z-50">
+                    {MORE_NAV.map((item) => {
+                      const isActive = location === item.href || location.startsWith(item.href + "/");
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setMoreOpen(false)}
+                          className={`block px-4 py-2 text-sm transition-colors ${
+                            isActive
+                              ? "text-cascadia-green font-semibold bg-gray-50"
+                              : "text-gray-700 hover:text-cascadia-green hover:bg-gray-50"
+                          }`}
+                          data-testid={`nav-more-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Mobile nav */}

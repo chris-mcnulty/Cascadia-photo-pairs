@@ -10,6 +10,7 @@ const PRIMARY_NAV: { label: string; href: string }[] = [
   { label: "Portfolio", href: "/portfolio" },
   { label: "Store", href: "/store" },
   { label: "Photo Pairs", href: "/" },
+  { label: "Leaderboard", href: "/leaderboard" },
   { label: "Calendar", href: "/calendar" },
   { label: "Biography", href: "/biography" },
 ];
@@ -20,7 +21,6 @@ const MORE_NAV: { label: string; href: string }[] = [
   { label: "Books & Writing", href: "/books" },
   { label: "Podcasts", href: "/podcasts" },
   { label: "Professional", href: "/professional" },
-  { label: "Leaderboard", href: "/leaderboard" },
 ];
 
 function useAuth() {

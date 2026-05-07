@@ -15,6 +15,10 @@ const NAV_ITEMS: { label: string; href: string }[] = [
   { label: "Calendar", href: "/calendar" },
   { label: "Biography", href: "/biography" },
   { label: "News & Updates", href: "/news" },
+  { label: "Music", href: "/music" },
+  { label: "Books & Writing", href: "/books" },
+  { label: "Podcasts", href: "/podcasts" },
+  { label: "Professional", href: "/professional" },
 ];
 
 function useAuth() {

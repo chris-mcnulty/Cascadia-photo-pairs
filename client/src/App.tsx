@@ -27,6 +27,10 @@ import Biography from "@/pages/public/biography";
 import CalendarPage from "@/pages/public/calendar";
 import News from "@/pages/public/news";
 import NewsPost from "@/pages/public/news-post";
+import MusicPage from "@/pages/public/music";
+import BooksPage from "@/pages/public/books";
+import PodcastsPage from "@/pages/public/podcasts";
+import ProfessionalPage from "@/pages/public/professional";
 import Unsubscribe from "@/pages/unsubscribe";
 import PrivacyAnalytics from "@/pages/public/privacy-analytics";
 import RouteTracker from "@/components/route-tracker";
@@ -53,6 +57,10 @@ function Router() {
       <Route path="/calendar" component={CalendarPage} />
       <Route path="/news" component={News} />
       <Route path="/news/:slug" component={NewsPost} />
+      <Route path="/music" component={MusicPage} />
+      <Route path="/books" component={BooksPage} />
+      <Route path="/podcasts" component={PodcastsPage} />
+      <Route path="/professional" component={ProfessionalPage} />
 
       {/* Existing back-office, auth, admin */}
       <Route path="/leaderboard" component={Leaderboard} />

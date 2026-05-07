@@ -4,7 +4,7 @@ import PublicLayout from "@/components/public-layout";
 import { Button } from "@/components/ui/button";
 import { useSEO } from "@/hooks/use-seo";
 import { ArrowRight, Camera, ShoppingBag, Music, BookOpen, Mic, Briefcase } from "lucide-react";
-import cascadiaLogoPath from "@assets/Cascadia-TP_1754453673312.png";
+import portraitPath from "@assets/LinkedIn_2024_1778126720911.jpg";
 
 interface PublicCollection {
   id: string;
@@ -54,8 +54,8 @@ const SECTIONS = [
     description:
       "I've written and performed lots of songs. Some are OK, and I've started rediscovering and republishing a few of my favorites. Discover some here, and news about any upcoming performances.",
     label: "Discover Music",
-    href: "https://www.chrismcnulty.net/music",
-    external: true,
+    href: "/music",
+    external: false,
     accent: "bg-slate-700",
   },
   {
@@ -65,8 +65,8 @@ const SECTIONS = [
     description:
       "It starts with blogs and expands into books. Starting with my technical works, this is the place to discover me in print. Fiction coming soon.",
     label: "Read More",
-    href: "https://www.chrismcnulty.net/books-and-writing",
-    external: true,
+    href: "/books",
+    external: false,
     accent: "bg-amber-800",
   },
   {
@@ -76,8 +76,8 @@ const SECTIONS = [
     description:
       "Eventually, you get to hear me without PowerPoint and without music. (Maybe an improvement, or a relief, for many!) Check out the Intrazone and Polaris.",
     label: "Listen",
-    href: "https://www.chrismcnulty.net/podcasts",
-    external: true,
+    href: "/podcasts",
+    external: false,
     accent: "bg-violet-700",
   },
   {
@@ -87,8 +87,8 @@ const SECTIONS = [
     description:
       "I lead product, technology and marketing teams, and consult with many companies on strategy. I also present at global conferences.",
     label: "Learn More",
-    href: "https://www.chrismcnulty.net/professional",
-    external: true,
+    href: "/professional",
+    external: false,
     accent: "bg-gray-700",
   },
 ];
@@ -164,18 +164,14 @@ export default function PublicHome() {
             </div>
           </div>
 
-          {/* Portrait / brand card */}
+          {/* Portrait */}
           <div className="flex flex-col items-center gap-6">
-            <div className="w-full rounded-2xl overflow-hidden bg-gradient-to-br from-cascadia-light to-gray-100 flex flex-col items-center justify-center py-16 px-8 text-center border border-gray-200">
+            <div className="w-full rounded-2xl overflow-hidden shadow-lg">
               <img
-                src={cascadiaLogoPath}
-                alt="Cascadia Oceanic"
-                className="w-24 h-24 rounded-xl object-cover mb-5 shadow-md"
+                src={portraitPath}
+                alt="Chris McNulty"
+                className="w-full h-auto object-cover"
               />
-              <h3 className="text-2xl font-semibold text-cascadia-green mb-2">Cascadia Oceanic</h3>
-              <p className="text-gray-600 text-sm leading-relaxed max-w-xs">
-                Pacific Northwest landscape &amp; seascape photography by Chris McNulty
-              </p>
             </div>
             <div className="flex flex-wrap gap-3 justify-center">
               <Link href="/portfolio">

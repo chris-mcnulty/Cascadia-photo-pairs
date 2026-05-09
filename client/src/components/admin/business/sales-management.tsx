@@ -24,6 +24,9 @@ interface Sale {
   buyerPhone?: string | null;
   shippingAddress?: string | null;
   notes?: string | null;
+  acquisitionCost?: number | null;
+  profit?: number | null;
+  marginPercent?: number | null;
 }
 
 interface SaleWithDetails {
@@ -172,10 +175,19 @@ export default function SalesManagement() {
   const numberOfSales = sortedSales.length;
   const averageSale = numberOfSales > 0 ? totalSales / numberOfSales : 0;
 
+  const salesWithCost = sortedSales.filter(s => s.acquisitionCost !== null && s.acquisitionCost !== undefined);
+  const totalCogs = salesWithCost.reduce((sum, s) => sum + (s.acquisitionCost ?? 0), 0);
+  const revenueWithKnownCost = salesWithCost.reduce((sum, s) => sum + s.soldPrice, 0);
+  const grossProfit = revenueWithKnownCost - totalCogs;
+  const grossMarginPercent = revenueWithKnownCost > 0
+    ? Math.round((grossProfit / revenueWithKnownCost) * 100)
+    : null;
+  const salesWithoutCostCount = sortedSales.length - salesWithCost.length;
+
   return (
     <div className="space-y-6">
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between mb-2">
@@ -229,6 +241,28 @@ export default function SalesManagement() {
             <div className="text-xs font-medium uppercase tracking-wider text-gray-500 mt-1">
               Average Sale
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-2">
+              <TrendingUp className="w-8 h-8 text-emerald-600" />
+            </div>
+            <div className="text-3xl font-bold text-gray-900" data-testid="text-gross-profit">
+              {formatCurrency(grossProfit)}
+            </div>
+            <div className="text-xs font-medium uppercase tracking-wider text-gray-500 mt-1">
+              Gross Profit
+              {grossMarginPercent !== null && (
+                <span className="ml-1 text-gray-700">({grossMarginPercent}%)</span>
+              )}
+            </div>
+            {salesWithoutCostCount > 0 && (
+              <div className="text-[10px] text-gray-400 mt-1">
+                Excludes {salesWithoutCostCount} sale{salesWithoutCostCount === 1 ? "" : "s"} without known cost
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -336,6 +370,7 @@ export default function SalesManagement() {
                   <TableHead className="text-sm font-semibold uppercase tracking-wide text-right">Sale Price</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide text-right">Tax</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide text-right">Total</TableHead>
+                  <TableHead className="text-sm font-semibold uppercase tracking-wide text-right">Profit</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -360,6 +395,20 @@ export default function SalesManagement() {
                         </TableCell>
                         <TableCell className="text-sm text-right font-bold">
                           {formatCurrency(sale.soldPrice + sale.taxCollected)}
+                        </TableCell>
+                        <TableCell className="text-sm text-right" data-testid={`text-profit-${sale.id}`}>
+                          {sale.profit !== null && sale.profit !== undefined ? (
+                            <span className={sale.profit >= 0 ? "text-green-700" : "text-red-700"}>
+                              {formatCurrency(sale.profit)}
+                              {sale.marginPercent !== null && sale.marginPercent !== undefined && (
+                                <span className="text-xs text-gray-500 ml-1">
+                                  ({sale.marginPercent}%)
+                                </span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -386,7 +435,7 @@ export default function SalesManagement() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={8} className="text-center text-gray-500 py-8">
                       {allSales?.length === 0 ? "No sales recorded yet" : "No sales match your filters"}
                     </TableCell>
                   </TableRow>

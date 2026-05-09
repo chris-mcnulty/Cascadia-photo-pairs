@@ -26,7 +26,11 @@ const MORE_NAV: { label: string; href: string }[] = [
   { label: "Professional", href: "/professional" },
 ];
 
-const ALLOWED_RESTRICTED_PATHS = ["/", "/photo-pairs", "/leaderboard", "/admin"];
+const ALLOWED_RESTRICTED_PATHS = [
+  "/", "/photo-pairs", "/leaderboard", "/admin",
+  "/login", "/signup", "/reset-password", "/verify-email",
+  "/profile", "/user-settings", "/user-stats",
+];
 
 function useAuth() {
   const [isAuthed, setIsAuthed] = useState(false);

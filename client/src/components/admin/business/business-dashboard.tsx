@@ -4,13 +4,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Package, DollarSign, ShoppingCart, Receipt } from "lucide-react";
+import { Package, DollarSign, ShoppingCart, Receipt, TrendingUp } from "lucide-react";
 import { format } from "date-fns";
 import SalesFormDialog from "./sales-form-dialog";
 
 interface DashboardStats {
   totalInventoryValue: number;
   monthlySales: number;
+  totalCostOfGoodsSold: number;
+  grossProfit: number;
+  grossMarginPercent: number | null;
+  salesWithCostCount: number;
+  salesWithoutCostCount: number;
   pendingOrders: number;
   totalExpenses: number;
 }
@@ -22,6 +27,9 @@ interface RecentSale {
   saleDate: string;
   channelName: string;
   buyerName?: string;
+  acquisitionCost: number | null;
+  profit: number | null;
+  marginPercent: number | null;
 }
 
 interface BusinessDashboardProps {
@@ -55,7 +63,7 @@ export default function BusinessDashboard({ onNavigateToTab }: BusinessDashboard
   return (
     <div className="space-y-8">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <Card>
           <CardContent className="p-8">
             {statsLoading ? (
@@ -97,6 +105,37 @@ export default function BusinessDashboard({ onNavigateToTab }: BusinessDashboard
                 <div className="text-xs font-medium uppercase tracking-wider text-gray-500 mt-2">
                   Total Sales
                 </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-8">
+            {statsLoading ? (
+              <>
+                <Skeleton className="h-10 w-20 mb-2" />
+                <Skeleton className="h-4 w-32" />
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-4">
+                  <TrendingUp className="w-8 h-8 text-gray-400" />
+                </div>
+                <div className="text-4xl font-bold text-gray-900" data-testid="text-gross-profit">
+                  {formatCurrency(stats?.grossProfit || 0)}
+                </div>
+                <div className="text-xs font-medium uppercase tracking-wider text-gray-500 mt-2">
+                  Gross Profit
+                  {stats?.grossMarginPercent !== null && stats?.grossMarginPercent !== undefined && (
+                    <span className="ml-1 text-gray-700">({stats.grossMarginPercent}%)</span>
+                  )}
+                </div>
+                {stats && stats.salesWithoutCostCount > 0 && (
+                  <div className="text-[10px] text-gray-400 mt-1">
+                    {stats.salesWithoutCostCount} sale{stats.salesWithoutCostCount === 1 ? "" : "s"} without known cost
+                  </div>
+                )}
               </>
             )}
           </CardContent>
@@ -170,6 +209,7 @@ export default function BusinessDashboard({ onNavigateToTab }: BusinessDashboard
                   <TableHead className="text-sm font-semibold uppercase tracking-wide">Channel</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide">Buyer</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide text-right">Amount</TableHead>
+                  <TableHead className="text-sm font-semibold uppercase tracking-wide text-right">Profit</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -185,11 +225,25 @@ export default function BusinessDashboard({ onNavigateToTab }: BusinessDashboard
                       <TableCell className="text-sm text-right font-medium">
                         {formatCurrency(sale.soldPrice)}
                       </TableCell>
+                      <TableCell className="text-sm text-right" data-testid={`text-profit-${sale.id}`}>
+                        {sale.profit !== null ? (
+                          <span className={sale.profit >= 0 ? "text-green-700" : "text-red-700"}>
+                            {formatCurrency(sale.profit)}
+                            {sale.marginPercent !== null && (
+                              <span className="text-xs text-gray-500 ml-1">
+                                ({sale.marginPercent}%)
+                              </span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={6} className="text-center text-gray-500 py-8">
                       No recent sales
                     </TableCell>
                   </TableRow>

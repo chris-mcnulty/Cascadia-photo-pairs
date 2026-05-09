@@ -16,6 +16,13 @@ import {
 
 // DTO for expenses enriched with category name
 export type ExpenseWithCategory = Expense & { categoryName: string };
+
+// DTO for sales enriched with profit data derived from the linked inventory item
+export type SaleWithProfit = Sale & {
+  acquisitionCost: number | null;
+  profit: number | null;
+  marginPercent: number | null;
+};
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { photos, votes, settings, collections, photoPairs, pairVotes, products, productVariants, productSKUs, channelSKUs, retailPrices, salesChannels, suppliers, productSizes, supplierPrices, sales, orders, orderItems, inventoryItems, dropShipOrders, expenseCategories, expenses, events, newsItems } from "@shared/schema";
@@ -154,6 +161,15 @@ export interface IStorage {
   
   // Sales
   getAllSales(startDate?: Date, endDate?: Date): Promise<Sale[]>;
+  getAllSalesWithProfit(startDate?: Date, endDate?: Date): Promise<SaleWithProfit[]>;
+  getSalesProfitTotals(startDate?: Date, endDate?: Date): Promise<{
+    totalSales: number;
+    totalCostOfGoodsSold: number;
+    grossProfit: number;
+    grossMarginPercent: number | null;
+    salesWithCostCount: number;
+    salesWithoutCostCount: number;
+  }>;
   getSale(id: string): Promise<Sale | undefined>;
   createSale(sale: InsertSale): Promise<Sale>;
   updateSale(id: string, updates: Partial<Sale>): Promise<Sale | undefined>;
@@ -167,6 +183,9 @@ export interface IStorage {
     saleDate: string;
     channelName: string;
     buyerName: string | null;
+    acquisitionCost: number | null;
+    profit: number | null;
+    marginPercent: number | null;
   }>>;
   
   // Orders (multi-item purchases)
@@ -853,6 +872,24 @@ export class MemStorage implements IStorage {
   async updateSupplierPrice(supplierId: string, productSizeId: string, mediaType: string, newPrice: number, notes?: string): Promise<SupplierPrice> { throw new Error('Not implemented in MemStorage'); }
   
   async getAllSales(startDate?: Date, endDate?: Date): Promise<Sale[]> { return []; }
+  async getAllSalesWithProfit(startDate?: Date, endDate?: Date): Promise<SaleWithProfit[]> { return []; }
+  async getSalesProfitTotals(startDate?: Date, endDate?: Date): Promise<{
+    totalSales: number;
+    totalCostOfGoodsSold: number;
+    grossProfit: number;
+    grossMarginPercent: number | null;
+    salesWithCostCount: number;
+    salesWithoutCostCount: number;
+  }> {
+    return {
+      totalSales: 0,
+      totalCostOfGoodsSold: 0,
+      grossProfit: 0,
+      grossMarginPercent: null,
+      salesWithCostCount: 0,
+      salesWithoutCostCount: 0,
+    };
+  }
   async getSale(id: string): Promise<Sale | undefined> { return undefined; }
   async createSale(sale: InsertSale): Promise<Sale> { throw new Error('Not implemented in MemStorage'); }
   async updateSale(id: string, updates: Partial<Sale>): Promise<Sale | undefined> { return undefined; }
@@ -866,6 +903,9 @@ export class MemStorage implements IStorage {
     saleDate: string;
     channelName: string;
     buyerName: string | null;
+    acquisitionCost: number | null;
+    profit: number | null;
+    marginPercent: number | null;
   }>> { return []; }
   
   async getAllOrders(startDate?: Date, endDate?: Date): Promise<Order[]> { return []; }
@@ -2637,6 +2677,95 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async getAllSalesWithProfit(startDate?: Date, endDate?: Date): Promise<SaleWithProfit[]> {
+    const allSales = await this.getAllSales(startDate, endDate);
+    if (allSales.length === 0) return [];
+
+    const inventoryIds = Array.from(
+      new Set(
+        allSales
+          .map(s => s.inventoryItemId)
+          .filter((id): id is string => !!id)
+      )
+    );
+
+    const costsById = new Map<string, number>();
+    if (inventoryIds.length > 0) {
+      const items = await db
+        .select({ id: inventoryItems.id, acquisitionCost: inventoryItems.acquisitionCost })
+        .from(inventoryItems)
+        .where(inArray(inventoryItems.id, inventoryIds));
+      for (const item of items) {
+        costsById.set(item.id, item.acquisitionCost);
+      }
+    }
+
+    return allSales.map(sale => {
+      const cost =
+        sale.saleType === "inventory" && sale.inventoryItemId
+          ? costsById.get(sale.inventoryItemId) ?? null
+          : null;
+      const profit = cost !== null ? sale.soldPrice - cost : null;
+      const marginPercent =
+        profit !== null && sale.soldPrice > 0
+          ? Math.round((profit / sale.soldPrice) * 100)
+          : null;
+      return {
+        ...sale,
+        acquisitionCost: cost,
+        profit,
+        marginPercent,
+      };
+    });
+  }
+
+  async getSalesProfitTotals(startDate?: Date, endDate?: Date): Promise<{
+    totalSales: number;
+    totalCostOfGoodsSold: number;
+    grossProfit: number;
+    grossMarginPercent: number | null;
+    salesWithCostCount: number;
+    salesWithoutCostCount: number;
+  }> {
+    const enriched = await this.getAllSalesWithProfit(startDate, endDate);
+
+    let totalSales = 0;
+    let totalCostOfGoodsSold = 0;
+    let salesWithCostCount = 0;
+    let salesWithoutCostCount = 0;
+
+    for (const sale of enriched) {
+      totalSales += sale.soldPrice;
+      if (sale.acquisitionCost !== null) {
+        totalCostOfGoodsSold += sale.acquisitionCost;
+        salesWithCostCount += 1;
+      } else {
+        salesWithoutCostCount += 1;
+      }
+    }
+
+    // Margin is computed against revenue from sales that have a known cost,
+    // so dropship/legacy sales without a cost don't distort the percentage.
+    const revenueWithKnownCost = enriched
+      .filter(s => s.acquisitionCost !== null)
+      .reduce((sum, s) => sum + s.soldPrice, 0);
+
+    const grossProfit = revenueWithKnownCost - totalCostOfGoodsSold;
+    const grossMarginPercent =
+      revenueWithKnownCost > 0
+        ? Math.round((grossProfit / revenueWithKnownCost) * 100)
+        : null;
+
+    return {
+      totalSales,
+      totalCostOfGoodsSold,
+      grossProfit,
+      grossMarginPercent,
+      salesWithCostCount,
+      salesWithoutCostCount,
+    };
+  }
+
   async getSale(id: string): Promise<Sale | undefined> {
     const [sale] = await db.select().from(sales).where(eq(sales.id, id));
     return sale;
@@ -2756,9 +2885,12 @@ export class DatabaseStorage implements IStorage {
     saleDate: string;
     channelName: string;
     buyerName: string | null;
+    acquisitionCost: number | null;
+    profit: number | null;
+    marginPercent: number | null;
   }>> {
     console.log('[Storage.getRecentSales] Called with limit:', limit);
-    
+
     const results = await db
       .select({
         id: sales.id,
@@ -2767,10 +2899,14 @@ export class DatabaseStorage implements IStorage {
         saleDate: sales.saleDate,
         channelName: salesChannels.name,
         buyerName: sales.buyerName,
+        saleType: sales.saleType,
+        inventoryItemId: sales.inventoryItemId,
+        acquisitionCost: inventoryItems.acquisitionCost,
       })
       .from(sales)
       .leftJoin(products, eq(sales.productId, products.id))
       .leftJoin(salesChannels, eq(sales.channelId, salesChannels.id))
+      .leftJoin(inventoryItems, eq(sales.inventoryItemId, inventoryItems.id))
       .orderBy(desc(sales.createdAt))
       .limit(limit);
 
@@ -2779,15 +2915,30 @@ export class DatabaseStorage implements IStorage {
       console.log('[Storage.getRecentSales] First record:', results[0]);
     }
 
-    const mapped = results.map(row => ({
-      id: row.id,
-      photoTitle: row.productTitle || "Unlinked sale",
-      soldPrice: row.soldPrice,
-      saleDate: row.saleDate.toISOString(),
-      channelName: row.channelName || "Unknown",
-      buyerName: row.buyerName,
-    }));
-    
+    const mapped = results.map(row => {
+      const cost =
+        row.saleType === "inventory" && row.inventoryItemId
+          ? row.acquisitionCost ?? null
+          : null;
+      const profit = cost !== null ? row.soldPrice - cost : null;
+      const marginPercent =
+        profit !== null && row.soldPrice > 0
+          ? Math.round((profit / row.soldPrice) * 100)
+          : null;
+
+      return {
+        id: row.id,
+        photoTitle: row.productTitle || "Unlinked sale",
+        soldPrice: row.soldPrice,
+        saleDate: row.saleDate.toISOString(),
+        channelName: row.channelName || "Unknown",
+        buyerName: row.buyerName,
+        acquisitionCost: cost,
+        profit,
+        marginPercent,
+      };
+    });
+
     console.log('[Storage.getRecentSales] Returning mapped data:', mapped);
     return mapped;
   }

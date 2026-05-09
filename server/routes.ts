@@ -3015,7 +3015,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const end = endDate ? new Date(endDate as string) : undefined;
       
       console.log('[API /api/admin/sales] Fetching sales with params:', { startDate, endDate, start, end });
-      const sales = await storage.getAllSales(start, end);
+      const sales = await storage.getAllSalesWithProfit(start, end);
       console.log('[API /api/admin/sales] Retrieved sales:', sales?.length || 0, 'records');
       console.log('[API /api/admin/sales] First sale (if any):', sales?.[0]);
       res.json(sales);
@@ -3743,29 +3743,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get business dashboard statistics
   app.get("/api/admin/business/stats", isAuthenticated, async (req, res) => {
     try {
-      // Get all inventory items
       const allInventory = await storage.getAllInventoryItems();
-      
-      // Calculate total inventory value (only unsold items)
+
       const totalInventoryValue = allInventory
-        .filter(item => !item.orderItemId) // Only count items not yet sold
+        .filter(item => !item.orderItemId)
         .reduce((sum, item) => sum + (item.acquisitionCost || 0), 0);
-      
-      // Get all-time sales (no date filter) 
-      const allSalesData = await storage.getAllSales();
-      const totalSales = allSalesData.reduce((sum, sale) => sum + sale.soldPrice, 0);
-      
-      // Get pending drop-ship orders
+
+      const profitTotals = await storage.getSalesProfitTotals();
+
       const pendingOrdersData = await storage.getAllDropShipOrders('pending');
       const pendingOrders = pendingOrdersData.length;
-      
-      // Get all-time expenses
+
       const allExpenses = await storage.getAllExpenses();
       const totalExpenses = allExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-      
+
       res.json({
         totalInventoryValue,
-        monthlySales: totalSales, // Keep the same field name for compatibility, but show all-time sales
+        monthlySales: profitTotals.totalSales, // legacy field name; represents all-time sales
+        totalCostOfGoodsSold: profitTotals.totalCostOfGoodsSold,
+        grossProfit: profitTotals.grossProfit,
+        grossMarginPercent: profitTotals.grossMarginPercent,
+        salesWithCostCount: profitTotals.salesWithCostCount,
+        salesWithoutCostCount: profitTotals.salesWithoutCostCount,
         pendingOrders,
         totalExpenses
       });

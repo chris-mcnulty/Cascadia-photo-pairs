@@ -2643,22 +2643,86 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSale(sale: InsertSale): Promise<Sale> {
-    const [newSale] = await db.insert(sales).values(sale).returning();
-    return newSale;
+    return await db.transaction(async (tx) => {
+      const [newSale] = await tx.insert(sales).values(sale).returning();
+
+      if (newSale.saleType === "inventory" && newSale.inventoryItemId) {
+        await tx
+          .update(inventoryItems)
+          .set({
+            status: "sold",
+            soldDate: newSale.saleDate,
+            updatedAt: new Date(),
+          })
+          .where(eq(inventoryItems.id, newSale.inventoryItemId));
+      }
+
+      return newSale;
+    });
   }
 
   async updateSale(id: string, updates: Partial<Sale>): Promise<Sale | undefined> {
-    const [updated] = await db
-      .update(sales)
-      .set(updates)
-      .where(eq(sales.id, id))
-      .returning();
-    return updated;
+    return await db.transaction(async (tx) => {
+      const [existing] = await tx.select().from(sales).where(eq(sales.id, id));
+      if (!existing) return undefined;
+
+      const [updated] = await tx
+        .update(sales)
+        .set(updates)
+        .where(eq(sales.id, id))
+        .returning();
+      if (!updated) return undefined;
+
+      const wasInventorySale =
+        existing.saleType === "inventory" && existing.inventoryItemId;
+      const isInventorySale =
+        updated.saleType === "inventory" && updated.inventoryItemId;
+      const inventoryItemChanged =
+        existing.inventoryItemId !== updated.inventoryItemId;
+
+      if (wasInventorySale && (!isInventorySale || inventoryItemChanged)) {
+        await tx
+          .update(inventoryItems)
+          .set({ status: "in_stock", soldDate: null, updatedAt: new Date() })
+          .where(eq(inventoryItems.id, existing.inventoryItemId!));
+      }
+
+      if (isInventorySale) {
+        await tx
+          .update(inventoryItems)
+          .set({
+            status: "sold",
+            soldDate: updated.saleDate,
+            updatedAt: new Date(),
+          })
+          .where(eq(inventoryItems.id, updated.inventoryItemId!));
+      }
+
+      return updated;
+    });
   }
 
   async deleteSale(id: string): Promise<boolean> {
-    const result = await db.delete(sales).where(eq(sales.id, id));
-    return (result.rowCount || 0) > 0;
+    return await db.transaction(async (tx) => {
+      const [existing] = await tx.select().from(sales).where(eq(sales.id, id));
+      if (!existing) return false;
+
+      const result = await tx.delete(sales).where(eq(sales.id, id));
+      const deleted = (result.rowCount || 0) > 0;
+
+      if (
+        deleted &&
+        existing.saleType === "inventory" &&
+        existing.inventoryItemId
+      ) {
+        await tx
+          .update(inventoryItems)
+          .set({ status: "in_stock", soldDate: null, updatedAt: new Date() })
+          .where(eq(inventoryItems.id, existing.inventoryItemId));
+      }
+
+      return deleted;
+    });
   }
 
   async getSalesByChannel(channelId: string): Promise<Sale[]> {

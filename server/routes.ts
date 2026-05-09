@@ -3056,21 +3056,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create sale (LEGACY - inventory/dropship now handled by orders system)
+  // Create sale (LEGACY - dropship now handled by orders system; inventory sales mark the item sold)
   app.post("/api/admin/sales", isAuthenticated, async (req, res) => {
     try {
-      const { saleType, inventoryItemId, supplierId, ...saleData } = req.body;
-      
-      // Convert date string to Date object
+      const { supplierId, ...saleData } = req.body;
+
       const dataWithDate = {
         ...saleData,
         saleDate: saleData.saleDate ? new Date(saleData.saleDate) : new Date(),
       };
-      
-      // NOTE: Inventory and dropship handling removed - use orders system instead
-      // This endpoint now only creates simple sales records for backward compatibility
+
       const sale = await storage.createSale(dataWithDate);
-      
+
       res.status(201).json(sale);
     } catch (error) {
       console.error('Error creating sale:', error);

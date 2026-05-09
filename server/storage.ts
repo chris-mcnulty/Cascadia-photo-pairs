@@ -26,7 +26,7 @@ export type SaleWithProfit = Sale & {
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { photos, votes, settings, collections, photoPairs, pairVotes, products, productVariants, productSKUs, channelSKUs, retailPrices, salesChannels, suppliers, productSizes, supplierPrices, sales, orders, orderItems, inventoryItems, dropShipOrders, expenseCategories, expenses, events, newsItems } from "@shared/schema";
-import { eq, sql, inArray, and, or, gte, lte, isNull, desc } from "drizzle-orm";
+import { eq, ne, sql, inArray, and, or, gte, lte, isNull, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Collections
@@ -2776,14 +2776,27 @@ export class DatabaseStorage implements IStorage {
       const [newSale] = await tx.insert(sales).values(sale).returning();
 
       if (newSale.saleType === "inventory" && newSale.inventoryItemId) {
-        await tx
+        // Only allow transitioning an available item to "sold". A 0-row update
+        // means the item is missing or already sold/shipped — abort the sale.
+        const result = await tx
           .update(inventoryItems)
           .set({
             status: "sold",
             soldDate: newSale.saleDate,
             updatedAt: new Date(),
           })
-          .where(eq(inventoryItems.id, newSale.inventoryItemId));
+          .where(
+            and(
+              eq(inventoryItems.id, newSale.inventoryItemId),
+              inArray(inventoryItems.status, ["in_stock", "ordered"])
+            )
+          );
+
+        if ((result.rowCount || 0) === 0) {
+          throw new Error(
+            `Inventory item ${newSale.inventoryItemId} is not available for sale`
+          );
+        }
       }
 
       return newSale;
@@ -2810,21 +2823,64 @@ export class DatabaseStorage implements IStorage {
         existing.inventoryItemId !== updated.inventoryItemId;
 
       if (wasInventorySale && (!isInventorySale || inventoryItemChanged)) {
-        await tx
-          .update(inventoryItems)
-          .set({ status: "in_stock", soldDate: null, updatedAt: new Date() })
-          .where(eq(inventoryItems.id, existing.inventoryItemId!));
+        // Only revert if no other inventory sale references this item, and only
+        // if the item is still in the "sold" state we set with the matching
+        // soldDate — avoids clobbering a later "shipped" status or another sale.
+        const otherRefs = await tx
+          .select({ id: sales.id })
+          .from(sales)
+          .where(
+            and(
+              eq(sales.inventoryItemId, existing.inventoryItemId!),
+              eq(sales.saleType, "inventory"),
+              ne(sales.id, id)
+            )
+          )
+          .limit(1);
+
+        if (otherRefs.length === 0) {
+          await tx
+            .update(inventoryItems)
+            .set({ status: "in_stock", soldDate: null, updatedAt: new Date() })
+            .where(
+              and(
+                eq(inventoryItems.id, existing.inventoryItemId!),
+                eq(inventoryItems.status, "sold"),
+                eq(inventoryItems.soldDate, existing.saleDate)
+              )
+            );
+        }
       }
 
       if (isInventorySale) {
-        await tx
-          .update(inventoryItems)
-          .set({
-            status: "sold",
-            soldDate: updated.saleDate,
-            updatedAt: new Date(),
-          })
-          .where(eq(inventoryItems.id, updated.inventoryItemId!));
+        if (wasInventorySale && !inventoryItemChanged) {
+          // Same item — just refresh soldDate to track the (possibly edited) saleDate.
+          await tx
+            .update(inventoryItems)
+            .set({ soldDate: updated.saleDate, updatedAt: new Date() })
+            .where(eq(inventoryItems.id, updated.inventoryItemId!));
+        } else {
+          // New item assignment — must be available, same guard as createSale.
+          const result = await tx
+            .update(inventoryItems)
+            .set({
+              status: "sold",
+              soldDate: updated.saleDate,
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(inventoryItems.id, updated.inventoryItemId!),
+                inArray(inventoryItems.status, ["in_stock", "ordered"])
+              )
+            );
+
+          if ((result.rowCount || 0) === 0) {
+            throw new Error(
+              `Inventory item ${updated.inventoryItemId} is not available for sale`
+            );
+          }
+        }
       }
 
       return updated;
@@ -2844,10 +2900,31 @@ export class DatabaseStorage implements IStorage {
         existing.saleType === "inventory" &&
         existing.inventoryItemId
       ) {
-        await tx
-          .update(inventoryItems)
-          .set({ status: "in_stock", soldDate: null, updatedAt: new Date() })
-          .where(eq(inventoryItems.id, existing.inventoryItemId));
+        // Sale is already deleted, so any remaining match is a different sale.
+        const otherRefs = await tx
+          .select({ id: sales.id })
+          .from(sales)
+          .where(
+            and(
+              eq(sales.inventoryItemId, existing.inventoryItemId),
+              eq(sales.saleType, "inventory")
+            )
+          )
+          .limit(1);
+
+        if (otherRefs.length === 0) {
+          // Same defensive guards as the updateSale revert path.
+          await tx
+            .update(inventoryItems)
+            .set({ status: "in_stock", soldDate: null, updatedAt: new Date() })
+            .where(
+              and(
+                eq(inventoryItems.id, existing.inventoryItemId),
+                eq(inventoryItems.status, "sold"),
+                eq(inventoryItems.soldDate, existing.saleDate)
+              )
+            );
+        }
       }
 
       return deleted;

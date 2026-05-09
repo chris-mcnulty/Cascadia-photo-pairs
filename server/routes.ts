@@ -3059,11 +3059,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create sale (LEGACY - dropship now handled by orders system; inventory sales mark the item sold)
   app.post("/api/admin/sales", isAuthenticated, async (req, res) => {
     try {
-      const { supplierId, ...saleData } = req.body;
-
       const dataWithDate = {
-        ...saleData,
-        saleDate: saleData.saleDate ? new Date(saleData.saleDate) : new Date(),
+        ...req.body,
+        saleDate: req.body.saleDate ? new Date(req.body.saleDate) : new Date(),
       };
 
       const sale = await storage.createSale(dataWithDate);
@@ -3746,7 +3744,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allInventory = await storage.getAllInventoryItems();
 
       const totalInventoryValue = allInventory
-        .filter(item => !item.orderItemId)
+        .filter(item => item.status !== "sold" && item.status !== "shipped")
         .reduce((sum, item) => sum + (item.acquisitionCost || 0), 0);
 
       const profitTotals = await storage.getSalesProfitTotals();

@@ -1043,20 +1043,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/settings", async (req, res) => {
     try {
       const settings = await storage.getSettings();
-      
-      // Determine which login setting to use based on environment
       const isDevelopment = process.env.NODE_ENV === 'development';
-      const userLoginEnabled = isDevelopment 
-        ? settings.userLoginEnabledDev 
+      const userLoginEnabled = isDevelopment
+        ? settings.userLoginEnabledDev
         : settings.userLoginEnabledProd;
-      
-      // Send settings with the appropriate login flag for the current environment
-      res.json({
-        ...settings,
-        userLoginEnabled, // Add a computed field for the current environment
-      });
+      res.json({ ...settings, userLoginEnabled });
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch settings" });
+      // DB unavailable — return safe defaults so the frontend never hard-crashes
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      res.json({
+        purchaseEnabled: false,
+        publicSiteEnabled: true,
+        pairsEnabled: false,
+        userLoginEnabled: isDevelopment,
+        userLoginEnabledDev: true,
+        userLoginEnabledProd: false,
+        announcementEnabled: false,
+        announcementText: null,
+        announcementType: "info",
+        defaultPurchaseUrl: "https://www.chrismcnulty.net/store",
+        supportEmail: "support@cascadiaoceanic.com",
+        privacyPolicyUrl: "/privacy",
+        termsOfServiceUrl: "/terms",
+        campaignFromName: "Cascadia Oceanic",
+        campaignFromEmail: "cascadia@chrismcnulty.net",
+        campaignReplyTo: "cascadia@chrismcnulty.net",
+        campaignMailingAddress: "",
+      });
     }
   });
 

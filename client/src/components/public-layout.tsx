@@ -26,12 +26,13 @@ const MORE_NAV: { label: string; href: string }[] = [
   { label: "Professional", href: "/professional" },
 ];
 
+const ALLOWED_RESTRICTED_PATHS = ["/", "/photo-pairs", "/leaderboard", "/admin"];
+
 function useAuth() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    // Admin session takes priority (MFA-based admin login)
     if (localStorage.getItem("admin-session-id")) {
       setIsAuthed(true);
       setIsAdmin(true);
@@ -40,10 +41,7 @@ function useAuth() {
     const token = localStorage.getItem("auth-token");
     if (!token) return;
     fetch("/api/auth/user", { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => {
-        if (!r.ok) return null;
-        return r.json();
-      })
+      .then((r) => { if (!r.ok) return null; return r.json(); })
       .then((u) => {
         if (!u) return;
         setIsAuthed(true);
@@ -53,6 +51,21 @@ function useAuth() {
   }, []);
 
   return { isAuthed, isAdmin };
+}
+
+function useSiteMode() {
+  const [publicSiteEnabled, setPublicSiteEnabled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.ok ? r.json() : null)
+      .then((s) => {
+        setPublicSiteEnabled(s?.publicSiteEnabled !== false);
+      })
+      .catch(() => setPublicSiteEnabled(true));
+  }, []);
+
+  return publicSiteEnabled;
 }
 
 interface PublicLayoutProps {
@@ -72,7 +85,7 @@ export default function PublicLayout({
   heroTitle,
   contentBleed = false,
 }: PublicLayoutProps) {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [pairsOpen, setPairsOpen] = useState(false);
@@ -80,10 +93,19 @@ export default function PublicLayout({
   const pairsRef = useRef<HTMLDivElement>(null);
   const { count } = useCart();
   const { isAuthed, isAdmin } = useAuth();
+  const publicSiteEnabled = useSiteMode();
+
+  const restricted = publicSiteEnabled === false && !isAdmin;
 
   const adminItems = isAdmin ? [{ label: "Admin", href: "/admin" }] : [];
   const primaryItems = [...PRIMARY_NAV, ...adminItems];
   const allNavItems = [...PRIMARY_NAV, ...PAIRS_NAV, ...MORE_NAV, ...adminItems];
+
+  useEffect(() => {
+    if (restricted && !ALLOWED_RESTRICTED_PATHS.includes(location)) {
+      navigate("/");
+    }
+  }, [restricted, location, navigate]);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -224,112 +246,130 @@ export default function PublicLayout({
         <nav className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="hidden md:flex items-center justify-center gap-6 h-14">
-              {/* Home, Portfolio, Store */}
-              {PRIMARY_NAV.slice(0, 3).map((item) => {
-                const isActive = location === item.href || location.startsWith(item.href + "/");
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`text-sm tracking-wide uppercase transition-colors ${isActive ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1" : "text-gray-700 hover:text-cascadia-green"}`}
-                    data-testid={`nav-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
+              {restricted ? (
+                /* Restricted mode: only Photo Pairs + Leaderboard (+ Admin for admins) */
+                <>
+                  {PAIRS_NAV.map((item) => {
+                    const isActive = item.href === "/" ? location === "/" || location === "/photo-pairs" : location === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`text-sm tracking-wide uppercase transition-colors ${isActive ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1" : "text-gray-700 hover:text-cascadia-green"}`}
+                        data-testid={`nav-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </>
+              ) : (
+                /* Full site nav */
+                <>
+                  {/* Home, Portfolio, Store */}
+                  {PRIMARY_NAV.slice(0, 3).map((item) => {
+                    const isActive = location === item.href || location.startsWith(item.href + "/");
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`text-sm tracking-wide uppercase transition-colors ${isActive ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1" : "text-gray-700 hover:text-cascadia-green"}`}
+                        data-testid={`nav-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
 
-              {/* Photo Pairs dropdown (contains Leaderboard) */}
-              <div ref={pairsRef} className="relative">
-                <button
-                  onClick={() => setPairsOpen((o) => !o)}
-                  className={`flex items-center gap-1 text-sm tracking-wide uppercase transition-colors ${
-                    PAIRS_NAV.some((i) => i.href === "/" ? location === "/" || location === "/photo-pairs" : location === i.href)
-                      ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1"
-                      : "text-gray-700 hover:text-cascadia-green"
-                  }`}
-                  data-testid="nav-photo-pairs"
-                  aria-expanded={pairsOpen}
-                >
-                  Photo Pairs <ChevronDown className={`w-3.5 h-3.5 transition-transform ${pairsOpen ? "rotate-180" : ""}`} />
-                </button>
-                {pairsOpen && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg py-1 min-w-[160px] z-50">
-                    {PAIRS_NAV.map((item) => {
-                      const isActive = item.href === "/" ? location === "/" || location === "/photo-pairs" : location === item.href;
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={() => setPairsOpen(false)}
-                          className={`block px-4 py-2 text-sm transition-colors ${isActive ? "text-cascadia-green font-semibold bg-gray-50" : "text-gray-700 hover:text-cascadia-green hover:bg-gray-50"}`}
-                          data-testid={`nav-pairs-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
+                  {/* Photo Pairs dropdown */}
+                  <div ref={pairsRef} className="relative">
+                    <button
+                      onClick={() => setPairsOpen((o) => !o)}
+                      className={`flex items-center gap-1 text-sm tracking-wide uppercase transition-colors ${
+                        PAIRS_NAV.some((i) => i.href === "/" ? location === "/" || location === "/photo-pairs" : location === i.href)
+                          ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1"
+                          : "text-gray-700 hover:text-cascadia-green"
+                      }`}
+                      data-testid="nav-photo-pairs"
+                      aria-expanded={pairsOpen}
+                    >
+                      Photo Pairs <ChevronDown className={`w-3.5 h-3.5 transition-transform ${pairsOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    {pairsOpen && (
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg py-1 min-w-[160px] z-50">
+                        {PAIRS_NAV.map((item) => {
+                          const isActive = item.href === "/" ? location === "/" || location === "/photo-pairs" : location === item.href;
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              onClick={() => setPairsOpen(false)}
+                              className={`block px-4 py-2 text-sm transition-colors ${isActive ? "text-cascadia-green font-semibold bg-gray-50" : "text-gray-700 hover:text-cascadia-green hover:bg-gray-50"}`}
+                              data-testid={`nav-pairs-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                            >
+                              {item.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Calendar, Biography (+ Admin if applicable) */}
-              {[...PRIMARY_NAV.slice(3), ...adminItems].map((item) => {
-                const isActive = location === item.href || location.startsWith(item.href + "/");
-                const isAdminLink = item.label === "Admin";
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`text-sm tracking-wide uppercase transition-colors ${
-                      isAdminLink
-                        ? isActive ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1" : "text-cascadia-green font-semibold hover:text-green-800"
-                        : isActive ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1" : "text-gray-700 hover:text-cascadia-green"
-                    }`}
-                    data-testid={`nav-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
+                  {/* Calendar, Biography (+ Admin if applicable) */}
+                  {[...PRIMARY_NAV.slice(3), ...adminItems].map((item) => {
+                    const isActive = location === item.href || location.startsWith(item.href + "/");
+                    const isAdminLink = item.label === "Admin";
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`text-sm tracking-wide uppercase transition-colors ${
+                          isAdminLink
+                            ? isActive ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1" : "text-cascadia-green font-semibold hover:text-green-800"
+                            : isActive ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1" : "text-gray-700 hover:text-cascadia-green"
+                        }`}
+                        data-testid={`nav-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
 
-              {/* "More" dropdown for secondary pages */}
-              <div ref={moreRef} className="relative">
-                <button
-                  onClick={() => setMoreOpen((o) => !o)}
-                  className={`flex items-center gap-1 text-sm tracking-wide uppercase transition-colors ${
-                    MORE_NAV.some((i) => location === i.href || location.startsWith(i.href + "/"))
-                      ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1"
-                      : "text-gray-700 hover:text-cascadia-green"
-                  }`}
-                  data-testid="nav-more"
-                  aria-expanded={moreOpen}
-                >
-                  More <ChevronDown className={`w-3.5 h-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`} />
-                </button>
-                {moreOpen && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg py-1 min-w-[180px] z-50">
-                    {MORE_NAV.map((item) => {
-                      const isActive = location === item.href || location.startsWith(item.href + "/");
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          onClick={() => setMoreOpen(false)}
-                          className={`block px-4 py-2 text-sm transition-colors ${
-                            isActive
-                              ? "text-cascadia-green font-semibold bg-gray-50"
-                              : "text-gray-700 hover:text-cascadia-green hover:bg-gray-50"
-                          }`}
-                          data-testid={`nav-more-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
+                  {/* "More" dropdown */}
+                  <div ref={moreRef} className="relative">
+                    <button
+                      onClick={() => setMoreOpen((o) => !o)}
+                      className={`flex items-center gap-1 text-sm tracking-wide uppercase transition-colors ${
+                        MORE_NAV.some((i) => location === i.href || location.startsWith(i.href + "/"))
+                          ? "text-cascadia-green font-semibold border-b-2 border-cascadia-green pb-1"
+                          : "text-gray-700 hover:text-cascadia-green"
+                      }`}
+                      data-testid="nav-more"
+                      aria-expanded={moreOpen}
+                    >
+                      More <ChevronDown className={`w-3.5 h-3.5 transition-transform ${moreOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    {moreOpen && (
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-1 bg-white border border-gray-200 rounded shadow-lg py-1 min-w-[180px] z-50">
+                        {MORE_NAV.map((item) => {
+                          const isActive = location === item.href || location.startsWith(item.href + "/");
+                          return (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              onClick={() => setMoreOpen(false)}
+                              className={`block px-4 py-2 text-sm transition-colors ${isActive ? "text-cascadia-green font-semibold bg-gray-50" : "text-gray-700 hover:text-cascadia-green hover:bg-gray-50"}`}
+                              data-testid={`nav-more-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                            >
+                              {item.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
+                </>
+              )}
             </div>
 
             {/* Mobile nav */}
@@ -350,7 +390,7 @@ export default function PublicLayout({
 
             {mobileOpen && (
               <div className="md:hidden pb-3 flex flex-col gap-2">
-                {allNavItems.map((item) => (
+                {(restricted ? [...PAIRS_NAV, ...adminItems] : allNavItems).map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}

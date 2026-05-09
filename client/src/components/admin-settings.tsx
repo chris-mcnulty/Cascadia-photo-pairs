@@ -21,6 +21,7 @@ export default function AdminSettings() {
   });
 
   const [formData, setFormData] = useState({
+    publicSiteEnabled: true,
     purchaseEnabled: false,
     defaultPurchaseUrl: "https://www.chrismcnulty.net/store",
     adminPassword: "",
@@ -113,6 +114,7 @@ export default function AdminSettings() {
   useEffect(() => {
     if (settings) {
       setFormData({
+        publicSiteEnabled: settings.publicSiteEnabled !== undefined ? settings.publicSiteEnabled : true,
         purchaseEnabled: settings.purchaseEnabled,
         defaultPurchaseUrl: settings.defaultPurchaseUrl || "https://www.chrismcnulty.net/store",
         adminPassword: settings.adminPassword || "",
@@ -152,7 +154,33 @@ export default function AdminSettings() {
           <CardTitle>Application Settings</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          
+
+          {/* Site Access Mode — top-level gate */}
+          <div className={`flex items-center justify-between p-4 border-2 rounded-lg ${formData.publicSiteEnabled ? "border-green-300 bg-green-50" : "border-red-300 bg-red-50"}`}>
+            <div className="space-y-0.5">
+              <Label className={`text-base font-semibold ${formData.publicSiteEnabled ? "text-green-900" : "text-red-900"}`}>
+                Public Site Access
+              </Label>
+              <div className={`text-sm ${formData.publicSiteEnabled ? "text-green-700" : "text-red-700"}`}>
+                {formData.publicSiteEnabled
+                  ? "Full site is visible — visitors can browse Portfolio, Store, Biography, etc."
+                  : "Restricted mode — non-admin visitors only see the Photo Pairs voting app. All other pages redirect to /."}
+              </div>
+              <div className={`text-xs mt-1 ${formData.publicSiteEnabled ? "text-green-600" : "text-red-600"}`}>
+                {formData.publicSiteEnabled
+                  ? "Turn OFF to hide the full public site while keeping Photo Pairs live."
+                  : "Admins are unaffected and retain full access to all pages and the Admin panel."}
+              </div>
+            </div>
+            <Switch
+              checked={formData.publicSiteEnabled}
+              onCheckedChange={(checked) =>
+                setFormData(prev => ({ ...prev, publicSiteEnabled: checked }))
+              }
+              className={formData.publicSiteEnabled ? "data-[state=checked]:bg-green-600" : ""}
+            />
+          </div>
+
           {/* User Login Toggle - Split Dev/Prod Settings */}
           <div className="space-y-4">
             <div className="text-lg font-semibold text-gray-900">User Login Features</div>

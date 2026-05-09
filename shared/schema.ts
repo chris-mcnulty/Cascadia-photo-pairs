@@ -119,6 +119,8 @@ export const settings = pgTable("settings", {
   campaignFromEmail: text("campaign_from_email").default("cascadia@chrismcnulty.net"),
   campaignReplyTo: text("campaign_reply_to").default("cascadia@chrismcnulty.net"),
   campaignMailingAddress: text("campaign_mailing_address").default("Cascadia Oceanic LLC, Seattle, WA, USA"),
+  // Site access mode: when false, non-admins only see the Photo Pairs voting app
+  publicSiteEnabled: boolean("public_site_enabled").default(true).notNull(),
 });
 
 // Photo pairs table for direct comparisons  

@@ -1019,29 +1019,38 @@ export class DatabaseStorage implements IStorage {
 
 
   async getSettings(): Promise<Settings> {
-    const [setting] = await db.select().from(settings).limit(1);
-    
-    if (!setting) {
-      // Create default settings
-      const defaultSettings = {
-        id: "default",
-        purchaseEnabled: true,
-        defaultPurchaseUrl: "https://chrismcnulty.net/store",
-        adminPassword: "BradyBunch12!",
-        mfaPhoneNumber: "+16179809810",
-        contestSignupText: "Join our monthly photo contest! The person who votes the most wins a free print of their choice.",
-        supportEmail: "support@cascadiaoceanic.com",
-        privacyPolicyUrl: "/privacy",
-        termsOfServiceUrl: "/terms",
-        userLoginEnabledDev: true,
-        userLoginEnabledProd: false,
-      };
-      
-      const [newSetting] = await db.insert(settings).values(defaultSettings).returning();
-      return newSetting;
+    try {
+      const [setting] = await db.select().from(settings).limit(1);
+      if (!setting) {
+        const defaultSettings = {
+          id: "default",
+          purchaseEnabled: true,
+          defaultPurchaseUrl: "https://chrismcnulty.net/store",
+          adminPassword: "BradyBunch12!",
+          mfaPhoneNumber: "+16179809810",
+          contestSignupText: "Join our monthly photo contest! The person who votes the most wins a free print of their choice.",
+          supportEmail: "support@cascadiaoceanic.com",
+          privacyPolicyUrl: "/privacy",
+          termsOfServiceUrl: "/terms",
+          userLoginEnabledDev: true,
+          userLoginEnabledProd: false,
+        };
+        const [newSetting] = await db.insert(settings).values(defaultSettings).returning();
+        return newSetting;
+      }
+      return setting;
+    } catch (err: any) {
+      // If a column is missing (schema migration pending), add it and retry once
+      if (err?.message?.includes("public_site_enabled") || err?.code === "42703") {
+        try {
+          const { pool } = await import("./db");
+          await pool.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS public_site_enabled boolean NOT NULL DEFAULT true`);
+          const [setting] = await db.select().from(settings).limit(1);
+          if (setting) return setting;
+        } catch (_) { /* ignore */ }
+      }
+      throw err;
     }
-    
-    return setting;
   }
 
   async updateSettings(insertSettings: InsertSettings): Promise<Settings> {

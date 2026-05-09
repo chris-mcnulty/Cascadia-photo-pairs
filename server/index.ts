@@ -1,9 +1,28 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { pool } from "./db";
 
 // Import Twilio to trigger configuration logging
 import "./twilio";
+
+function runStartupMigrations() {
+  // Fire-and-forget: runs in background so it never delays server startup
+  (async () => {
+    const maxAttempts = 10;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await pool.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS public_site_enabled boolean NOT NULL DEFAULT true`);
+        log("Startup migration: public_site_enabled column ensured");
+        return;
+      } catch (err: any) {
+        const delay = Math.min(attempt * 5000, 30000);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+    log("Startup migration: could not add public_site_enabled column after retries (non-fatal)");
+  })();
+}
 
 const app = express();
 // Stripe webhooks require the raw request body for signature verification, so
@@ -55,6 +74,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  runStartupMigrations(); // fire-and-forget, never blocks startup
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

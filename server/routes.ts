@@ -1047,13 +1047,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userLoginEnabled = isDevelopment
         ? settings.userLoginEnabledDev
         : settings.userLoginEnabledProd;
-      res.json({ ...settings, userLoginEnabled });
+      // Env var override takes priority over DB value (useful when DB is unavailable)
+      const publicSiteEnabled = process.env.PUBLIC_SITE_ENABLED === "false"
+        ? false
+        : process.env.PUBLIC_SITE_ENABLED === "true"
+          ? true
+          : settings.publicSiteEnabled;
+      res.json({ ...settings, userLoginEnabled, publicSiteEnabled });
     } catch (error) {
       // DB unavailable — return safe defaults so the frontend never hard-crashes
       const isDevelopment = process.env.NODE_ENV === 'development';
       res.json({
         purchaseEnabled: false,
-        publicSiteEnabled: true,
+        publicSiteEnabled: process.env.PUBLIC_SITE_ENABLED !== "false",
         pairsEnabled: false,
         userLoginEnabled: isDevelopment,
         userLoginEnabledDev: true,

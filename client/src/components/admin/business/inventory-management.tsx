@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Edit, Trash2 } from "lucide-react";
+import { Plus, Edit, Trash2, Download } from "lucide-react";
 import InventoryFormDialog from "./inventory-form-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -135,6 +135,51 @@ export default function InventoryManagement() {
     }).format(cents / 100);
   };
 
+  const formatDate = (d: Date | string | null | undefined) => {
+    if (!d) return "";
+    return new Date(d).toLocaleDateString("en-US");
+  };
+
+  const handleExportCSV = () => {
+    const headers = [
+      "Title", "Size", "Media Type", "Status",
+      "Cost (USD)", "List Price (USD)",
+      "Purchase Date", "Received Date", "Sold Date", "Shipped Date",
+      "Notes",
+    ];
+
+    const rows = filteredInventory.map(item => [
+      item.productTitle || "",
+      item.sizeLabel || "",
+      item.mediaType || "",
+      item.status.replace("_", " "),
+      (item.acquisitionCost / 100).toFixed(2),
+      (item.listPrice / 100).toFixed(2),
+      formatDate(item.purchaseDate),
+      formatDate(item.receivedDate),
+      formatDate(item.soldDate),
+      formatDate(item.shippedDate),
+      item.notes || "",
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const activeFilters = [
+      statusFilter !== "all" ? statusFilter : "",
+      mediaTypeFilter !== "all" ? mediaTypeFilter : "",
+      sizeFilter !== "all" ? sizeFilter : "",
+    ].filter(Boolean).join("-");
+    link.href = url;
+    link.download = `inventory${activeFilters ? `-${activeFilters}` : ""}-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -142,10 +187,26 @@ export default function InventoryManagement() {
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <CardTitle className="text-xl font-semibold">Inventory Management</CardTitle>
-              <Button onClick={() => setDialogOpen(true)} data-testid="button-add-inventory">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Inventory
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleExportCSV}
+                  disabled={filteredInventory.length === 0}
+                  data-testid="button-export-csv"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CSV
+                  {filteredInventory.length > 0 && (
+                    <span className="ml-1 text-xs text-muted-foreground">
+                      ({filteredInventory.length})
+                    </span>
+                  )}
+                </Button>
+                <Button onClick={() => setDialogOpen(true)} data-testid="button-add-inventory">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Inventory
+                </Button>
+              </div>
             </div>
             
             {/* Filters */}

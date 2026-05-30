@@ -1,21 +1,54 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { useEffect } from "react";
+import { Link, useLocation } from "wouter";
+import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export default function NotFound() {
-  return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md mx-4">
-        <CardContent className="pt-6">
-          <div className="flex mb-4 gap-2">
-            <AlertCircle className="h-8 w-8 text-red-500" />
-            <h1 className="text-2xl font-bold text-gray-900">404 Page Not Found</h1>
-          </div>
+  const [location] = useLocation();
 
-          <p className="mt-4 text-sm text-gray-600">
-            Did you forget to add the page to the router?
+  useEffect(() => {
+    const path = window.location.pathname;
+    const referrer = document.referrer || "";
+    const userAgent = navigator.userAgent || "";
+
+    fetch("/api/404-log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, referrer, userAgent }),
+    }).catch(() => {});
+  }, [location]);
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-stone-50 px-6">
+      <div className="max-w-md w-full text-center space-y-6">
+        <div
+          className="text-[7rem] font-black leading-none tracking-tighter"
+          style={{ color: "var(--color-primary, #1e3a2f)" }}
+        >
+          404
+        </div>
+
+        <div className="space-y-2">
+          <h1 className="text-2xl font-semibold text-stone-800">
+            This page doesn't exist or may have moved.
+          </h1>
+          <p className="text-stone-500 text-base">
+            The link you followed might be outdated, or the address may have changed.
           </p>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="pt-2">
+          <Link href="/">
+            <Button
+              variant="default"
+              className="gap-2 px-6 py-3 text-base"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Go to Home
+            </Button>
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

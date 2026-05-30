@@ -21,6 +21,7 @@ import NewsManagement from "@/components/admin/news-management";
 import EmailCampaigns from "@/components/admin/email-campaigns";
 import { PairsManagement } from "@/components/admin/pairs-management";
 import SocialManagement from "@/components/admin/social/social-management";
+import SiteManagement from "@/components/admin/site/site-management";
 import BusinessDashboard from "@/components/admin/business/business-dashboard";
 import ProductManagement from "@/components/admin/business/product-management";
 import SKUManagement from "@/components/admin/business/sku-management";
@@ -31,7 +32,7 @@ import SalesManagement from "@/components/admin/business/sales-management";
 import ExpenseTracker from "@/components/admin/business/expense-tracker";
 import { CSVImport } from "@/components/admin/business/csv-import";
 import CatalogExport from "@/components/admin/business/catalog-export";
-import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell, MessageSquare, Link2, Briefcase, ChevronDown, LayoutDashboard, Package, Package2, Building2, Receipt, Upload, DollarSign, Tag, Share2, Activity, FileText } from "lucide-react";
+import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell, MessageSquare, Link2, Briefcase, ChevronDown, LayoutDashboard, Package, Package2, Building2, Receipt, Upload, DollarSign, Tag, Share2, Activity, FileText, Globe } from "lucide-react";
 import { Link } from "wouter";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
@@ -39,7 +40,7 @@ import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
 type BusinessSubTab = "dashboard" | "products" | "skus" | "inventory" | "suppliers" | "sizes" | "sales" | "expenses" | "import" | "catalog";
 
 function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"analytics" | "traffic" | "photos" | "pairs" | "users" | "communication" | "social" | "settings" | "business">("analytics");
+  const [activeTab, setActiveTab] = useState<"analytics" | "traffic" | "photos" | "pairs" | "users" | "communication" | "social" | "site" | "settings" | "business">("analytics");
   const [businessSubTab, setBusinessSubTab] = useState<BusinessSubTab>("dashboard");
   const { logout, isAuthenticated, sessionId } = useAuth();
   
@@ -217,6 +218,16 @@ function AdminDashboard() {
             <Share2 className="w-4 h-4 mr-1 sm:mr-2" />
             Social
           </Button>
+          <Button
+            variant={activeTab === "site" ? "default" : "outline"}
+            onClick={() => setActiveTab("site")}
+            className="flex items-center text-sm"
+            size="sm"
+            data-testid="button-site-tab"
+          >
+            <Globe className="w-4 h-4 mr-1 sm:mr-2" />
+            Site
+          </Button>
           
           {/* Business Dropdown Menu */}
           <DropdownMenu>
@@ -365,6 +376,7 @@ function AdminDashboard() {
           </div>
         )}
         {activeTab === "social" && <SocialManagement />}
+        {activeTab === "site" && <SiteManagement />}
         {activeTab === "settings" && <AdminSettings />}
       </div>
     </div>

@@ -1186,3 +1186,45 @@ export type TrafficEvent = typeof trafficEvents.$inferSelect;
 export type InsertTrafficEvent = z.infer<typeof insertTrafficEventSchema>;
 export type TrafficSession = typeof trafficSessions.$inferSelect;
 export type InsertTrafficSession = z.infer<typeof insertTrafficSessionSchema>;
+
+// ============== URL Redirects + 404 Log ==============
+
+export const urlRedirects = pgTable("url_redirects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourcePath: text("source_path").notNull(),
+  sourceHost: text("source_host"),
+  targetPath: text("target_path").notNull(),
+  statusCode: integer("status_code").default(301).notNull(),
+  active: boolean("active").default(true).notNull(),
+  notes: text("notes"),
+  hitCount: integer("hit_count").default(0).notNull(),
+  lastHitAt: timestamp("last_hit_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_url_redirects_source").on(t.sourcePath),
+  index("idx_url_redirects_active").on(t.active),
+]);
+
+export const notFoundLogs = pgTable("not_found_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  path: text("path").notNull().unique(),
+  hitCount: integer("hit_count").default(1).notNull(),
+  lastReferrer: text("last_referrer"),
+  lastUserAgent: text("last_user_agent"),
+  resolved: boolean("resolved").default(false).notNull(),
+  notes: text("notes"),
+  firstSeenAt: timestamp("first_seen_at").defaultNow().notNull(),
+  lastSeenAt: timestamp("last_seen_at").defaultNow().notNull(),
+}, (t) => [
+  index("idx_not_found_logs_path").on(t.path),
+  index("idx_not_found_logs_hit_count").on(t.hitCount),
+  index("idx_not_found_logs_resolved").on(t.resolved),
+]);
+
+export const insertUrlRedirectSchema = createInsertSchema(urlRedirects).omit({ id: true, hitCount: true, lastHitAt: true, createdAt: true });
+export const insertNotFoundLogSchema = createInsertSchema(notFoundLogs).omit({ id: true, hitCount: true, firstSeenAt: true, lastSeenAt: true });
+
+export type UrlRedirect = typeof urlRedirects.$inferSelect;
+export type InsertUrlRedirect = z.infer<typeof insertUrlRedirectSchema>;
+export type NotFoundLog = typeof notFoundLogs.$inferSelect;
+export type InsertNotFoundLog = z.infer<typeof insertNotFoundLogSchema>;

@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { pool } from "./db";
+import { redirectMiddleware } from "./redirects";
 
 // Import Twilio to trigger configuration logging
 import "./twilio";
@@ -14,13 +15,66 @@ function runStartupMigrations() {
       try {
         await pool.query(`ALTER TABLE settings ADD COLUMN IF NOT EXISTS public_site_enabled boolean NOT NULL DEFAULT true`);
         log("Startup migration: public_site_enabled column ensured");
-        return;
+        break;
       } catch (err: any) {
         const delay = Math.min(attempt * 5000, 30000);
         await new Promise((r) => setTimeout(r, delay));
       }
     }
-    log("Startup migration: could not add public_site_enabled column after retries (non-fatal)");
+
+    // url_redirects table
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS url_redirects (
+            id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+            source_path text NOT NULL,
+            source_host text,
+            target_path text NOT NULL,
+            status_code integer NOT NULL DEFAULT 301,
+            active boolean NOT NULL DEFAULT true,
+            notes text,
+            hit_count integer NOT NULL DEFAULT 0,
+            last_hit_at timestamp,
+            created_at timestamp NOT NULL DEFAULT NOW()
+          )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_url_redirects_source ON url_redirects(source_path)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_url_redirects_active ON url_redirects(active)`);
+        log("Startup migration: url_redirects table ensured");
+        break;
+      } catch (err: any) {
+        const delay = Math.min(attempt * 5000, 30000);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+
+    // not_found_logs table
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await pool.query(`
+          CREATE TABLE IF NOT EXISTS not_found_logs (
+            id varchar PRIMARY KEY DEFAULT gen_random_uuid(),
+            path text NOT NULL UNIQUE,
+            hit_count integer NOT NULL DEFAULT 1,
+            last_referrer text,
+            last_user_agent text,
+            resolved boolean NOT NULL DEFAULT false,
+            notes text,
+            first_seen_at timestamp NOT NULL DEFAULT NOW(),
+            last_seen_at timestamp NOT NULL DEFAULT NOW()
+          )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_not_found_logs_path ON not_found_logs(path)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_not_found_logs_hit_count ON not_found_logs(hit_count)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_not_found_logs_resolved ON not_found_logs(resolved)`);
+        log("Startup migration: not_found_logs table ensured");
+        break;
+      } catch (err: any) {
+        const delay = Math.min(attempt * 5000, 30000);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
   })();
 }
 
@@ -84,6 +138,9 @@ app.use((req, res, next) => {
     res.status(status).json({ message });
     throw err;
   });
+
+  // URL redirect middleware runs after API routes but before the SPA catch-all
+  app.use(redirectMiddleware);
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route

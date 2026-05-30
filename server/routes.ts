@@ -5001,6 +5001,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Email campaigns and centralized contact management
   registerCampaignRoutes(app, isAuthenticated);
 
+  // URL Redirects admin CRUD
+  const { registerRedirectRoutes } = await import("./redirects");
+  registerRedirectRoutes(app);
+
+  // 404 Log routes (public reporter + admin read)
+  const { registerNotFoundLogRoutes } = await import("./not-found-log");
+  registerNotFoundLogRoutes(app);
+
   const httpServer = createServer(app);
   return httpServer;
 }

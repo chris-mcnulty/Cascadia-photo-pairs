@@ -38,6 +38,7 @@ export interface CatalogFilters {
   year?: number | "all";
   sort?: CatalogSort;
   sortOrder?: "asc" | "desc";
+  inStockOnly?: boolean;
 }
 
 // Maps raw photo category strings into the public-facing groups used by the
@@ -153,7 +154,19 @@ export async function getCatalogEntries(
   const sizesByRatio = await loadSizesByAspectRatio();
 
   let entries: CatalogEntry[] = (productRows.rows as any[]).map((r) => {
-    const ratioColon = String(r.aspectRatio || "").replace(/x/g, ":");
+    // Support comma-separated aspect ratios (e.g. "16x9,3x2" for dual-ratio products).
+    const ratios = String(r.aspectRatio || "")
+      .split(",")
+      .map((s) => s.trim().replace(/x/g, ":"))
+      .filter(Boolean);
+    const allSizes: CatalogSize[] = [];
+    const seen = new Set<string>();
+    for (const ratio of ratios) {
+      for (const s of sizesByRatio.get(ratio) || []) {
+        const key = `${s.sizeLabel}|${s.mediaType}`;
+        if (!seen.has(key)) { seen.add(key); allSizes.push(s); }
+      }
+    }
     const year = extractYear(r.slug, r.title, r.originalDate, r.createdAt);
     const group = categoryToGroup(r.rawCategory);
     return {
@@ -168,7 +181,7 @@ export async function getCatalogEntries(
       categoryGroup: group,
       imageUrl: r.imageUrl ? String(r.imageUrl) : null,
       customPurchaseUrl: r.customPurchaseUrl ? String(r.customPurchaseUrl) : null,
-      sizes: sizesByRatio.get(ratioColon) || [],
+      sizes: allSizes,
     };
   });
 
@@ -180,6 +193,16 @@ export async function getCatalogEntries(
     ),
     categories: Array.from(new Set(entries.map((e) => e.categoryGroup))).sort(),
   };
+
+  // In-stock filter: restrict to products that have at least one physical item
+  // currently in stock (inventory_items.status = 'in_stock').
+  if (filters.inStockOnly) {
+    const stockRows = await db.execute(sql`
+      SELECT DISTINCT product_id AS "productId" FROM inventory_items WHERE status = 'in_stock'
+    `);
+    const inStockIds = new Set((stockRows.rows as any[]).map((r) => String(r.productId)));
+    entries = entries.filter((e) => inStockIds.has(e.productId));
+  }
 
   // Apply filters
   if (filters.category && filters.category !== "all") {

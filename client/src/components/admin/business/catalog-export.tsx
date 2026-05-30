@@ -71,6 +71,7 @@ export default function CatalogExport() {
   const [category, setCategory] = useState("all");
   const [year, setYear] = useState("all");
   const [sort, setSort] = useState("title");
+  const [inStockOnly, setInStockOnly] = useState(false);
 
   // Signage-only options
   const [featuredSize, setFeaturedSize] = useState<"largest" | "smallest">("largest");
@@ -87,7 +88,7 @@ export default function CatalogExport() {
 
   const [downloading, setDownloading] = useState<null | "pdf" | "docx">(null);
 
-  const previewKey = `/api/admin/catalog/entries?category=${category}&year=${year}&sort=${sort}`;
+  const previewKey = `/api/admin/catalog/entries?category=${category}&year=${year}&sort=${sort}&inStockOnly=${inStockOnly}`;
   const { data, isLoading } = useQuery<PreviewResponse>({
     queryKey: [previewKey],
   });
@@ -154,6 +155,7 @@ export default function CatalogExport() {
         category,
         year,
         sort,
+        inStockOnly,
         featuredSize,
         includeQr,
         includePhoto: mode === "signage" ? includePhoto : true,
@@ -218,6 +220,14 @@ export default function CatalogExport() {
             <Separator />
 
             {/* Filters */}
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div>
+                <Label className="cursor-pointer">In-stock prints only</Label>
+                <p className="text-xs text-muted-foreground">Limit to photos with physical inventory currently in stock.</p>
+              </div>
+              <Switch checked={inStockOnly} onCheckedChange={setInStockOnly} data-testid="switch-in-stock-only" />
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
                 <Label>Category</Label>

@@ -4278,7 +4278,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const yearParamRaw = req.query.year as string | undefined;
       const year = yearParamRaw && yearParamRaw !== "all" ? parseInt(yearParamRaw, 10) : "all";
       const sort = (req.query.sort as CatalogSort) || "title";
-      const { entries, facets } = await getCatalogEntries({ category, year, sort });
+      const inStockOnly = req.query.inStockOnly === "true";
+      const { entries, facets } = await getCatalogEntries({ category, year, sort, inStockOnly });
       res.json({
         count: entries.length,
         facets,
@@ -4318,6 +4319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title,
         subtitle,
         selections, // optional: [{ productId, sizeLabel?, mediaType? }] — pick photos + per-card size
+        inStockOnly = false,
       } = req.body || {};
 
       const yearFilter = year && year !== "all" ? parseInt(String(year), 10) : "all";
@@ -4325,6 +4327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         category: category as CatalogCategory,
         year: yearFilter,
         sort: sort as CatalogSort,
+        inStockOnly: !!inStockOnly,
       });
 
       // When explicit selections are provided, restrict to (and order by) the

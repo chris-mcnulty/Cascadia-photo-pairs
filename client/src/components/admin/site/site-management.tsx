@@ -42,7 +42,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Trash2, ArrowRight, ExternalLink, CheckCircle, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, ArrowRight, ExternalLink, CheckCircle, Eye, EyeOff, FlaskConical } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const redirectFormSchema = insertUrlRedirectSchema.extend({
@@ -66,6 +66,64 @@ function formatDate(d: string | Date | null | undefined) {
 
 // ────────────────────────────── Redirects Tab ──────────────────────────────
 
+// ── Client-side matching logic (mirrors server/redirects.ts) ──────────────────
+
+type ClientRule = {
+  id: string;
+  sourcePath: string;
+  sourceHost: string | null;
+  targetPath: string;
+  statusCode: number;
+  matchType: string;
+  active: boolean;
+};
+
+function canonicalizePrefixPath(p: string): string {
+  return p.endsWith("/*") ? p.slice(0, -2) : p;
+}
+
+type TestResult =
+  | { matched: true; rule: ClientRule }
+  | { matched: false };
+
+function runClientMatch(
+  testPath: string,
+  testHost: string,
+  rules: ClientRule[]
+): TestResult {
+  if (!testPath || !testPath.startsWith("/")) return { matched: false };
+
+  const activeRules = rules.filter((r) => r.active);
+  const exact = activeRules.filter((r) => r.matchType !== "prefix");
+  const prefix = activeRules
+    .filter((r) => r.matchType === "prefix")
+    .map((r) => ({ ...r, sourcePath: canonicalizePrefixPath(r.sourcePath) }));
+
+  const host = testHost.trim();
+
+  for (const rule of exact) {
+    const pathOk = rule.sourcePath === testPath;
+    const hostOk = !rule.sourceHost || rule.sourceHost === host;
+    if (pathOk && hostOk) return { matched: true, rule };
+  }
+
+  let best: ClientRule | null = null;
+  for (const rule of prefix) {
+    const hostOk = !rule.sourceHost || rule.sourceHost === host;
+    if (!hostOk) continue;
+    const pfx = rule.sourcePath.endsWith("/") ? rule.sourcePath : rule.sourcePath + "/";
+    const pathOk = testPath === rule.sourcePath || testPath.startsWith(pfx);
+    if (pathOk) {
+      if (!best || rule.sourcePath.length > best.sourcePath.length) best = rule;
+    }
+  }
+  if (best) return { matched: true, rule: best };
+
+  return { matched: false };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function RedirectDialog({
   open,
   onClose,
@@ -78,6 +136,8 @@ function RedirectDialog({
   prefillPath?: string;
 }) {
   const { toast } = useToast();
+  const [testPath, setTestPath] = useState("");
+  const [testHost, setTestHost] = useState("");
 
   const form = useForm<RedirectFormValues>({
     resolver: zodResolver(redirectFormSchema),
@@ -121,11 +181,54 @@ function RedirectDialog({
   }
 
   const isPending = createMutation.isPending || updateMutation.isPending;
-  const matchType = useWatch({ control: form.control, name: "matchType" });
+
+  // Watch all form fields reactively so the tester reflects unsaved edits
+  const fv = useWatch({ control: form.control });
+  const matchType = fv.matchType ?? "exact";
+
+  // Fetch the saved redirect list (reads from TanStack cache — no extra request)
+  const { data: savedRedirects = [] } = useQuery<UrlRedirect[]>({
+    queryKey: ["/api/admin/redirects"],
+    queryFn: async () => {
+      const res = await fetch("/api/admin/redirects", { headers: getAuthHeaders() });
+      if (!res.ok) throw new Error("Failed to fetch");
+      return res.json();
+    },
+  });
+
+  // Build the effective rule set: saved rules (minus the one being edited) + current form values
+  const effectiveRules: ClientRule[] = [
+    ...savedRedirects
+      .filter((r) => r.id !== existing?.id)
+      .map((r) => ({
+        id: r.id,
+        sourcePath: r.sourcePath,
+        sourceHost: r.sourceHost,
+        targetPath: r.targetPath,
+        statusCode: r.statusCode,
+        matchType: r.matchType ?? "exact",
+        active: r.active,
+      })),
+    {
+      id: existing?.id ?? "__new__",
+      sourcePath: fv.sourcePath ?? "/",
+      sourceHost: fv.sourceHost || null,
+      targetPath: fv.targetPath ?? "/",
+      statusCode: fv.statusCode ?? 301,
+      matchType: fv.matchType ?? "exact",
+      active: fv.active ?? true,
+    },
+  ];
+
+  const testResult: TestResult | null =
+    testPath ? runClientMatch(testPath, testHost, effectiveRules) : null;
+
+  // Detect whether any saved rule uses a host filter, to show the host test input
+  const anyHostFiltered = effectiveRules.some((r) => r.sourceHost);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{existing ? "Edit Redirect" : "Add Redirect"}</DialogTitle>
         </DialogHeader>
@@ -257,6 +360,62 @@ function RedirectDialog({
                 </FormItem>
               )}
             />
+
+            {/* ── Rule Tester ─────────────────────────────────────────── */}
+            <div className="border-t pt-4 space-y-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                <FlaskConical className="w-3.5 h-3.5" />
+                Test this rule
+              </p>
+              <div className={`grid gap-2 ${anyHostFiltered ? "grid-cols-2" : "grid-cols-1"}`}>
+                <Input
+                  placeholder="/path-to-test"
+                  value={testPath}
+                  onChange={(e) => setTestPath(e.target.value)}
+                  className="font-mono text-sm h-8"
+                />
+                {anyHostFiltered && (
+                  <Input
+                    placeholder="hostname (optional)"
+                    value={testHost}
+                    onChange={(e) => setTestHost(e.target.value)}
+                    className="font-mono text-sm h-8"
+                  />
+                )}
+              </div>
+              {testResult === null && (
+                <p className="text-xs text-gray-400">
+                  Type a path above to see which rule would fire — includes your unsaved edits.
+                </p>
+              )}
+              {testResult !== null && testResult.matched && (
+                <div className="flex items-start gap-2 rounded-md bg-green-50 border border-green-200 px-3 py-2 text-xs text-green-800">
+                  <CheckCircle className="w-3.5 h-3.5 mt-0.5 shrink-0 text-green-600" />
+                  <span>
+                    Matched by{" "}
+                    <code className="font-mono bg-green-100 px-0.5 rounded">
+                      {testResult.rule.sourcePath}
+                    </code>{" "}
+                    <Badge variant="secondary" className="text-xs mx-0.5">
+                      {testResult.rule.matchType}
+                    </Badge>
+                    {" → "}
+                    <code className="font-mono bg-green-100 px-0.5 rounded">
+                      {testResult.rule.targetPath}
+                    </code>{" "}
+                    <Badge className="text-xs">{testResult.rule.statusCode}</Badge>
+                    {testResult.rule.id === "__new__" || testResult.rule.id === existing?.id ? (
+                      <span className="ml-1 text-green-600 italic">(this rule)</span>
+                    ) : null}
+                  </span>
+                </div>
+              )}
+              {testResult !== null && !testResult.matched && (
+                <div className="flex items-center gap-2 rounded-md bg-gray-50 border border-gray-200 px-3 py-2 text-xs text-gray-500">
+                  No rule matches — this path would pass through unchanged.
+                </div>
+              )}
+            </div>
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={onClose}>

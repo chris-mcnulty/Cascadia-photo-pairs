@@ -61,12 +61,13 @@ export function formatPrice(cents: number): string {
   return `$${dollars.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-// "45 X 30" / "12 x 18" -> '45″ X 30″'
+// "45 X 30" / "12 x 18" -> '45" X 30"'
+// Uses straight ASCII double-quote (U+0022) — font-safe with MetroNova.
 export function formatSizeLabel(label: string): string {
   return label
     .trim()
-    .replace(/\s*[xX]\s*/g, "\u2033 X ")
-    .concat("\u2033");
+    .replace(/\s*[xX]\s*/g, '" X ')
+    .concat('"');
 }
 
 // Pick the featured ChromaLuxe size for a signage card (largest or smallest by

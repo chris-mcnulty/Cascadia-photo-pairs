@@ -42,6 +42,15 @@ type BusinessSubTab = "dashboard" | "products" | "skus" | "inventory" | "supplie
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"analytics" | "traffic" | "photos" | "pairs" | "users" | "communication" | "social" | "site" | "settings" | "business">("analytics");
   const [businessSubTab, setBusinessSubTab] = useState<BusinessSubTab>("dashboard");
+  const [siteRedirectPrefill, setSiteRedirectPrefill] = useState<string | undefined>();
+
+  function handleCreateRedirectFromTraffic(path: string) {
+    setSiteRedirectPrefill(undefined);
+    setTimeout(() => {
+      setSiteRedirectPrefill(path);
+      setActiveTab("site");
+    }, 0);
+  }
   const { logout, isAuthenticated, sessionId } = useAuth();
   
   const handleBusinessTabClick = (subTab: BusinessSubTab) => {
@@ -341,7 +350,7 @@ function AdminDashboard() {
 
         {/* Tab Content */}
         {activeTab === "analytics" && <AdminAnalytics />}
-        {activeTab === "traffic" && <TrafficDashboard />}
+        {activeTab === "traffic" && <TrafficDashboard onCreateRedirect={handleCreateRedirectFromTraffic} />}
         {activeTab === "photos" && <PhotoManager />}
         {activeTab === "pairs" && <PairsManagement />}
         {activeTab === "users" && <UserManagement />}
@@ -376,7 +385,7 @@ function AdminDashboard() {
           </div>
         )}
         {activeTab === "social" && <SocialManagement />}
-        {activeTab === "site" && <SiteManagement />}
+        {activeTab === "site" && <SiteManagement prefillRedirectPath={siteRedirectPrefill} />}
         {activeTab === "settings" && <AdminSettings />}
       </div>
     </div>

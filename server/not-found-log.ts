@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { db } from "./db";
 import { notFoundLogs, users } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, gte, lte, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { verifyToken } from "./auth";
 
@@ -50,10 +50,36 @@ export function registerNotFoundLogRoutes(app: Express) {
   app.get("/api/admin/404-log", adminAuthMiddleware, async (req, res) => {
     try {
       const showResolved = req.query.resolved === "true";
-      let query = db.select().from(notFoundLogs);
-      if (!showResolved) {
-        query = query.where(eq(notFoundLogs.resolved, false)) as any;
+
+      // Optional date-range filtering on last_seen_at
+      let fromDate: Date | null = null;
+      let toDate: Date | null = null;
+      if (req.query.from) {
+        fromDate = new Date(String(req.query.from));
+      } else if (req.query.days) {
+        const d = parseInt(String(req.query.days), 10);
+        if (!isNaN(d) && d > 0) {
+          fromDate = new Date(Date.now() - d * 24 * 60 * 60 * 1000);
+        }
       }
+      if (req.query.to) {
+        toDate = new Date(String(req.query.to));
+        // include the entire to-day
+        toDate.setHours(23, 59, 59, 999);
+      }
+
+      const conditions: any[] = [];
+      if (!showResolved) conditions.push(eq(notFoundLogs.resolved, false));
+      if (fromDate) conditions.push(gte(notFoundLogs.lastSeenAt, fromDate));
+      if (toDate) conditions.push(lte(notFoundLogs.lastSeenAt, toDate));
+
+      let query = db.select().from(notFoundLogs);
+      if (conditions.length === 1) {
+        query = query.where(conditions[0]) as any;
+      } else if (conditions.length > 1) {
+        query = query.where(and(...conditions)) as any;
+      }
+
       const rows = await (query as any).orderBy(desc(notFoundLogs.hitCount));
       res.json(rows);
     } catch {

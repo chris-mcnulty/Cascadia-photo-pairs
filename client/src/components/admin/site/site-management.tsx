@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useForm, useWatch } from "react-hook-form";
@@ -151,6 +151,20 @@ function RedirectDialog({
       notes: existing?.notes ?? "",
     },
   });
+
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        sourcePath: existing?.sourcePath ?? prefillPath ?? "/",
+        sourceHost: existing?.sourceHost ?? "",
+        targetPath: existing?.targetPath ?? "/",
+        statusCode: existing?.statusCode ?? 301,
+        matchType: (existing?.matchType as "exact" | "prefix") ?? "exact",
+        active: existing?.active ?? true,
+        notes: existing?.notes ?? "",
+      });
+    }
+  }, [open, prefillPath, existing]);
 
   const createMutation = useMutation({
     mutationFn: (data: RedirectFormValues) =>
@@ -693,10 +707,18 @@ function NotFoundLogTab({ onCreateRedirect }: { onCreateRedirect: (path: string)
 
 // ────────────────────────────── Main Component ──────────────────────────────
 
-export default function SiteManagement() {
+export default function SiteManagement({ prefillRedirectPath }: { prefillRedirectPath?: string } = {}) {
   const [activeTab, setActiveTab] = useState("redirects");
   const [redirectDialogOpen, setRedirectDialogOpen] = useState(false);
   const [prefillPath, setPrefillPath] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (prefillRedirectPath) {
+      setPrefillPath(prefillRedirectPath);
+      setActiveTab("redirects");
+      setRedirectDialogOpen(true);
+    }
+  }, [prefillRedirectPath]);
 
   function handleCreateRedirectFrom404(path: string) {
     setPrefillPath(path);

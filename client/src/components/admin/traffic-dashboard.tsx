@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ResponsiveContainer,
@@ -44,6 +45,7 @@ type WebRefRow = { host: string; sessions: number };
 type SocialRefRow = { platform: string; clicks: number };
 type RefBlock = { sources: SourceRow[]; web: WebRefRow[]; social: SocialRefRow[] };
 type FunnelStep = { name: string; value: number };
+type NotFoundEntry = { id: string; path: string; hitCount: number; resolved: boolean; lastSeenAt: string | null };
 type Voting = {
   pairsViews: number;
   pairsSessions: number;
@@ -69,7 +71,7 @@ function shortDate(s: string): string {
   }
 }
 
-export default function TrafficDashboard() {
+export default function TrafficDashboard({ onCreateRedirect }: { onCreateRedirect?: (path: string) => void }) {
   const [days, setDays] = useState<number>(30);
   const [granularity, setGranularity] = useState<"day" | "hour">("day");
   const [from, setFrom] = useState<string>("");
@@ -121,6 +123,12 @@ export default function TrafficDashboard() {
   const { data: voting } = useQuery<Voting>({
     queryKey: ["/api/admin/analytics/voting", rangeKey],
     queryFn: () => fetcher(`/api/admin/analytics/voting?${rangeQs}`),
+    refetchInterval,
+  });
+
+  const { data: notFoundLog } = useQuery<NotFoundEntry[]>({
+    queryKey: ["/api/admin/404-log", rangeKey],
+    queryFn: () => fetcher<NotFoundEntry[]>(`/api/admin/404-log?${rangeQs}`),
     refetchInterval,
   });
 
@@ -541,6 +549,55 @@ export default function TrafficDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Top broken links</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(() => {
+            const top5 = Array.isArray(notFoundLog) ? notFoundLog.slice(0, 5) : [];
+            if (!top5.length) {
+              return <p className="text-sm text-gray-400 text-center py-3">No unresolved 404s in this period</p>;
+            }
+            return (
+              <table className="w-full text-sm">
+                <thead className="text-left text-gray-500">
+                  <tr>
+                    <th className="py-1">Path</th>
+                    <th className="py-1 text-right">Hits</th>
+                    <th className="py-1 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {top5.map((entry) => (
+                    <tr key={entry.id} className="border-t">
+                      <td className="py-1 truncate max-w-[320px] font-mono text-xs">{entry.path}</td>
+                      <td className="py-1 text-right">
+                        <Badge variant="destructive">{fmt(entry.hitCount)}</Badge>
+                      </td>
+                      <td className="py-1 text-right">
+                        {onCreateRedirect ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-xs h-7"
+                            onClick={() => onCreateRedirect(entry.path)}
+                          >
+                            Create redirect
+                          </Button>
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            );
+          })()}
+        </CardContent>
+      </Card>
     </div>
   );
 }

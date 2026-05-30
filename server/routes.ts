@@ -3769,16 +3769,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get available inventory items (in_stock status)
+  // Get available inventory items (sellable: in stock or currently on exhibit)
   app.get("/api/admin/inventory/available", isAuthenticated, async (req, res) => {
     try {
       const items = await storage.getInventoryWithDetails();
-      // Filter for in_stock items
-      const availableItems = items.filter(item => item.status === "in_stock");
+      // Items on exhibit are still available to sell, alongside in-stock items
+      const availableItems = items.filter(
+        item => item.status === "in_stock" || item.status === "on_exhibit"
+      );
       res.json(availableItems);
     } catch (error) {
       console.error('Error fetching available inventory:', error);
       res.status(500).json({ message: "Failed to fetch available inventory" });
+    }
+  });
+
+  // Get distinct inventory locations (for ad-hoc exhibit location suggestions)
+  app.get("/api/admin/inventory/locations", isAuthenticated, async (req, res) => {
+    try {
+      const locations = await storage.getInventoryLocations();
+      res.json(locations);
+    } catch (error) {
+      console.error('Error fetching inventory locations:', error);
+      res.status(500).json({ message: "Failed to fetch inventory locations" });
+    }
+  });
+
+  // Bulk update inventory items (e.g. put a batch "on_exhibit" with a location,
+  // or clear the exhibit when it's over). Only a whitelist of fields is editable.
+  app.patch("/api/admin/inventory/bulk", isAuthenticated, async (req, res) => {
+    try {
+      const { ids, updates } = req.body as {
+        ids?: unknown;
+        updates?: Record<string, unknown>;
+      };
+
+      if (!Array.isArray(ids) || ids.length === 0 || !ids.every(id => typeof id === "string")) {
+        return res.status(400).json({ message: "ids must be a non-empty array of item ids" });
+      }
+      if (!updates || typeof updates !== "object") {
+        return res.status(400).json({ message: "updates object is required" });
+      }
+
+      const allowedStatuses = ["ordered", "in_stock", "on_exhibit", "sold", "shipped"];
+      const sanitized: Record<string, unknown> = {};
+
+      if ("status" in updates) {
+        if (typeof updates.status !== "string" || !allowedStatuses.includes(updates.status)) {
+          return res.status(400).json({ message: `status must be one of: ${allowedStatuses.join(", ")}` });
+        }
+        sanitized.status = updates.status;
+      }
+
+      if ("location" in updates) {
+        // Allow setting a location string or clearing it (null/empty -> null)
+        const loc = updates.location;
+        if (loc === null || loc === "" || typeof loc === "undefined") {
+          sanitized.location = null;
+        } else if (typeof loc === "string") {
+          sanitized.location = loc.trim();
+        } else {
+          return res.status(400).json({ message: "location must be a string or null" });
+        }
+      }
+
+      if (Object.keys(sanitized).length === 0) {
+        return res.status(400).json({ message: "No editable fields provided (status, location)" });
+      }
+
+      const updated = await storage.bulkUpdateInventoryItems(ids as string[], sanitized);
+      res.json({ updatedCount: updated.length, items: updated });
+    } catch (error) {
+      console.error('Error bulk updating inventory:', error);
+      res.status(400).json({ message: "Failed to bulk update inventory items" });
     }
   });
 

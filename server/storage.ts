@@ -26,7 +26,7 @@ export type SaleWithProfit = Sale & {
 import { randomUUID } from "crypto";
 import { db } from "./db";
 import { photos, votes, settings, collections, photoPairs, pairVotes, products, productVariants, productSKUs, channelSKUs, retailPrices, salesChannels, suppliers, productSizes, supplierPrices, sales, orders, orderItems, inventoryItems, dropShipOrders, expenseCategories, expenses, events, newsItems } from "@shared/schema";
-import { eq, ne, sql, inArray, and, or, gte, lte, isNull, desc } from "drizzle-orm";
+import { eq, ne, sql, inArray, and, or, gte, lte, isNull, isNotNull, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Collections
@@ -202,9 +202,11 @@ export interface IStorage {
   getInventoryItem(id: string): Promise<InventoryItem | undefined>;
   createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem>;
   updateInventoryItem(id: string, updates: Partial<InventoryItem>): Promise<InventoryItem | undefined>;
+  bulkUpdateInventoryItems(ids: string[], updates: Partial<InventoryItem>): Promise<InventoryItem[]>;
   deleteInventoryItem(id: string): Promise<boolean>;
   getInventoryByPhoto(photoId: string): Promise<InventoryItem[]>;
   getInventoryWithDetails(): Promise<Array<InventoryItem & { productTitle?: string; photoImageUrl?: string; sizeLabel?: string }>>;
+  getInventoryLocations(): Promise<string[]>;
   
   // Drop Ship Orders
   getAllDropShipOrders(status?: string): Promise<DropShipOrder[]>;
@@ -933,9 +935,11 @@ export class MemStorage implements IStorage {
   async getInventoryItem(id: string): Promise<InventoryItem | undefined> { return undefined; }
   async createInventoryItem(item: InsertInventoryItem): Promise<InventoryItem> { throw new Error('Not implemented in MemStorage'); }
   async updateInventoryItem(id: string, updates: Partial<InventoryItem>): Promise<InventoryItem | undefined> { return undefined; }
+  async bulkUpdateInventoryItems(ids: string[], updates: Partial<InventoryItem>): Promise<InventoryItem[]> { return []; }
   async deleteInventoryItem(id: string): Promise<boolean> { return false; }
   async getInventoryByPhoto(photoId: string): Promise<InventoryItem[]> { return []; }
   async getInventoryWithDetails(): Promise<Array<InventoryItem & { productTitle?: string; photoImageUrl?: string; sizeLabel?: string }>> { return []; }
+  async getInventoryLocations(): Promise<string[]> { return []; }
   
   async getAllDropShipOrders(status?: string): Promise<DropShipOrder[]> { return []; }
   async getDropShipOrder(id: string): Promise<DropShipOrder | undefined> { return undefined; }
@@ -2824,7 +2828,7 @@ export class DatabaseStorage implements IStorage {
           .where(
             and(
               eq(inventoryItems.id, newSale.inventoryItemId),
-              inArray(inventoryItems.status, ["in_stock", "ordered"])
+              inArray(inventoryItems.status, ["in_stock", "ordered", "on_exhibit"])
             )
           );
 
@@ -2907,7 +2911,7 @@ export class DatabaseStorage implements IStorage {
             .where(
               and(
                 eq(inventoryItems.id, updated.inventoryItemId!),
-                inArray(inventoryItems.status, ["in_stock", "ordered"])
+                inArray(inventoryItems.status, ["in_stock", "ordered", "on_exhibit"])
               )
             );
 
@@ -3138,6 +3142,15 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  async bulkUpdateInventoryItems(ids: string[], updates: Partial<InventoryItem>): Promise<InventoryItem[]> {
+    if (ids.length === 0) return [];
+    return await db
+      .update(inventoryItems)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(inArray(inventoryItems.id, ids))
+      .returning();
+  }
+
   async deleteInventoryItem(id: string): Promise<boolean> {
     const result = await db.delete(inventoryItems).where(eq(inventoryItems.id, id));
     return (result.rowCount || 0) > 0;
@@ -3178,6 +3191,17 @@ export class DatabaseStorage implements IStorage {
     );
     
     return itemsWithDetails;
+  }
+
+  async getInventoryLocations(): Promise<string[]> {
+    const rows = await db
+      .selectDistinct({ location: inventoryItems.location })
+      .from(inventoryItems)
+      .where(isNotNull(inventoryItems.location));
+    return rows
+      .map(r => r.location)
+      .filter((loc): loc is string => Boolean(loc && loc.trim()))
+      .sort((a, b) => a.localeCompare(b));
   }
 
   // ============================================

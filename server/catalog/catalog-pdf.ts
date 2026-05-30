@@ -269,7 +269,7 @@ function drawPageFooter(
     .fontSize(7)
     .fillColor(HEX(BRAND.granite))
     .text(
-      `© ${year} Christopher F McNulty  ·  Cascadia Oceanic Gallery`,
+      `© ${year} Christopher F McNulty  ·  Cascadia Oceanic`,
       leftM,
       footerY,
       { width: cw * 0.55, align: "left", lineBreak: false },

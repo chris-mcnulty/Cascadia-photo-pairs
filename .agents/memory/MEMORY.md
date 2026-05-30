@@ -1,2 +1,3 @@
 - [Catalog QR purchase URLs](catalog-purchase-urls.md) — store links must prefer photo.customPurchaseUrl (live Wix product-page), not the app's own /store/:slug route.
 - [Catalog image downsizing](catalog-image-downsizing.md) — embed Wix images via fetchImageBuffer(url, 1600); full-res originals (up to 13MB) made prod exports slow/OOM.
+- [Synozur web patterns](synozur-web-patterns.md) — before planning OpenGraph, SEO, meta tags, structured data, or page-speed work, check https://github.com/chris-mcnulty/synozur-webbase for existing patterns to adapt.

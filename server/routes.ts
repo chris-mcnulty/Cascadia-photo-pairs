@@ -19,6 +19,15 @@ import {
 } from "@shared/schema";
 import { eq, sql, and, or, inArray, gte, lte, desc, isNull } from "drizzle-orm";
 import { storage } from "./storage";
+import {
+  getCatalogEntries,
+  categoryGroupLabel,
+  type CatalogCategory,
+  type CatalogSort,
+} from "./catalog/catalog-data";
+import { generateCatalogDocx } from "./catalog/catalog-docx";
+import { generateCatalogPdf } from "./catalog/catalog-pdf";
+import { readBrandLogoBuffer } from "./catalog/catalog-brand";
 import { 
   insertVoteSchema, 
   insertSettingsSchema, 
@@ -4239,6 +4248,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (e) {
       console.error('public/products error:', e);
       res.status(500).json({ error: 'Failed to fetch products' });
+    }
+  });
+
+  // ===== Admin Catalog Generator (print portfolios + signage) =====
+  // JSON preview: facets (years/categories) + count + lightweight entry list.
+  app.get("/api/admin/catalog/entries", isAuthenticated, async (req, res) => {
+    try {
+      const category = (req.query.category as CatalogCategory) || "all";
+      const yearParamRaw = req.query.year as string | undefined;
+      const year = yearParamRaw && yearParamRaw !== "all" ? parseInt(yearParamRaw, 10) : "all";
+      const sort = (req.query.sort as CatalogSort) || "title";
+      const { entries, facets } = await getCatalogEntries({ category, year, sort });
+      res.json({
+        count: entries.length,
+        facets,
+        entries: entries.map((e) => ({
+          productId: e.productId,
+          title: e.displayTitle,
+          year: e.year,
+          category: categoryGroupLabel(e.categoryGroup),
+          sizeCount: e.sizes.length,
+          hasImage: !!e.imageUrl,
+        })),
+      });
+    } catch (e) {
+      console.error("admin/catalog/entries error:", e);
+      res.status(500).json({ error: "Failed to load catalog entries" });
+    }
+  });
+
+  // Export: streams a DOCX or PDF. POST so logos can be passed as base64.
+  app.post("/api/admin/catalog/export", isAuthenticated, async (req, res) => {
+    try {
+      const {
+        format = "pdf",
+        mode = "portfolio",
+        category = "all",
+        year = "all",
+        sort = "title",
+        featuredSize = "largest",
+        includeQr = false,
+        storeBaseUrl,
+        showLogo, // base64 data URL or raw base64
+        useBrandLogo = true,
+        brandLogo, // optional override base64
+        title,
+        subtitle,
+      } = req.body || {};
+
+      const yearFilter = year && year !== "all" ? parseInt(String(year), 10) : "all";
+      const { entries } = await getCatalogEntries({
+        category: category as CatalogCategory,
+        year: yearFilter,
+        sort: sort as CatalogSort,
+      });
+
+      if (!entries.length) {
+        return res.status(400).json({ error: "No photos match the selected filters." });
+      }
+
+      const decodeLogo = (val?: string): Buffer | null => {
+        if (!val || typeof val !== "string") return null;
+        const b64 = val.includes(",") ? val.split(",")[1] : val;
+        try {
+          return Buffer.from(b64, "base64");
+        } catch {
+          return null;
+        }
+      };
+
+      const brandLogoBuf =
+        mode === "signage"
+          ? decodeLogo(brandLogo) || (useBrandLogo ? readBrandLogoBuffer() : null)
+          : null;
+      const showLogoBuf = mode === "signage" ? decodeLogo(showLogo) : null;
+
+      const docTitle = title || (mode === "signage" ? "Cascadia Oceanic Signage" : "Cascadia Oceanic Catalog");
+      const docSubtitle = subtitle || (mode === "signage" ? undefined : "Print Portfolio");
+
+      const opts = {
+        mode: mode as "portfolio" | "signage",
+        title: docTitle,
+        subtitle: docSubtitle,
+        featuredSize: featuredSize as "largest" | "smallest",
+        includeQr: !!includeQr,
+        storeBaseUrl: storeBaseUrl || undefined,
+        brandLogo: brandLogoBuf,
+        showLogo: showLogoBuf,
+      };
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      const baseName = `cascadia-${mode}-${stamp}`;
+
+      if (format === "docx") {
+        const buf = await generateCatalogDocx(entries, opts);
+        res.setHeader(
+          "Content-Type",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        );
+        res.setHeader("Content-Disposition", `attachment; filename="${baseName}.docx"`);
+        return res.send(buf);
+      }
+
+      const buf = await generateCatalogPdf(entries, opts);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${baseName}.pdf"`);
+      return res.send(buf);
+    } catch (e) {
+      console.error("admin/catalog/export error:", e);
+      res.status(500).json({ error: "Failed to generate catalog document" });
     }
   });
 

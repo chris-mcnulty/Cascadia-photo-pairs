@@ -1,0 +1,1 @@
+- [Catalog QR purchase URLs](catalog-purchase-urls.md) — store links must prefer photo.customPurchaseUrl (live Wix product-page), not the app's own /store/:slug route.

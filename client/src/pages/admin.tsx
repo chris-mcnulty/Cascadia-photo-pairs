@@ -30,12 +30,13 @@ import ProductSizesManagement from "@/components/admin/business/product-sizes-ma
 import SalesManagement from "@/components/admin/business/sales-management";
 import ExpenseTracker from "@/components/admin/business/expense-tracker";
 import { CSVImport } from "@/components/admin/business/csv-import";
-import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell, MessageSquare, Link2, Briefcase, ChevronDown, LayoutDashboard, Package, Package2, Building2, Receipt, Upload, DollarSign, Tag, Share2, Activity } from "lucide-react";
+import CatalogExport from "@/components/admin/business/catalog-export";
+import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell, MessageSquare, Link2, Briefcase, ChevronDown, LayoutDashboard, Package, Package2, Building2, Receipt, Upload, DollarSign, Tag, Share2, Activity, FileText } from "lucide-react";
 import { Link } from "wouter";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
 
-type BusinessSubTab = "dashboard" | "products" | "skus" | "inventory" | "suppliers" | "sizes" | "sales" | "expenses" | "import";
+type BusinessSubTab = "dashboard" | "products" | "skus" | "inventory" | "suppliers" | "sizes" | "sales" | "expenses" | "import" | "catalog";
 
 function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<"analytics" | "traffic" | "photos" | "pairs" | "users" | "communication" | "social" | "settings" | "business">("analytics");
@@ -305,6 +306,14 @@ function AdminDashboard() {
                 <Upload className="w-4 h-4 mr-2" />
                 Import Data
               </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => handleBusinessTabClick("catalog")} 
+                data-testid="menu-business-catalog"
+                className={businessSubTab === "catalog" ? "bg-accent" : ""}
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                Catalog Generator
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           
@@ -352,6 +361,7 @@ function AdminDashboard() {
             {businessSubTab === "sales" && <SalesManagement />}
             {businessSubTab === "expenses" && <ExpenseTracker />}
             {businessSubTab === "import" && <CSVImport />}
+            {businessSubTab === "catalog" && <CatalogExport />}
           </div>
         )}
         {activeTab === "social" && <SocialManagement />}

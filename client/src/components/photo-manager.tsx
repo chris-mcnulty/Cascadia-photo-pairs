@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Photo, InsertPhoto } from "@shared/schema";
+import { Photo, InsertPhoto, Collection } from "@shared/schema";
 import { Plus, Trash2, ExternalLink, Upload, Link2, Eye, EyeOff, Edit, Globe, ArrowUpDown, Tag, CheckSquare, Square, ShoppingCart, AlertCircle, X } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -44,7 +44,12 @@ export default function PhotoManager() {
     imageUrl: "",
     customPurchaseUrl: "",
     category: "",
+    collectionId: null,
     neverForSale: true, // Default to not for sale
+  });
+
+  const { data: collections } = useQuery<Collection[]>({
+    queryKey: ["/api/collections"],
   });
 
   const { data: photos, isLoading, error } = useQuery<Photo[]>({
@@ -273,7 +278,8 @@ export default function PhotoManager() {
       imageUrl: "",
       customPurchaseUrl: "",
       category: "",
-      neverForSale: true, // Default to not for sale
+      collectionId: null,
+      neverForSale: true,
     });
     setShowAddForm(false);
     setEditingPhoto(null);
@@ -332,9 +338,10 @@ export default function PhotoManager() {
     setFormData({
       title: photo.title,
       description: photo.description || "",
-      imageUrl: photo.imageUrl.startsWith('data:') ? "" : photo.imageUrl, // Don't show base64 in URL field
+      imageUrl: photo.imageUrl.startsWith('data:') ? "" : photo.imageUrl,
       customPurchaseUrl: photo.customPurchaseUrl || "",
       category: photo.category || "",
+      collectionId: photo.collectionId || null,
       neverForSale: photo.neverForSale || false,
     });
     setShowAddForm(false);
@@ -345,9 +352,10 @@ export default function PhotoManager() {
     setFormData({
       title: photo.title,
       description: photo.description || "",
-      imageUrl: "", // Start with empty URL for user to fill
+      imageUrl: "",
       customPurchaseUrl: photo.customPurchaseUrl || "",
       category: photo.category || "",
+      collectionId: photo.collectionId || null,
       neverForSale: photo.neverForSale || false,
     });
     setEditingPhoto(null);
@@ -585,15 +593,32 @@ export default function PhotoManager() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
+                <Label htmlFor="collection">Collection (Portfolio / Store)</Label>
+                <Select
+                  value={formData.collectionId || "none"}
+                  onValueChange={(v) => setFormData(prev => ({ ...prev, collectionId: v === "none" ? null : v }))}
+                >
+                  <SelectTrigger id="collection"><SelectValue placeholder="No collection" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No collection</SelectItem>
+                    {(collections || []).map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="text-sm text-gray-500">Controls where this photo appears in the Portfolio and Store.</div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category">Voting category</Label>
                 <Input
                   id="category"
-                  placeholder="e.g., Mountain, Ocean, Sunset (optional)"
+                  placeholder="e.g., Seascapes, Landscapes (optional)"
                   value={formData.category || ""}
                   onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                 />
                 <div className="text-sm text-gray-500">
-                  Categorize your photo for better organization
+                  Used for leaderboard grouping in the voting/pairs system.
                 </div>
               </div>
 
@@ -988,15 +1013,32 @@ export default function PhotoManager() {
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="editCategory">Category</Label>
+                            <Label htmlFor="editCollection">Collection (Portfolio / Store)</Label>
+                            <Select
+                              value={formData.collectionId || "none"}
+                              onValueChange={(v) => setFormData(prev => ({ ...prev, collectionId: v === "none" ? null : v }))}
+                            >
+                              <SelectTrigger id="editCollection"><SelectValue placeholder="No collection" /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="none">No collection</SelectItem>
+                                {(collections || []).map((c) => (
+                                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <div className="text-sm text-gray-500">Controls where this photo appears in the Portfolio and Store.</div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="editCategory">Voting category</Label>
                             <Input
                               id="editCategory"
-                              placeholder="e.g., Mountain, Ocean, Sunset (optional)"
+                              placeholder="e.g., Seascapes, Landscapes (optional)"
                               value={formData.category || ""}
                               onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
                             />
                             <div className="text-sm text-gray-500">
-                              Categorize your photo for better organization
+                              Used for leaderboard grouping in the voting/pairs system.
                             </div>
                           </div>
 

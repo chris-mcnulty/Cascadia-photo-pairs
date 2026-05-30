@@ -1,6 +1,5 @@
 import PDFDocument from "pdfkit";
 import type { CatalogEntry } from "./catalog-data";
-import { categoryGroupLabel } from "./catalog-data";
 import {
   BRAND,
   FONT_FILES,
@@ -167,7 +166,7 @@ function buildPortfolio(doc: PDFKit.PDFDocument, assets: PreparedAsset[], opts: 
       doc.moveDown(0.8);
     }
     doc.font("Heading").fontSize(26).fillColor(HEX(BRAND.evergreen)).text(entry.displayTitle);
-    doc.font("Light").fontSize(11).fillColor(HEX(BRAND.midtone)).text(categoryGroupLabel(entry.categoryGroup));
+    doc.font("Light").fontSize(11).fillColor(HEX(BRAND.midtone)).text(entry.collectionName || "");
     doc.moveDown(0.5);
 
     if (entry.description) {

@@ -15,55 +15,34 @@ export interface CatalogEntry {
   displayTitle: string;
   year: number | null;
   description: string | null;
-  rawCategory: string | null;
-  categoryGroup: string;
+  collectionId: string | null;
+  collectionName: string | null;
+  collectionSlug: string | null;
   imageUrl: string | null;
   customPurchaseUrl: string | null;
   sizes: CatalogSize[];
-  // Optional per-card featured size override (signage). When set, the signage
-  // card features this size instead of the largest/smallest auto-pick.
   featuredOverride?: CatalogSize | null;
+}
+
+export interface CatalogCollection {
+  id: string;
+  name: string;
+  slug: string;
 }
 
 export interface CatalogFacets {
   years: number[];
-  categories: string[];
+  collections: CatalogCollection[];
 }
 
-export type CatalogCategory = "all" | "seascapes" | "landscapes" | "cityscapes" | "other";
 export type CatalogSort = "title" | "year";
 
 export interface CatalogFilters {
-  category?: CatalogCategory;
+  collection?: string; // collection slug, or "all"
   year?: number | "all";
   sort?: CatalogSort;
   sortOrder?: "asc" | "desc";
   inStockOnly?: boolean;
-}
-
-// Maps raw photo category strings into the public-facing groups used by the
-// portfolio. Mirrors the mapping in the public /api/public/photos route.
-const CATEGORY_GROUPS: Record<string, string[]> = {
-  seascapes: ["Seascapes", "Seascape", "Ocean", "Oceans"],
-  landscapes: ["Landscapes", "Landscape", "Mountain", "Mountain ", "Trees", "SunriseSunset"],
-  cityscapes: ["Cityscapes", "City", "Neon", "Sign", "Night", "Highway", "Transit", "Houses"],
-};
-
-const GROUP_LABELS: Record<string, string> = {
-  seascapes: "Seascapes",
-  landscapes: "Landscapes",
-  cityscapes: "Cityscapes",
-  other: "Other",
-};
-
-function categoryToGroup(rawCategory: string | null): string {
-  if (!rawCategory) return "other";
-  for (const [group, values] of Object.entries(CATEGORY_GROUPS)) {
-    if (values.some((v) => v.toLowerCase() === rawCategory.trim().toLowerCase())) {
-      return group;
-    }
-  }
-  return "other";
 }
 
 // The artwork year is encoded in the product slug (e.g. "trulocks-2020").
@@ -138,11 +117,14 @@ export async function getCatalogEntries(
            p.aspect_ratio AS "aspectRatio",
            COALESCE(p.hero_image_url, ph.image_url) AS "imageUrl",
            ph.custom_purchase_url AS "customPurchaseUrl",
-           ph.category AS "rawCategory",
            ph.original_date AS "originalDate",
-           ph.created_at AS "createdAt"
+           ph.created_at AS "createdAt",
+           c.id AS "collectionId",
+           c.name AS "collectionName",
+           c.slug AS "collectionSlug"
     FROM products p
     JOIN photos ph ON ph.id = p.photo_id
+    LEFT JOIN collections c ON c.id = ph.collection_id
     WHERE p.is_active = true
       AND p.show_on_store = true
       AND p.slug IS NOT NULL
@@ -168,7 +150,6 @@ export async function getCatalogEntries(
       }
     }
     const year = extractYear(r.slug, r.title, r.originalDate, r.createdAt);
-    const group = categoryToGroup(r.rawCategory);
     return {
       productId: String(r.productId),
       photoId: String(r.photoId),
@@ -177,21 +158,31 @@ export async function getCatalogEntries(
       displayTitle: buildDisplayTitle(String(r.title || "Untitled"), year),
       year,
       description: r.description ? String(r.description) : null,
-      rawCategory: r.rawCategory ? String(r.rawCategory) : null,
-      categoryGroup: group,
+      collectionId: r.collectionId ? String(r.collectionId) : null,
+      collectionName: r.collectionName ? String(r.collectionName) : null,
+      collectionSlug: r.collectionSlug ? String(r.collectionSlug) : null,
       imageUrl: r.imageUrl ? String(r.imageUrl) : null,
       customPurchaseUrl: r.customPurchaseUrl ? String(r.customPurchaseUrl) : null,
       sizes: allSizes,
     };
   });
 
-  // Facets are derived from the full unfiltered set so the UI can offer every
-  // available year/category regardless of the current filter.
+  // Facets: unique collections and years across the full unfiltered set.
+  const collectionMap = new Map<string, CatalogCollection>();
+  for (const e of entries) {
+    if (e.collectionId && e.collectionName && e.collectionSlug) {
+      collectionMap.set(e.collectionId, {
+        id: e.collectionId,
+        name: e.collectionName,
+        slug: e.collectionSlug,
+      });
+    }
+  }
   const facets: CatalogFacets = {
     years: Array.from(new Set(entries.map((e) => e.year).filter((y): y is number => y !== null))).sort(
       (a, b) => b - a,
     ),
-    categories: Array.from(new Set(entries.map((e) => e.categoryGroup))).sort(),
+    collections: Array.from(collectionMap.values()).sort((a, b) => a.name.localeCompare(b.name)),
   };
 
   // In-stock filter: restrict to products that have at least one physical item
@@ -204,10 +195,12 @@ export async function getCatalogEntries(
     entries = entries.filter((e) => inStockIds.has(e.productId));
   }
 
-  // Apply filters
-  if (filters.category && filters.category !== "all") {
-    entries = entries.filter((e) => e.categoryGroup === filters.category);
+  // Collection filter
+  if (filters.collection && filters.collection !== "all") {
+    entries = entries.filter((e) => e.collectionSlug === filters.collection);
   }
+
+  // Year filter
   if (filters.year && filters.year !== "all") {
     entries = entries.filter((e) => e.year === filters.year);
   }
@@ -226,8 +219,4 @@ export async function getCatalogEntries(
   });
 
   return { entries, facets };
-}
-
-export function categoryGroupLabel(group: string): string {
-  return GROUP_LABELS[group] || group;
 }

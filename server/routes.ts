@@ -21,8 +21,6 @@ import { eq, sql, and, or, inArray, gte, lte, desc, isNull } from "drizzle-orm";
 import { storage } from "./storage";
 import {
   getCatalogEntries,
-  categoryGroupLabel,
-  type CatalogCategory,
   type CatalogSort,
 } from "./catalog/catalog-data";
 import { generateCatalogDocx } from "./catalog/catalog-docx";
@@ -4274,12 +4272,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // JSON preview: facets (years/categories) + count + lightweight entry list.
   app.get("/api/admin/catalog/entries", isAuthenticated, async (req, res) => {
     try {
-      const category = (req.query.category as CatalogCategory) || "all";
+      const collection = (req.query.collection as string) || "all";
       const yearParamRaw = req.query.year as string | undefined;
       const year = yearParamRaw && yearParamRaw !== "all" ? parseInt(yearParamRaw, 10) : "all";
       const sort = (req.query.sort as CatalogSort) || "title";
       const inStockOnly = req.query.inStockOnly === "true";
-      const { entries, facets } = await getCatalogEntries({ category, year, sort, inStockOnly });
+      const { entries, facets } = await getCatalogEntries({ collection, year, sort, inStockOnly });
       res.json({
         count: entries.length,
         facets,
@@ -4288,7 +4286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           slug: e.slug,
           title: e.displayTitle,
           year: e.year,
-          category: categoryGroupLabel(e.categoryGroup),
+          collection: e.collectionName || "Uncollected",
           sizeCount: e.sizes.length,
           sizes: e.sizes,
           hasImage: !!e.imageUrl,
@@ -4306,7 +4304,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const {
         format = "pdf",
         mode = "portfolio",
-        category = "all",
+        collection = "all",
         year = "all",
         sort = "title",
         featuredSize = "largest",
@@ -4324,7 +4322,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const yearFilter = year && year !== "all" ? parseInt(String(year), 10) : "all";
       const { entries: allEntries } = await getCatalogEntries({
-        category: category as CatalogCategory,
+        collection: String(collection),
         year: yearFilter,
         sort: sort as CatalogSort,
         inStockOnly: !!inStockOnly,

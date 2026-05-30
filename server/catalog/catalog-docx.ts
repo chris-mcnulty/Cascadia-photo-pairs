@@ -9,7 +9,6 @@ import {
   PageOrientation,
 } from "docx";
 import type { CatalogEntry } from "./catalog-data";
-import { categoryGroupLabel } from "./catalog-data";
 import {
   BRAND,
   formatPrice,
@@ -218,7 +217,7 @@ function buildPortfolioChildren(assets: PreparedAsset[], opts: DocxOptions): Par
       children.push(new Paragraph({ alignment: AlignmentType.LEFT, spacing: { after: 160 }, children: [new ImageRun({ data: a.imageBuf, type: a.imageType, transformation: d })] }));
     }
     children.push(heading(entry.displayTitle, 36, BRAND.evergreen, { spacingAfter: 60 }));
-    children.push(bodyPara(categoryGroupLabel(entry.categoryGroup), { size: 18, color: BRAND.midtone, font: FONT_LIGHT, spacingAfter: 120 }));
+    children.push(bodyPara(entry.collectionName || "", { size: 18, color: BRAND.midtone, font: FONT_LIGHT, spacingAfter: 120 }));
     if (entry.description) {
       children.push(bodyPara(entry.description, { size: 22, spacingAfter: 160 }));
     }

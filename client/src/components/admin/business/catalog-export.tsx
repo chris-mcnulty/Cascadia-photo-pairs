@@ -33,25 +33,23 @@ interface PreviewEntry {
   slug: string;
   title: string;
   year: number | null;
-  category: string;
+  collection: string;
   sizeCount: number;
   sizes: PreviewSize[];
   hasImage: boolean;
 }
 
-interface PreviewResponse {
-  count: number;
-  facets: { years: number[]; categories: string[] };
-  entries: PreviewEntry[];
+interface PreviewCollection {
+  id: string;
+  name: string;
+  slug: string;
 }
 
-const CATEGORY_OPTIONS = [
-  { value: "all", label: "All categories" },
-  { value: "seascapes", label: "Seascapes" },
-  { value: "landscapes", label: "Landscapes" },
-  { value: "cityscapes", label: "Cityscapes" },
-  { value: "other", label: "Other" },
-];
+interface PreviewResponse {
+  count: number;
+  facets: { years: number[]; collections: PreviewCollection[] };
+  entries: PreviewEntry[];
+}
 
 const AUTO = "auto";
 const sizeKey = (s: PreviewSize) => `${s.sizeLabel}|||${s.mediaType}`;
@@ -68,7 +66,7 @@ export default function CatalogExport() {
   const { toast } = useToast();
 
   const [mode, setMode] = useState<Mode>("portfolio");
-  const [category, setCategory] = useState("all");
+  const [collection, setCollection] = useState("all");
   const [year, setYear] = useState("all");
   const [sort, setSort] = useState("title");
   const [inStockOnly, setInStockOnly] = useState(false);
@@ -88,7 +86,7 @@ export default function CatalogExport() {
 
   const [downloading, setDownloading] = useState<null | "pdf" | "docx">(null);
 
-  const previewKey = `/api/admin/catalog/entries?category=${category}&year=${year}&sort=${sort}&inStockOnly=${inStockOnly}`;
+  const previewKey = `/api/admin/catalog/entries?collection=${collection}&year=${year}&sort=${sort}&inStockOnly=${inStockOnly}`;
   const { data, isLoading } = useQuery<PreviewResponse>({
     queryKey: [previewKey],
   });
@@ -152,7 +150,7 @@ export default function CatalogExport() {
       const res = await apiRequest("POST", "/api/admin/catalog/export", {
         format,
         mode,
-        category,
+        collection,
         year,
         sort,
         inStockOnly,
@@ -230,12 +228,13 @@ export default function CatalogExport() {
 
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="space-y-2">
-                <Label>Category</Label>
-                <Select value={category} onValueChange={setCategory}>
-                  <SelectTrigger data-testid="select-catalog-category"><SelectValue /></SelectTrigger>
+                <Label>Collection</Label>
+                <Select value={collection} onValueChange={setCollection}>
+                  <SelectTrigger data-testid="select-catalog-collection"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {CATEGORY_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                    <SelectItem value="all">All collections</SelectItem>
+                    {(data?.facets.collections ?? []).map((c) => (
+                      <SelectItem key={c.slug} value={c.slug}>{c.name}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -421,7 +420,7 @@ export default function CatalogExport() {
                           <div className="flex-1 min-w-0">
                             <div className="font-medium truncate">{e.title}</div>
                             <div className="text-xs text-muted-foreground">
-                              {e.category}
+                              {e.collection}
                               {e.year ? ` · ${e.year}` : ""} · {e.sizeCount} size{e.sizeCount === 1 ? "" : "s"}
                             </div>
                           </div>

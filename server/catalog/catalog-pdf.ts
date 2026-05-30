@@ -226,6 +226,135 @@ function buildSignage(doc: PDFKit.PDFDocument, assets: PreparedAsset[], opts: Pd
 const CHROMALUXE_NOTE =
   "This image is printed on ChromaLuxe aluminum, an archival metal print process that produces exceptional color, depth, and durability.";
 
+// ── Page footer (drawn at absolute coordinates; does not affect doc.y) ────────
+
+function drawPageFooter(
+  doc: PDFKit.PDFDocument,
+  pageNum: number,
+  mode: "portfolio" | "signage",
+) {
+  const year = new Date().getFullYear();
+  const pageW = doc.page.width;
+  const pageH = doc.page.height;
+
+  let footerY: number;
+  let leftM: number;
+  let cw: number;
+
+  if (mode === "signage") {
+    // Signage: 72 pt of white space below the bottom card — center everything there
+    leftM = 20;
+    cw = pageW - leftM * 2;
+    footerY = CARD_Y_POS[1] + CARD_H + (pageH - (CARD_Y_POS[1] + CARD_H)) / 2 - 8;
+  } else {
+    leftM = doc.page.margins.left;
+    cw = pageW - leftM - doc.page.margins.right;
+    footerY = pageH - doc.page.margins.bottom + 10;
+
+    // Thin separator line just above the footer text
+    doc.save()
+      .moveTo(leftM, footerY - 6)
+      .lineTo(leftM + cw, footerY - 6)
+      .lineWidth(0.3)
+      .strokeColor(HEX(BRAND.granite))
+      .stroke()
+      .restore();
+  }
+
+  doc.save();
+
+  // Left segment: © year name · gallery
+  doc
+    .font("Light")
+    .fontSize(7)
+    .fillColor(HEX(BRAND.granite))
+    .text(
+      `© ${year} Christopher F McNulty  ·  Cascadia Oceanic Gallery`,
+      leftM,
+      footerY,
+      { width: cw * 0.55, align: "left", lineBreak: false },
+    );
+
+  // Centre segment: website
+  doc
+    .font("Light")
+    .fontSize(7)
+    .fillColor(HEX(BRAND.granite))
+    .text("www.chrismcnulty.net", leftM, footerY, {
+      width: cw,
+      align: "center",
+      lineBreak: false,
+    });
+
+  // Right segment: page number
+  doc
+    .font("Light")
+    .fontSize(7)
+    .fillColor(HEX(BRAND.granite))
+    .text(`${pageNum}`, leftM, footerY, {
+      width: cw,
+      align: "right",
+      lineBreak: false,
+    });
+
+  doc.restore();
+}
+
+// ── Portfolio cover contact block ─────────────────────────────────────────────
+
+function drawCoverContact(doc: PDFKit.PDFDocument) {
+  const leftM = doc.page.margins.left;
+  const cw = contentWidth(doc);
+  const pageH = doc.page.height;
+
+  // Anchor near the bottom quarter of the cover page
+  const contactY = pageH * 0.72;
+
+  doc.save();
+
+  // Thin rule above the contact block
+  doc
+    .moveTo(leftM + cw * 0.2, contactY - 10)
+    .lineTo(leftM + cw * 0.8, contactY - 10)
+    .lineWidth(0.5)
+    .strokeColor(HEX(BRAND.midtone))
+    .stroke();
+
+  doc
+    .font("Body")
+    .fontSize(11)
+    .fillColor(HEX(BRAND.midtone))
+    .text("Photography by Christopher F McNulty", leftM, contactY, {
+      width: cw,
+      align: "center",
+      lineBreak: false,
+    });
+
+  doc
+    .font("Light")
+    .fontSize(10)
+    .fillColor(HEX(BRAND.granite))
+    .text("www.chrismcnulty.net", leftM, contactY + 16, {
+      width: cw,
+      align: "center",
+      lineBreak: false,
+    });
+
+  doc
+    .font("Light")
+    .fontSize(9)
+    .fillColor(HEX(BRAND.granite))
+    .text("To purchase prints or make an inquiry, visit our website.", leftM, contactY + 30, {
+      width: cw,
+      align: "center",
+      lineBreak: false,
+    });
+
+  doc.restore();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function buildPortfolio(doc: PDFKit.PDFDocument, assets: PreparedAsset[], opts: PdfOptions) {
   const cw = contentWidth(doc);
 
@@ -237,7 +366,10 @@ function buildPortfolio(doc: PDFKit.PDFDocument, assets: PreparedAsset[], opts: 
     doc.font("Light").fontSize(20).fillColor(HEX(BRAND.midtone)).text(opts.subtitle, { align: "center" });
     doc.moveDown(0.4);
   }
-  doc.font("Body").fontSize(14).fillColor(HEX(BRAND.granite)).text("Cascadia Oceanic", { align: "center" });
+  doc.font("Body").fontSize(14).fillColor(HEX(BRAND.granite)).text("Cascadia Oceanic Gallery", { align: "center" });
+
+  // Contact block on the cover page
+  drawCoverContact(doc);
 
   assets.forEach((a) => {
     doc.addPage();
@@ -275,9 +407,6 @@ export async function generateCatalogPdf(entries: CatalogEntry[], opts: PdfOptio
     try {
       const isSignage = opts.mode === "signage";
       const doc = new PDFDocument({
-        // Signage: portrait letter (8.5"×11" = 612×792 pt), two 6"×4" cards
-        // stacked vertically with a 1" gap, centred on the page.
-        // Portfolio: standard portrait letter with normal margins.
         size: isSignage ? [SIG_PAGE_W, SIG_PAGE_H] : "LETTER",
         margins: isSignage
           ? { top: 0, bottom: 0, left: 0, right: 0 }
@@ -286,6 +415,18 @@ export async function generateCatalogPdf(entries: CatalogEntry[], opts: PdfOptio
         autoFirstPage: true,
       });
       registerFonts(doc);
+
+      // ── Footer on every page except the portfolio cover ──────────────────
+      let pageCount = 0; // incremented by pageAdded before content draws
+      doc.on("pageAdded", () => {
+        pageCount++;
+        const isPortfolioCover = opts.mode === "portfolio" && pageCount === 1;
+        if (!isPortfolioCover) {
+          // Content page number: for portfolio, page 2 = "1"; for signage, page 1 = "1"
+          const displayNum = opts.mode === "portfolio" ? pageCount - 1 : pageCount;
+          drawPageFooter(doc, displayNum, opts.mode);
+        }
+      });
 
       const chunks: Buffer[] = [];
       doc.on("data", (c) => chunks.push(c as Buffer));

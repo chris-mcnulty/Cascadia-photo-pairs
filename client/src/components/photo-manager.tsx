@@ -833,8 +833,8 @@ export default function PhotoManager() {
                         (e.target as HTMLImageElement).src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNTYiIHZpZXdCb3g9IjAgMCA4MCA1NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yOCAyOEwzNiAyMEw0NCAyOEw0MCAzMkgzMlYzNkwyOCAzMloiIGZpbGw9IiM5Q0EzQUYiLz4KPHN2Zz4K';
                       }}
                     />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-medium">{photo.title}</h4>
                         {photo.hidden && (
                           <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
@@ -848,7 +848,7 @@ export default function PhotoManager() {
                         )}
                       </div>
                       {photo.description && (
-                        <p className="text-sm text-gray-600 truncate">{photo.description}</p>
+                        <p className="text-sm text-gray-600 truncate max-w-lg">{photo.description}</p>
                       )}
                       <div className="text-xs text-gray-500 mt-1">
                         Votes: {photo.votes} | Win Rate: {photo.comparisons > 0 ? Math.round((photo.wins / photo.comparisons) * 100) : 0}%
@@ -869,9 +869,17 @@ export default function PhotoManager() {
                             {photo.category}
                           </span>
                         )}
+                        {photo.collectionId && collections && (() => {
+                          const col = collections.find(c => c.id === photo.collectionId);
+                          return col ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded text-purple-700 bg-purple-100">
+                              {col.name}
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 shrink-0">
                       {photo.customPurchaseUrl && (
                         <a 
                           href={photo.customPurchaseUrl}

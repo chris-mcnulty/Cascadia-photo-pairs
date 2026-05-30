@@ -4424,19 +4424,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         aspectRatio?: string | null;
       };
 
-      // Aspect on products is "16x9" etc.; on product_sizes it is "16:9" etc.
-      const ratioColon = String(product.aspectRatio || '').replace(/x/g, ':');
+      // Aspect on products is "16x9" or "16x9,3x2" (comma-separated for multi-ratio);
+      // on product_sizes it is "16:9", "3:2" etc.
+      // Pass as a PostgreSQL array literal string and cast with ::text[] so ANY() works.
+      const ratios = String(product.aspectRatio || '')
+        .split(',')
+        .map((r) => r.trim().replace(/x/g, ':'))
+        .filter((r) => /^[\d.:]+$/.test(r)); // only digits, dots, colons
+      const ratioArrayLiteral = `{${ratios.join(',')}}`;
       const sizeRows = await db.execute(sql`
         SELECT ps.id AS "productSizeId",
                ps.size_label AS "sizeLabel",
+               ps.aspect_ratio AS "aspectRatio",
                rp.media_type AS "mediaType",
                rp.retail_price AS "retailPriceCents"
         FROM retail_prices rp
         JOIN product_sizes ps ON ps.id = rp.product_size_id
         WHERE rp.is_current = true
           AND rp.retail_price > 0
-          AND ps.aspect_ratio = ${ratioColon}
-        ORDER BY rp.media_type, rp.retail_price ASC
+          AND ps.aspect_ratio = ANY(${ratioArrayLiteral}::text[])
+        ORDER BY ps.width_inches DESC, rp.media_type, rp.retail_price ASC
       `);
 
       res.json({ ...product, sizeOptions: sizeRows.rows });

@@ -4182,6 +4182,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================================
 
   // List collections to show on public store/portfolio
+  // Wix rejects renditions whose dimensions exceed its limit (e.g. w_8386),
+  // returning a 400 and a broken image. Cap oversized fit/fill/crop renditions
+  // to a display-friendly size, preserving aspect ratio.
+  const capWixRendition = (url: unknown, maxDim = 2000): unknown => {
+    if (typeof url !== "string" || !url.includes("static.wixstatic.com")) return url;
+    const clamp = (n: number) => Math.max(1, Math.min(maxDim, Math.floor(n)));
+    return url.replace(/(\/v1\/(?:fit|fill|crop)\/)w_(\d+),h_(\d+)/, (full, prefix, ws, hs) => {
+      const w = parseInt(ws, 10);
+      const h = parseInt(hs, 10);
+      if (!w || !h || (w <= maxDim && h <= maxDim)) return full;
+      const ratio = Math.min(maxDim / w, maxDim / h);
+      return `${prefix}w_${clamp(w * ratio)},h_${clamp(h * ratio)}`;
+    });
+  };
+  const withCappedHero = <T extends { heroImageUrl?: unknown }>(row: T): T => ({
+    ...row,
+    heroImageUrl: capWixRendition(row.heroImageUrl),
+  });
+
   app.get("/api/public/collections", async (_req, res) => {
     try {
       const rows = await db.execute(sql`
@@ -4192,7 +4211,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         WHERE slug IS NOT NULL
         ORDER BY display_order ASC, name ASC
       `);
-      res.json(rows.rows);
+      res.json(rows.rows.map(withCappedHero));
     } catch (e) {
       console.error('public/collections error:', e);
       res.status(500).json({ error: 'Failed to fetch collections' });
@@ -4206,7 +4225,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         FROM collections WHERE slug = ${req.params.slug} LIMIT 1
       `);
       if (!rows.rows.length) return res.status(404).json({ error: 'Not found' });
-      res.json(rows.rows[0]);
+      res.json(withCappedHero(rows.rows[0]));
     } catch (e) {
       console.error('public/collections/:slug error:', e);
       res.status(500).json({ error: 'Failed to fetch collection' });

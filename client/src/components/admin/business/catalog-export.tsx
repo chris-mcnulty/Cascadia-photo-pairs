@@ -74,6 +74,7 @@ export default function CatalogExport() {
 
   // Signage-only options
   const [featuredSize, setFeaturedSize] = useState<"largest" | "smallest">("largest");
+  const [includePhoto, setIncludePhoto] = useState(true);
   const [includeQr, setIncludeQr] = useState(true);
   const [useBrandLogo, setUseBrandLogo] = useState(true);
   const [storeBaseUrl, setStoreBaseUrl] = useState("https://www.chrismcnulty.net");
@@ -155,6 +156,7 @@ export default function CatalogExport() {
         sort,
         featuredSize,
         includeQr,
+        includePhoto: mode === "signage" ? includePhoto : true,
         storeBaseUrl,
         useBrandLogo,
         showLogo: mode === "signage" ? showLogo : null,
@@ -280,6 +282,17 @@ export default function CatalogExport() {
                         data-testid="input-store-url"
                       />
                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-md border p-3">
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <Label className="cursor-pointer">Include photo on card</Label>
+                        <p className="text-xs text-muted-foreground">Turn off for text-only signage cards.</p>
+                      </div>
+                    </div>
+                    <Switch checked={includePhoto} onCheckedChange={setIncludePhoto} data-testid="switch-include-photo" />
                   </div>
 
                   <div className="flex items-center justify-between rounded-md border p-3">

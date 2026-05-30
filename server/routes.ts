@@ -4291,6 +4291,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sort = "title",
         featuredSize = "largest",
         includeQr = false,
+        includePhoto = true,
         storeBaseUrl,
         showLogo, // base64 data URL or raw base64
         useBrandLogo = true,
@@ -4355,6 +4356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subtitle: docSubtitle,
         featuredSize: featuredSize as "largest" | "smallest",
         includeQr: !!includeQr,
+        includePhoto: includePhoto !== false,
         storeBaseUrl: storeBaseUrl || undefined,
         brandLogo: brandLogoBuf,
         showLogo: showLogoBuf,

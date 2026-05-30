@@ -21,6 +21,7 @@ export interface PdfOptions {
   subtitle?: string;
   featuredSize?: "largest" | "smallest";
   includeQr?: boolean;
+  includePhoto?: boolean; // signage: whether to embed the photo (default true)
   storeBaseUrl?: string;
   brandLogo?: Buffer | null;
   showLogo?: Buffer | null;
@@ -36,9 +37,10 @@ interface PreparedAsset {
 
 async function prepareAssets(entries: CatalogEntry[], opts: PdfOptions): Promise<PreparedAsset[]> {
   const baseUrl = opts.storeBaseUrl || STORE_BASE_URL;
+  const includePhoto = opts.mode !== "signage" || opts.includePhoto !== false;
   return mapWithConcurrency(entries, 5, async (entry) => ({
     entry,
-    imageBuf: entry.imageUrl ? await fetchImageBuffer(entry.imageUrl, 1600) : null,
+    imageBuf: includePhoto && entry.imageUrl ? await fetchImageBuffer(entry.imageUrl, 1600) : null,
     qrBuf:
       opts.includeQr && opts.mode === "signage"
         ? await generateQrBuffer(entry.customPurchaseUrl || productUrl(entry.slug, baseUrl))

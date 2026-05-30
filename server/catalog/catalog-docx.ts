@@ -33,6 +33,7 @@ export interface DocxOptions {
   subtitle?: string;
   featuredSize?: "largest" | "smallest";
   includeQr?: boolean;
+  includePhoto?: boolean; // signage: whether to embed the photo (default true)
   storeBaseUrl?: string;
   brandLogo?: Buffer | null;
   showLogo?: Buffer | null;
@@ -66,8 +67,9 @@ async function prepareAssets(
   opts: DocxOptions,
 ): Promise<PreparedAsset[]> {
   const baseUrl = opts.storeBaseUrl || STORE_BASE_URL;
+  const includePhoto = opts.mode !== "signage" || opts.includePhoto !== false;
   return mapWithConcurrency(entries, 5, async (entry) => {
-    const imageBuf = entry.imageUrl ? await fetchImageBuffer(entry.imageUrl, 1600) : null;
+    const imageBuf = includePhoto && entry.imageUrl ? await fetchImageBuffer(entry.imageUrl, 1600) : null;
     const qrBuf =
       opts.includeQr && opts.mode === "signage"
         ? await generateQrBuffer(entry.customPurchaseUrl || productUrl(entry.slug, baseUrl))

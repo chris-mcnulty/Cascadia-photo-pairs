@@ -64,6 +64,7 @@ export interface IStorage {
   deletePhoto(id: string): Promise<boolean>;
   updatePhotosCategory(photoIds: string[], category: string): Promise<boolean>;
   updatePhotosSaleStatus(photoIds: string[], neverForSale: boolean): Promise<boolean>;
+  updatePhotosCollection(photoIds: string[], collectionId: string | null): Promise<boolean>;
   purgeTestData(beforeDate: string): Promise<{ votesDeleted: number; photosReset: boolean }>;
   
   // Special method for comparison tracking
@@ -657,6 +658,19 @@ export class MemStorage implements IStorage {
       const photo = this.photos.get(id);
       if (photo) {
         photo.category = category;
+        this.photos.set(id, photo);
+        updated++;
+      }
+    });
+    return updated > 0;
+  }
+
+  async updatePhotosCollection(photoIds: string[], collectionId: string | null): Promise<boolean> {
+    let updated = 0;
+    photoIds.forEach(id => {
+      const photo = this.photos.get(id);
+      if (photo) {
+        photo.collectionId = collectionId;
         this.photos.set(id, photo);
         updated++;
       }
@@ -1335,6 +1349,19 @@ export class DatabaseStorage implements IStorage {
       return result.rowCount ? result.rowCount > 0 : false;
     } catch (error) {
       console.error('DatabaseStorage: Error updating photo categories:', error);
+      return false;
+    }
+  }
+
+  async updatePhotosCollection(photoIds: string[], collectionId: string | null): Promise<boolean> {
+    try {
+      const result = await db
+        .update(photos)
+        .set({ collectionId })
+        .where(inArray(photos.id, photoIds));
+      return result.rowCount ? result.rowCount > 0 : false;
+    } catch (error) {
+      console.error('DatabaseStorage: Error updating photo collections:', error);
       return false;
     }
   }

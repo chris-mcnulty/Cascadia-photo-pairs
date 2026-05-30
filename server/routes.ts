@@ -776,6 +776,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk update photo collections (admin only) - MUST come before the :id routes
+  app.put("/api/photos/bulk-collection", async (req, res) => {
+    try {
+      const { photoIds, collectionId } = req.body;
+      if (!Array.isArray(photoIds) || photoIds.length === 0) {
+        return res.status(400).json({ message: "Invalid photoIds array" });
+      }
+      if (collectionId !== null && typeof collectionId !== 'string') {
+        return res.status(400).json({ message: "collectionId must be a string or null" });
+      }
+      const updated = await storage.updatePhotosCollection(photoIds, collectionId ?? null);
+      if (!updated) return res.status(404).json({ message: "No photos were updated" });
+      res.json({ message: "Photo collections updated successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update photo collections" });
+    }
+  });
+
   // Bulk update photo categories (admin only) - MUST come before the :id routes
   app.put("/api/photos/bulk-category", async (req, res) => {
     try {

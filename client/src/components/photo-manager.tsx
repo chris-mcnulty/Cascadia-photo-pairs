@@ -32,9 +32,11 @@ export default function PhotoManager() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
   const [sortBy, setSortBy] = useState<"name" | "votes" | "created">("name");
+  const [collectionFilter, setCollectionFilter] = useState<string>("all");
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [bulkCategory, setBulkCategory] = useState<string>("");
+  const [bulkCollectionId, setBulkCollectionId] = useState<string>("none");
   const [confirmSaleAction, setConfirmSaleAction] = useState<{ open: boolean; action: 'forSale' | 'notForSale' | null }>({ open: false, action: null });
   const [saleStatusFilter, setSaleStatusFilter] = useState<"all" | "forSale" | "notForSale">("all");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -225,6 +227,24 @@ export default function PhotoManager() {
         description: "Could not update photo categories. Please try again.",
         variant: "destructive",
       });
+    },
+  });
+
+  const bulkUpdateCollectionMutation = useMutation({
+    mutationFn: async ({ photoIds, collectionId }: { photoIds: string[]; collectionId: string | null }) => {
+      const sessionId = localStorage.getItem('admin-session-id');
+      const response = await apiRequest("PUT", "/api/photos/bulk-collection", { photoIds, collectionId }, sessionId ? { 'x-session-id': sessionId } : undefined);
+      if (!response.ok) throw new Error("Failed to update photo collections");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+      setSelectedPhotos(new Set());
+      setBulkCollectionId("none");
+      toast({ title: "Collections updated", description: "Selected photos have been assigned to the collection." });
+    },
+    onError: () => {
+      toast({ title: "Failed to update collections", variant: "destructive" });
     },
   });
 
@@ -687,15 +707,31 @@ export default function PhotoManager() {
                   
                   <div className="flex items-center gap-2">
                     <ShoppingCart className="w-4 h-4 text-green-600" />
-                    <span className="text-sm font-medium">Filter by Sale:</span>
+                    <span className="text-sm font-medium">Sale:</span>
                     <Select value={saleStatusFilter} onValueChange={(value: "all" | "forSale" | "notForSale") => setSaleStatusFilter(value)}>
-                      <SelectTrigger className="w-40">
+                      <SelectTrigger className="w-36">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Photos</SelectItem>
                         <SelectItem value="forSale">For Sale</SelectItem>
                         <SelectItem value="notForSale">Not For Sale</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">Collection:</span>
+                    <Select value={collectionFilter} onValueChange={setCollectionFilter}>
+                      <SelectTrigger className="w-40">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="none">Unassigned</SelectItem>
+                        {(collections || []).map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -706,7 +742,11 @@ export default function PhotoManager() {
                       if (saleStatusFilter === "forSale") return !p.neverForSale;
                       if (saleStatusFilter === "notForSale") return p.neverForSale;
                       return true;
-                    }).length} photos {saleStatusFilter !== "all" && "shown"}
+                    }).filter(p => {
+                      if (collectionFilter === "none") return !p.collectionId;
+                      if (collectionFilter !== "all") return p.collectionId === collectionFilter;
+                      return true;
+                    }).length} photos {(saleStatusFilter !== "all" || collectionFilter !== "all") && "shown"}
                   </div>
                   {selectedPhotos.size > 0 && (
                     <div className="text-sm text-blue-600 font-medium">
@@ -741,13 +781,13 @@ export default function PhotoManager() {
                   <>
                     {/* Bulk Category */}
                     <Tag className="w-4 h-4 text-blue-600 ml-4" />
-                    <span className="text-sm font-medium">Bulk Category:</span>
+                    <span className="text-sm font-medium">Category:</span>
                     <Input
                       type="text"
                       placeholder="Enter category name"
                       value={bulkCategory}
                       onChange={(e) => setBulkCategory(e.target.value)}
-                      className="w-40 h-8"
+                      className="w-36 h-8"
                     />
                     <Button
                       size="sm"
@@ -755,8 +795,37 @@ export default function PhotoManager() {
                       disabled={bulkUpdateCategoryMutation.isPending || !bulkCategory.trim()}
                       className="bg-blue-600 hover:bg-blue-700"
                     >
-                      {bulkUpdateCategoryMutation.isPending ? "Updating..." : "Apply"}
+                      {bulkUpdateCategoryMutation.isPending ? "Updating…" : "Apply"}
                     </Button>
+
+                    {/* Bulk Collection */}
+                    <span className="text-sm font-medium ml-3">Collection:</span>
+                    <Select value={bulkCollectionId} onValueChange={setBulkCollectionId}>
+                      <SelectTrigger className="w-40 h-8">
+                        <SelectValue placeholder="Pick collection…" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None (remove)</SelectItem>
+                        {(collections || []).map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (selectedPhotos.size === 0) return;
+                        bulkUpdateCollectionMutation.mutate({
+                          photoIds: Array.from(selectedPhotos),
+                          collectionId: bulkCollectionId === "none" ? null : bulkCollectionId,
+                        });
+                      }}
+                      disabled={bulkUpdateCollectionMutation.isPending}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      {bulkUpdateCollectionMutation.isPending ? "Updating…" : "Apply"}
+                    </Button>
+
                     <Button
                       variant="outline"
                       size="sm"
@@ -802,9 +871,13 @@ export default function PhotoManager() {
             <div className="grid gap-4">
               {[...photos]
                 .filter(photo => {
-                  // Apply sale status filter
                   if (saleStatusFilter === "forSale") return !photo.neverForSale;
                   if (saleStatusFilter === "notForSale") return photo.neverForSale;
+                  return true;
+                })
+                .filter(photo => {
+                  if (collectionFilter === "none") return !photo.collectionId;
+                  if (collectionFilter !== "all") return photo.collectionId === collectionFilter;
                   return true;
                 })
                 .sort((a, b) => {

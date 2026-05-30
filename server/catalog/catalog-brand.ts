@@ -140,9 +140,32 @@ function isDisallowedHost(hostname: string): boolean {
   return false;
 }
 
+// Rewrite a Wix media URL to request a smaller rendition. Full-resolution
+// originals (6000px JPEGs, multi-MB PNGs) blow up memory and generation time —
+// catalog/signage pages only need ~1600px. Non-Wix URLs are returned unchanged.
+export function resizedImageUrl(url: string, maxDim: number = 1600, quality: number = 82): string {
+  if (!url || !url.includes("static.wixstatic.com")) return url;
+  const base = url.split("?")[0];
+  // Already has a transform segment (…/v1/fit|fill|crop/…/file.ext) → replace it.
+  const transform = base.match(/\/v1\/(fit|fill|crop)\/[^/]*\/file\.(\w+)$/i);
+  if (transform) {
+    return base.replace(
+      /\/v1\/(fit|fill|crop)\/[^/]*\/file\.(\w+)$/i,
+      (_m, _mode, ext) => `/v1/fit/w_${maxDim},h_${maxDim},al_c,q_${quality},enc_auto/file.${ext}`,
+    );
+  }
+  // Raw media URL ending in ~mv2.<ext> → append a fit transform.
+  const raw = base.match(/~mv2\.(jpg|jpeg|png|webp|gif)$/i);
+  if (raw) {
+    return `${base}/v1/fit/w_${maxDim},h_${maxDim},al_c,q_${quality},enc_auto/file.${raw[1]}`;
+  }
+  return url;
+}
+
 // Fetch a remote image (Wix CDN) as a buffer. Returns null on failure so the
-// document can still render without the image.
-export async function fetchImageBuffer(url: string): Promise<Buffer | null> {
+// document can still render without the image. When maxDim is set, Wix URLs are
+// downscaled to that bound to keep memory and generation time in check.
+export async function fetchImageBuffer(url: string, maxDim?: number): Promise<Buffer | null> {
   if (!url) return null;
   try {
     if (url.startsWith("data:")) {
@@ -150,6 +173,7 @@ export async function fetchImageBuffer(url: string): Promise<Buffer | null> {
       const buf = Buffer.from(b64, "base64");
       return buf.length > MAX_IMAGE_BYTES ? null : buf;
     }
+    if (maxDim) url = resizedImageUrl(url, maxDim);
     let parsed: URL;
     try {
       parsed = new URL(url);

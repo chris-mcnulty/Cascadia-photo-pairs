@@ -20,6 +20,9 @@ export interface CatalogEntry {
   imageUrl: string | null;
   customPurchaseUrl: string | null;
   sizes: CatalogSize[];
+  // Optional per-card featured size override (signage). When set, the signage
+  // card features this size instead of the largest/smallest auto-pick.
+  featuredOverride?: CatalogSize | null;
 }
 
 export interface CatalogFacets {

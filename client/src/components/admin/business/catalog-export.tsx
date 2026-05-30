@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -21,12 +22,20 @@ import { FileText, FileType, Loader2, Image as ImageIcon, QrCode } from "lucide-
 
 type Mode = "portfolio" | "signage";
 
+interface PreviewSize {
+  sizeLabel: string;
+  mediaType: string;
+  priceCents: number;
+}
+
 interface PreviewEntry {
   productId: string;
+  slug: string;
   title: string;
   year: number | null;
   category: string;
   sizeCount: number;
+  sizes: PreviewSize[];
   hasImage: boolean;
 }
 
@@ -44,6 +53,17 @@ const CATEGORY_OPTIONS = [
   { value: "other", label: "Other" },
 ];
 
+const AUTO = "auto";
+const sizeKey = (s: PreviewSize) => `${s.sizeLabel}|||${s.mediaType}`;
+
+function formatPrice(cents: number): string {
+  return `$${(cents / 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+function formatSize(label: string): string {
+  return label.replace(/(\d+(?:\.\d+)?)/g, "$1″");
+}
+
 export default function CatalogExport() {
   const { toast } = useToast();
 
@@ -60,6 +80,10 @@ export default function CatalogExport() {
   const [showLogo, setShowLogo] = useState<string | null>(null);
   const [showLogoName, setShowLogoName] = useState<string>("");
 
+  // Per-photo selection + per-card size choice
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [sizeChoice, setSizeChoice] = useState<Record<string, string>>({});
+
   const [downloading, setDownloading] = useState<null | "pdf" | "docx">(null);
 
   const previewKey = `/api/admin/catalog/entries?category=${category}&year=${year}&sort=${sort}`;
@@ -68,6 +92,30 @@ export default function CatalogExport() {
   });
 
   const years = data?.facets.years || [];
+  const entries = data?.entries || [];
+
+  // When the filtered set changes, select everything by default.
+  useEffect(() => {
+    if (!data) return;
+    setSelectedIds(new Set(data.entries.map((e) => e.productId)));
+  }, [data]);
+
+  const selectedCount = useMemo(
+    () => entries.filter((e) => selectedIds.has(e.productId)).length,
+    [entries, selectedIds],
+  );
+
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => setSelectedIds(new Set(entries.map((e) => e.productId)));
+  const clearAll = () => setSelectedIds(new Set());
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -87,6 +135,18 @@ export default function CatalogExport() {
   const handleDownload = async (format: "pdf" | "docx") => {
     setDownloading(format);
     try {
+      // Preserve preview order; only include checked photos.
+      const selections = entries
+        .filter((e) => selectedIds.has(e.productId))
+        .map((e) => {
+          const choice = mode === "signage" ? sizeChoice[e.productId] : undefined;
+          if (choice && choice !== AUTO) {
+            const [sizeLabel, mediaType] = choice.split("|||");
+            return { productId: e.productId, sizeLabel, mediaType };
+          }
+          return { productId: e.productId };
+        });
+
       const res = await apiRequest("POST", "/api/admin/catalog/export", {
         format,
         mode,
@@ -98,6 +158,7 @@ export default function CatalogExport() {
         storeBaseUrl,
         useBrandLogo,
         showLogo: mode === "signage" ? showLogo : null,
+        selections,
       });
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -199,7 +260,7 @@ export default function CatalogExport() {
                   <h4 className="text-sm font-medium">Signage options</h4>
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
-                      <Label>Featured size</Label>
+                      <Label>Default featured size</Label>
                       <Select value={featuredSize} onValueChange={(v) => setFeaturedSize(v as any)}>
                         <SelectTrigger data-testid="select-featured-size"><SelectValue /></SelectTrigger>
                         <SelectContent>
@@ -207,6 +268,9 @@ export default function CatalogExport() {
                           <SelectItem value="smallest">Smallest available</SelectItem>
                         </SelectContent>
                       </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Used for any card left on "Auto" below.
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <Label>Store URL (for "More sizes at" + QR)</Label>
@@ -266,7 +330,7 @@ export default function CatalogExport() {
             <div className="flex flex-wrap gap-3">
               <Button
                 onClick={() => handleDownload("pdf")}
-                disabled={downloading !== null || (data?.count ?? 0) === 0}
+                disabled={downloading !== null || selectedCount === 0}
                 data-testid="button-download-pdf"
                 style={{ backgroundColor: "#174A2E" }}
               >
@@ -276,7 +340,7 @@ export default function CatalogExport() {
               <Button
                 variant="outline"
                 onClick={() => handleDownload("docx")}
-                disabled={downloading !== null || (data?.count ?? 0) === 0}
+                disabled={downloading !== null || selectedCount === 0}
                 data-testid="button-download-docx"
               >
                 {downloading === "docx" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <FileText className="w-4 h-4 mr-2" />}
@@ -284,19 +348,30 @@ export default function CatalogExport() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Generating fetches each photo at full resolution, so a large catalog may take a few moments.
+              Images are downsized for fast, reliable generation. A large catalog may still take a few moments.
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Preview */}
+      {/* Photo selection / preview */}
       <div>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Preview</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">Photos</CardTitle>
+              {!isLoading && entries.length > 0 && (
+                <div className="flex gap-2 text-xs">
+                  <button type="button" className="underline" onClick={selectAll} data-testid="button-select-all">All</button>
+                  <button type="button" className="underline" onClick={clearAll} data-testid="button-clear-all">None</button>
+                </div>
+              )}
+            </div>
             <CardDescription>
-              {isLoading ? "Loading…" : `${data?.count ?? 0} photo${(data?.count ?? 0) === 1 ? "" : "s"} included`}
+              {isLoading
+                ? "Loading…"
+                : `${selectedCount} of ${entries.length} selected`}
+              {mode === "signage" && entries.length > 0 ? " · pick a size per card" : ""}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -304,25 +379,59 @@ export default function CatalogExport() {
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
               </div>
-            ) : (data?.entries.length ?? 0) === 0 ? (
+            ) : entries.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4">No photos match these filters.</p>
             ) : (
-              <ScrollArea className="h-[420px] pr-3">
+              <ScrollArea className="h-[460px] pr-3">
                 <ul className="space-y-2" data-testid="list-catalog-preview">
-                  {data!.entries.map((e) => (
-                    <li key={e.productId} className="flex items-start justify-between gap-2 text-sm border-b pb-2">
-                      <div>
-                        <div className="font-medium">{e.title}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {e.category}
-                          {e.year ? ` · ${e.year}` : ""} · {e.sizeCount} size{e.sizeCount === 1 ? "" : "s"}
+                  {entries.map((e) => {
+                    const checked = selectedIds.has(e.productId);
+                    return (
+                      <li key={e.productId} className="border-b pb-2">
+                        <div className="flex items-start gap-2 text-sm">
+                          <Checkbox
+                            checked={checked}
+                            onCheckedChange={(v) => toggleOne(e.productId, !!v)}
+                            className="mt-0.5"
+                            data-testid={`checkbox-photo-${e.slug}`}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate">{e.title}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {e.category}
+                              {e.year ? ` · ${e.year}` : ""} · {e.sizeCount} size{e.sizeCount === 1 ? "" : "s"}
+                            </div>
+                          </div>
+                          {!e.hasImage && (
+                            <span className="text-xs text-amber-600 whitespace-nowrap">no image</span>
+                          )}
                         </div>
-                      </div>
-                      {!e.hasImage && (
-                        <span className="text-xs text-amber-600 whitespace-nowrap">no image</span>
-                      )}
-                    </li>
-                  ))}
+
+                        {mode === "signage" && checked && e.sizes.length > 0 && (
+                          <div className="mt-2 ml-6">
+                            <Select
+                              value={sizeChoice[e.productId] || AUTO}
+                              onValueChange={(v) =>
+                                setSizeChoice((prev) => ({ ...prev, [e.productId]: v }))
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-xs" data-testid={`select-size-${e.slug}`}>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={AUTO}>Auto ({featuredSize})</SelectItem>
+                                {e.sizes.map((s) => (
+                                  <SelectItem key={sizeKey(s)} value={sizeKey(s)}>
+                                    {formatSize(s.sizeLabel)} · {s.mediaType} · {formatPrice(s.priceCents)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               </ScrollArea>
             )}

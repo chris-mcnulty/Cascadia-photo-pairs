@@ -38,7 +38,7 @@ async function prepareAssets(entries: CatalogEntry[], opts: PdfOptions): Promise
   const baseUrl = opts.storeBaseUrl || STORE_BASE_URL;
   return mapWithConcurrency(entries, 5, async (entry) => ({
     entry,
-    imageBuf: entry.imageUrl ? await fetchImageBuffer(entry.imageUrl) : null,
+    imageBuf: entry.imageUrl ? await fetchImageBuffer(entry.imageUrl, 1600) : null,
     qrBuf:
       opts.includeQr && opts.mode === "signage"
         ? await generateQrBuffer(entry.customPurchaseUrl || productUrl(entry.slug, baseUrl))
@@ -117,7 +117,7 @@ function buildSignage(doc: PDFKit.PDFDocument, assets: PreparedAsset[], opts: Pd
       doc.moveDown(0.8);
     }
 
-    const featured = pickFeaturedSize(entry, opts.featuredSize || "largest");
+    const featured = entry.featuredOverride || pickFeaturedSize(entry, opts.featuredSize || "largest");
     if (featured) {
       doc
         .font("Heading")

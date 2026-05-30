@@ -67,7 +67,7 @@ async function prepareAssets(
 ): Promise<PreparedAsset[]> {
   const baseUrl = opts.storeBaseUrl || STORE_BASE_URL;
   return mapWithConcurrency(entries, 5, async (entry) => {
-    const imageBuf = entry.imageUrl ? await fetchImageBuffer(entry.imageUrl) : null;
+    const imageBuf = entry.imageUrl ? await fetchImageBuffer(entry.imageUrl, 1600) : null;
     const qrBuf =
       opts.includeQr && opts.mode === "signage"
         ? await generateQrBuffer(entry.customPurchaseUrl || productUrl(entry.slug, baseUrl))
@@ -148,7 +148,7 @@ function buildSignageChildren(assets: PreparedAsset[], opts: DocxOptions): Parag
     }
 
     // Featured size + price
-    const featured = pickFeaturedSize(entry, opts.featuredSize || "largest");
+    const featured = entry.featuredOverride || pickFeaturedSize(entry, opts.featuredSize || "largest");
     if (featured) {
       children.push(
         new Paragraph({

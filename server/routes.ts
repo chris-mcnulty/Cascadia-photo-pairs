@@ -4265,10 +4265,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         facets,
         entries: entries.map((e) => ({
           productId: e.productId,
+          slug: e.slug,
           title: e.displayTitle,
           year: e.year,
           category: categoryGroupLabel(e.categoryGroup),
           sizeCount: e.sizes.length,
+          sizes: e.sizes,
           hasImage: !!e.imageUrl,
         })),
       });
@@ -4295,14 +4297,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         brandLogo, // optional override base64
         title,
         subtitle,
+        selections, // optional: [{ productId, sizeLabel?, mediaType? }] — pick photos + per-card size
       } = req.body || {};
 
       const yearFilter = year && year !== "all" ? parseInt(String(year), 10) : "all";
-      const { entries } = await getCatalogEntries({
+      const { entries: allEntries } = await getCatalogEntries({
         category: category as CatalogCategory,
         year: yearFilter,
         sort: sort as CatalogSort,
       });
+
+      // When explicit selections are provided, restrict to (and order by) the
+      // chosen photos and apply any per-card featured size override.
+      let entries = allEntries;
+      if (Array.isArray(selections) && selections.length > 0) {
+        const byId = new Map(allEntries.map((e) => [e.productId, e]));
+        const picked: typeof allEntries = [];
+        for (const sel of selections as any[]) {
+          const entry = byId.get(sel?.productId);
+          if (!entry) continue;
+          const override = sel?.sizeLabel
+            ? entry.sizes.find(
+                (s) => s.sizeLabel === sel.sizeLabel && (!sel.mediaType || s.mediaType === sel.mediaType),
+              ) || null
+            : null;
+          picked.push({ ...entry, featuredOverride: override });
+        }
+        entries = picked;
+      }
 
       if (!entries.length) {
         return res.status(400).json({ error: "No photos match the selected filters." });

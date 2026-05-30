@@ -25,11 +25,22 @@ type RedirectRule = {
   sourceHost: string | null;
   targetPath: string;
   statusCode: number;
+  matchType: string;
 };
 
-let cache: RedirectRule[] | null = null;
+type RuleCache = {
+  exact: RedirectRule[];
+  prefix: RedirectRule[];
+};
 
-async function loadCache(): Promise<RedirectRule[]> {
+let cache: RuleCache | null = null;
+
+/** Strip trailing `/*` from a prefix source path so `/product-page/*` and `/product-page` behave identically. */
+function canonicalizePrefixPath(p: string): string {
+  return p.endsWith("/*") ? p.slice(0, -2) : p;
+}
+
+async function loadCache(): Promise<RuleCache> {
   const rows = await db
     .select({
       id: urlRedirects.id,
@@ -37,11 +48,21 @@ async function loadCache(): Promise<RedirectRule[]> {
       sourceHost: urlRedirects.sourceHost,
       targetPath: urlRedirects.targetPath,
       statusCode: urlRedirects.statusCode,
+      matchType: urlRedirects.matchType,
     })
     .from(urlRedirects)
     .where(eq(urlRedirects.active, true));
-  cache = rows;
-  return rows;
+
+  const result: RuleCache = { exact: [], prefix: [] };
+  for (const row of rows) {
+    if (row.matchType === "prefix") {
+      result.prefix.push({ ...row, sourcePath: canonicalizePrefixPath(row.sourcePath) });
+    } else {
+      result.exact.push(row);
+    }
+  }
+  cache = result;
+  return result;
 }
 
 export function invalidateRedirectCache() {
@@ -63,7 +84,8 @@ export async function redirectMiddleware(req: Request, res: Response, next: Next
     const hostname = req.hostname;
     const path = req.path;
 
-    for (const rule of rules) {
+    // Exact matches take priority
+    for (const rule of rules.exact) {
       const pathMatches = rule.sourcePath === path;
       const hostMatches = !rule.sourceHost || rule.sourceHost === hostname;
       if (pathMatches && hostMatches) {
@@ -72,6 +94,26 @@ export async function redirectMiddleware(req: Request, res: Response, next: Next
         ).catch(() => {});
         return res.redirect(rule.statusCode, rule.targetPath);
       }
+    }
+
+    // Prefix matches (longest prefix wins)
+    let bestPrefix: RedirectRule | null = null;
+    for (const rule of rules.prefix) {
+      const hostMatches = !rule.sourceHost || rule.sourceHost === hostname;
+      if (!hostMatches) continue;
+      const prefix = rule.sourcePath.endsWith("/") ? rule.sourcePath : rule.sourcePath + "/";
+      const pathMatches = path === rule.sourcePath || path.startsWith(prefix);
+      if (pathMatches) {
+        if (!bestPrefix || rule.sourcePath.length > bestPrefix.sourcePath.length) {
+          bestPrefix = rule;
+        }
+      }
+    }
+    if (bestPrefix) {
+      db.execute(
+        sql`UPDATE url_redirects SET hit_count = hit_count + 1, last_hit_at = NOW() WHERE id = ${bestPrefix.id}`
+      ).catch(() => {});
+      return res.redirect(bestPrefix.statusCode, bestPrefix.targetPath);
     }
   } catch {
     // Non-fatal
@@ -109,7 +151,7 @@ export function registerRedirectRoutes(app: Express) {
   app.patch("/api/admin/redirects/:id", adminAuthMiddleware, async (req, res) => {
     try {
       const { id } = req.params;
-      const allowed = ["sourcePath", "sourceHost", "targetPath", "statusCode", "active", "notes"] as const;
+      const allowed = ["sourcePath", "sourceHost", "targetPath", "statusCode", "matchType", "active", "notes"] as const;
       const updates: Record<string, any> = {};
       for (const key of allowed) {
         if (key in req.body) updates[key] = req.body[key];

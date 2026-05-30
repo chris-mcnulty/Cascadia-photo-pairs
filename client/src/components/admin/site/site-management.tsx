@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { insertUrlRedirectSchema } from "@shared/schema";
@@ -49,6 +49,7 @@ const redirectFormSchema = insertUrlRedirectSchema.extend({
   sourcePath: z.string().min(1, "Source path is required").startsWith("/", "Must start with /"),
   targetPath: z.string().min(1, "Target path is required"),
   statusCode: z.coerce.number().int().refine((v) => v === 301 || v === 302, "Must be 301 or 302"),
+  matchType: z.enum(["exact", "prefix"]).default("exact"),
 });
 
 type RedirectFormValues = z.infer<typeof redirectFormSchema>;
@@ -85,6 +86,7 @@ function RedirectDialog({
       sourceHost: existing?.sourceHost ?? "",
       targetPath: existing?.targetPath ?? "/",
       statusCode: existing?.statusCode ?? 301,
+      matchType: (existing?.matchType as "exact" | "prefix") ?? "exact",
       active: existing?.active ?? true,
       notes: existing?.notes ?? "",
     },
@@ -119,6 +121,7 @@ function RedirectDialog({
   }
 
   const isPending = createMutation.isPending || updateMutation.isPending;
+  const matchType = useWatch({ control: form.control, name: "matchType" });
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -136,8 +139,18 @@ function RedirectDialog({
                 <FormItem>
                   <FormLabel>Source Path</FormLabel>
                   <FormControl>
-                    <Input placeholder="/old-page" {...field} />
+                    <Input
+                      placeholder={matchType === "prefix" ? "/product-page/*" : "/old-page"}
+                      {...field}
+                    />
                   </FormControl>
+                  {matchType === "prefix" && (
+                    <p className="text-xs text-gray-500">
+                      Matches any path starting with this prefix. You can write{" "}
+                      <code className="font-mono">/product-page/*</code> or just{" "}
+                      <code className="font-mono">/product-page</code> — both work the same.
+                    </p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -189,6 +202,28 @@ function RedirectDialog({
                     <SelectContent>
                       <SelectItem value="301">301 — Permanent</SelectItem>
                       <SelectItem value="302">302 — Temporary</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="matchType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Match Type</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="exact">Exact — path must match exactly</SelectItem>
+                      <SelectItem value="prefix">Prefix — matches any path starting with source</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -300,6 +335,7 @@ function RedirectsTab() {
               <TableRow>
                 <TableHead>Source</TableHead>
                 <TableHead>Target</TableHead>
+                <TableHead className="w-20">Type</TableHead>
                 <TableHead className="w-16">Code</TableHead>
                 <TableHead className="w-20">Hits</TableHead>
                 <TableHead className="w-32">Last Hit</TableHead>
@@ -321,6 +357,11 @@ function RedirectsTab() {
                       <ArrowRight className="w-3 h-3 text-gray-400 shrink-0" />
                       {r.targetPath}
                     </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={r.matchType === "prefix" ? "outline" : "secondary"} className="text-xs">
+                      {r.matchType === "prefix" ? "Prefix" : "Exact"}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={r.statusCode === 301 ? "default" : "secondary"}>

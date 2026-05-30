@@ -32,6 +32,7 @@ function runStartupMigrations() {
             source_host text,
             target_path text NOT NULL,
             status_code integer NOT NULL DEFAULT 301,
+            match_type text NOT NULL DEFAULT 'exact',
             active boolean NOT NULL DEFAULT true,
             notes text,
             hit_count integer NOT NULL DEFAULT 0,
@@ -41,6 +42,7 @@ function runStartupMigrations() {
         `);
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_url_redirects_source ON url_redirects(source_path)`);
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_url_redirects_active ON url_redirects(active)`);
+        await pool.query(`ALTER TABLE url_redirects ADD COLUMN IF NOT EXISTS match_type text NOT NULL DEFAULT 'exact'`);
         log("Startup migration: url_redirects table ensured");
         break;
       } catch (err: any) {

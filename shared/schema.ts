@@ -1195,6 +1195,7 @@ export const urlRedirects = pgTable("url_redirects", {
   sourceHost: text("source_host"),
   targetPath: text("target_path").notNull(),
   statusCode: integer("status_code").default(301).notNull(),
+  matchType: text("match_type").default("exact").notNull(),
   active: boolean("active").default(true).notNull(),
   notes: text("notes"),
   hitCount: integer("hit_count").default(0).notNull(),

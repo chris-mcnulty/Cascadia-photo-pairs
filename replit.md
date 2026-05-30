@@ -83,3 +83,6 @@ Preferred communication style: Simple, everyday language.
 - **Stripe**: Payment processing for e-commerce checkouts.
 - **SharePoint**: For receipt storage linked to business expenses.
 - **Meta (Facebook/Instagram) Graph API**: For social media publishing.
+
+## Backlog / Roadmap
+- **Migrate off Wix CDN & self-host photos (future — not this month):** Move all photography off `static.wixstatic.com` and rehost it within this project with proper image handling. Must generate and serve appropriately sized responsive variants (thumbnails for cards/grids, mid-size for detail pages, full-res only on demand) so full-resolution originals are no longer fetched on every page. Interim safeguard already in place: the public collections API caps oversized Wix renditions (`capWixRendition`) to avoid broken/huge images, but this is a band-aid — the real fix is local hosting with generated thumbnails.

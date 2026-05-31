@@ -413,30 +413,12 @@ export async function generateCatalogPdf(entries: CatalogEntry[], opts: PdfOptio
           : { top: 54, bottom: 54, left: 60, right: 60 },
         info: { Title: opts.title, Author: "Cascadia Oceanic" },
         autoFirstPage: true,
+        // bufferPages keeps all pages in memory so we can switchToPage() in a
+        // post-pass to stamp footers — avoids the recursive pageAdded→text→addPage
+        // loop that caused "Maximum call stack size exceeded" in production.
+        bufferPages: true,
       });
       registerFonts(doc);
-
-      // ── Footer on every page except the portfolio cover ──────────────────
-      // Guard: drawPageFooter calls doc.text() which can internally trigger
-      // addPage (via LineWrapper / continueOnNewPage), re-firing pageAdded and
-      // causing infinite recursion. The flag breaks that cycle.
-      let pageCount = 0;
-      let drawingFooter = false;
-      doc.on("pageAdded", () => {
-        pageCount++;
-        if (drawingFooter) return; // prevent re-entrant footer drawing
-        const isPortfolioCover = opts.mode === "portfolio" && pageCount === 1;
-        if (!isPortfolioCover) {
-          drawingFooter = true;
-          try {
-            // Content page number: for portfolio, page 2 = "1"; for signage, page 1 = "1"
-            const displayNum = opts.mode === "portfolio" ? pageCount - 1 : pageCount;
-            drawPageFooter(doc, displayNum, opts.mode);
-          } finally {
-            drawingFooter = false;
-          }
-        }
-      });
 
       const chunks: Buffer[] = [];
       doc.on("data", (c) => chunks.push(c as Buffer));
@@ -445,6 +427,22 @@ export async function generateCatalogPdf(entries: CatalogEntry[], opts: PdfOptio
 
       if (opts.mode === "signage") buildSignage(doc, assets, opts);
       else buildPortfolio(doc, assets, opts);
+
+      // ── Footer post-pass ─────────────────────────────────────────────────
+      // With bufferPages:true all pages are still in memory. Iterate them now,
+      // switch to each one and stamp the footer at absolute coordinates.
+      // This happens entirely outside the text-flow event chain, so there is
+      // no risk of re-entrant addPage / continueOnNewPage calls.
+      const range = doc.bufferedPageRange();
+      for (let i = 0; i < range.count; i++) {
+        const isPortfolioCover = opts.mode === "portfolio" && i === 0;
+        if (!isPortfolioCover) {
+          doc.switchToPage(i);
+          // Content page number: portfolio page index 1 = display "1"; signage index 0 = display "1"
+          const displayNum = opts.mode === "portfolio" ? i : i + 1;
+          drawPageFooter(doc, displayNum, opts.mode);
+        }
+      }
 
       doc.end();
     } catch (e) {

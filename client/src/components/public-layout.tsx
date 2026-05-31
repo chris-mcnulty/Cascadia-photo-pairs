@@ -68,6 +68,7 @@ const ALLOWED_RESTRICTED_PATHS = [
 function useAuth() {
   const [isAuthed, setIsAuthed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [, navigate] = useLocation();
 
   useEffect(() => {
     if (localStorage.getItem("admin-session-id")) {
@@ -87,7 +88,16 @@ function useAuth() {
       .catch(() => {});
   }, []);
 
-  return { isAuthed, isAdmin };
+  const logout = () => {
+    localStorage.removeItem("auth-token");
+    localStorage.removeItem("admin-session-id");
+    setIsAuthed(false);
+    setIsAdmin(false);
+    navigate("/");
+    window.location.reload();
+  };
+
+  return { isAuthed, isAdmin, logout };
 }
 
 function useSiteMode() {
@@ -129,7 +139,7 @@ export default function PublicLayout({
   const moreRef = useRef<HTMLDivElement>(null);
   const pairsRef = useRef<HTMLDivElement>(null);
   const { count } = useCart();
-  const { isAuthed, isAdmin } = useAuth();
+  const { isAuthed, isAdmin, logout } = useAuth();
   const publicSiteEnabled = useSiteMode();
 
   const restricted = publicSiteEnabled === false && !isAdmin;
@@ -284,7 +294,7 @@ export default function PublicLayout({
         {/* Primary nav bar */}
         <nav className="bg-white border-b border-gray-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="hidden md:flex items-center justify-center gap-6 h-14">
+            <div className="hidden md:flex items-center justify-center gap-6 h-14 relative">
               {restricted ? (
                 /* Restricted mode: only Photo Pairs + Leaderboard (+ Admin for admins) */
                 <>
@@ -409,6 +419,36 @@ export default function PublicLayout({
                   </div>
                 </>
               )}
+
+              {/* Auth buttons — right-pinned inside the centered nav row */}
+              <div className="absolute right-0 flex items-center gap-3">
+                {isAuthed ? (
+                  <>
+                    <Link
+                      href="/profile"
+                      className="text-sm text-gray-600 hover:text-cascadia-green transition-colors"
+                      data-testid="link-profile"
+                    >
+                      My Account
+                    </Link>
+                    <button
+                      onClick={logout}
+                      className="text-sm text-gray-500 hover:text-red-600 transition-colors border border-gray-300 hover:border-red-400 px-3 py-1 rounded"
+                      data-testid="button-logout"
+                    >
+                      Log Out
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="text-sm font-medium text-white bg-cascadia-green hover:bg-green-800 px-3 py-1.5 rounded transition-colors"
+                    data-testid="link-login"
+                  >
+                    Log In
+                  </Link>
+                )}
+              </div>
             </div>
 
             {/* Mobile nav */}
@@ -444,6 +484,34 @@ export default function PublicLayout({
                     {item.label}
                   </Link>
                 ))}
+                {/* Auth in mobile menu */}
+                <div className="border-t border-gray-100 pt-2 mt-1 flex flex-col gap-2">
+                  {isAuthed ? (
+                    <>
+                      <Link
+                        href="/profile"
+                        className="text-sm py-2 px-2 text-gray-700 hover:text-cascadia-green"
+                        onClick={() => setMobileOpen(false)}
+                      >
+                        My Account
+                      </Link>
+                      <button
+                        onClick={() => { setMobileOpen(false); logout(); }}
+                        className="text-sm py-2 px-2 text-left text-red-600 hover:text-red-700"
+                      >
+                        Log Out
+                      </button>
+                    </>
+                  ) : (
+                    <Link
+                      href="/login"
+                      className="text-sm py-2 px-2 text-cascadia-green font-semibold"
+                      onClick={() => setMobileOpen(false)}
+                    >
+                      Log In
+                    </Link>
+                  )}
+                </div>
               </div>
             )}
           </div>

@@ -4,7 +4,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Trophy, Calendar, ExternalLink, Info, AlertCircle, CheckCircle, X, ChevronDown, ChevronUp, Newspaper, Clock } from "lucide-react";
+import { Trophy, ExternalLink, Info, AlertCircle, CheckCircle, ChevronDown, ChevronUp, Newspaper, Clock } from "lucide-react";
 import { format } from "date-fns";
 
 interface AnnouncementData {
@@ -32,7 +32,6 @@ interface NewsItem {
 }
 
 export default function SimpleAnnouncements() {
-  const [dismissedAnnouncement, setDismissedAnnouncement] = useState(false);
   const [newsExpanded, setNewsExpanded] = useState(false);
 
   // Fetch announcement data
@@ -105,28 +104,6 @@ export default function SimpleAnnouncements() {
 
   return (
     <div className="space-y-6">
-      {/* Dismissable Announcement Header Bar */}
-      {announcement?.announcementEnabled && !dismissedAnnouncement && (
-        <div className="bg-green-600 text-white px-4 py-3 relative shadow-sm">
-          <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <div className="flex items-center gap-3">
-              {getAnnouncementIcon(announcement.announcementType)}
-              <span className="font-medium">
-                <strong>Announcement:</strong> {announcement.announcementText}
-              </span>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="p-1 h-6 w-6 text-white hover:bg-green-700"
-              onClick={() => setDismissedAnnouncement(true)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Collapsible News & Updates Section */}
       {(announcement?.monthlyContestActive || announcement?.quarterlyContestActive || sortedNewsItems.length > 0) && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

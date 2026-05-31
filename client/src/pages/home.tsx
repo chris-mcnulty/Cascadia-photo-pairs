@@ -20,6 +20,35 @@ import { useTitle } from "@/hooks/use-title";
 import UserProfile from "@/components/user-profile";
 import SimpleAnnouncements from "@/components/simple-announcements";
 
+// Slim green bar shown at the very top of the header when an announcement is active
+function AnnouncementTopBar() {
+  const [dismissed, setDismissed] = useState(false);
+  const { data } = useQuery<{
+    announcementEnabled: boolean;
+    announcementText: string;
+    announcementType: string;
+  }>({ queryKey: ["/api/announcements"] });
+
+  if (!data?.announcementEnabled || !data.announcementText || dismissed) return null;
+
+  return (
+    <div className="bg-green-600 text-white text-sm px-4 py-2">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+        <span className="font-medium leading-snug">
+          <strong>Announcement:</strong> {data.announcementText}
+        </span>
+        <button
+          onClick={() => setDismissed(true)}
+          className="shrink-0 p-0.5 rounded hover:bg-green-700 transition-colors"
+          aria-label="Dismiss announcement"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // Authentication status hook (for both admin and regular users)
 function useUserAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -221,6 +250,8 @@ export default function Home({
       {/* Header - only show when standalone (not wrapped by PublicLayout) and on desktop */}
       {showHeader && !useMobileInterface && (
       <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
+        {/* Announcement bar — pinned to very top of header */}
+        <AnnouncementTopBar />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             {/* Logo and Title */}

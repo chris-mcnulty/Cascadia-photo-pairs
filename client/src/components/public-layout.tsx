@@ -5,6 +5,39 @@ import { FaInstagram, FaFacebookF, FaLinkedinIn } from "react-icons/fa6";
 import { useCart } from "@/contexts/cart-context";
 const HERO_PHOTO_URL = "/hero-photo.jpg";
 
+function useAnnouncement() {
+  const [data, setData] = useState<{ announcementEnabled: boolean; announcementText: string } | null>(null);
+  useEffect(() => {
+    fetch("/api/announcements")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setData(d); })
+      .catch(() => {});
+  }, []);
+  return data;
+}
+
+function AnnouncementTopBar() {
+  const [dismissed, setDismissed] = useState(false);
+  const data = useAnnouncement();
+  if (!data?.announcementEnabled || !data.announcementText || dismissed) return null;
+  return (
+    <div className="bg-green-600 text-white text-sm px-4 py-2 relative z-10">
+      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+        <span className="font-medium leading-snug">
+          <strong>Announcement:</strong> {data.announcementText}
+        </span>
+        <button
+          onClick={() => setDismissed(true)}
+          className="shrink-0 p-0.5 rounded hover:bg-green-700 transition-colors"
+          aria-label="Dismiss announcement"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const PRIMARY_NAV: { label: string; href: string }[] = [
   { label: "Home", href: "/home" },
   { label: "Portfolio", href: "/portfolio" },
@@ -124,6 +157,8 @@ export default function PublicLayout({
     <div className="min-h-screen flex flex-col bg-white text-gray-900 font-metronova">
       {/* Hero with real photo and wordmark — parallax anchored to top of image (sky) */}
       <header className="relative">
+        {/* Announcement bar — always at the very top of the header */}
+        <AnnouncementTopBar />
         <div
           className="relative w-full bg-cascadia-green overflow-hidden"
           style={{ minHeight: showHero ? "260px" : "120px" }}

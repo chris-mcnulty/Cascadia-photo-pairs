@@ -312,20 +312,20 @@ function drawPageFooter(
 
 // ── Portfolio cover contact block ─────────────────────────────────────────────
 
-function drawCoverContact(doc: PDFKit.PDFDocument) {
+function drawCoverContact(doc: PDFKit.PDFDocument, afterTitleY: number) {
   const leftM = doc.page.margins.left;
   const cw = contentWidth(doc);
-  const pageH = doc.page.height;
 
-  // Anchor near the bottom quarter of the cover page
-  const contactY = pageH * 0.72;
+  // Rule sits 24 pt below the last line of the title block
+  const ruleY = afterTitleY + 24;
+  const contactY = ruleY + 14;
 
   doc.save();
 
   // Thin rule above the contact block
   doc
-    .moveTo(leftM + cw * 0.2, contactY - 10)
-    .lineTo(leftM + cw * 0.8, contactY - 10)
+    .moveTo(leftM + cw * 0.2, ruleY)
+    .lineTo(leftM + cw * 0.8, ruleY)
     .lineWidth(0.5)
     .strokeColor(HEX(BRAND.midtone))
     .stroke();
@@ -388,8 +388,8 @@ function buildPortfolio(doc: PDFKit.PDFDocument, assets: PreparedAsset[], opts: 
   }
   doc.font("Body").fontSize(14).fillColor(HEX(BRAND.granite)).text("Cascadia Oceanic Gallery", { align: "center" });
 
-  // Contact block on the cover page
-  drawCoverContact(doc);
+  // Contact block — pass current doc.y so the rule is anchored below the title, not at a fixed fraction
+  drawCoverContact(doc, doc.y);
 
   assets.forEach((a) => {
     doc.addPage();

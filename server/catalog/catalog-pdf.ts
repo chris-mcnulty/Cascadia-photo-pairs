@@ -417,14 +417,24 @@ export async function generateCatalogPdf(entries: CatalogEntry[], opts: PdfOptio
       registerFonts(doc);
 
       // ── Footer on every page except the portfolio cover ──────────────────
-      let pageCount = 0; // incremented by pageAdded before content draws
+      // Guard: drawPageFooter calls doc.text() which can internally trigger
+      // addPage (via LineWrapper / continueOnNewPage), re-firing pageAdded and
+      // causing infinite recursion. The flag breaks that cycle.
+      let pageCount = 0;
+      let drawingFooter = false;
       doc.on("pageAdded", () => {
         pageCount++;
+        if (drawingFooter) return; // prevent re-entrant footer drawing
         const isPortfolioCover = opts.mode === "portfolio" && pageCount === 1;
         if (!isPortfolioCover) {
-          // Content page number: for portfolio, page 2 = "1"; for signage, page 1 = "1"
-          const displayNum = opts.mode === "portfolio" ? pageCount - 1 : pageCount;
-          drawPageFooter(doc, displayNum, opts.mode);
+          drawingFooter = true;
+          try {
+            // Content page number: for portfolio, page 2 = "1"; for signage, page 1 = "1"
+            const displayNum = opts.mode === "portfolio" ? pageCount - 1 : pageCount;
+            drawPageFooter(doc, displayNum, opts.mode);
+          } finally {
+            drawingFooter = false;
+          }
         }
       });
 

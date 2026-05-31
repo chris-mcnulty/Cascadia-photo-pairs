@@ -378,6 +378,21 @@ function buildPortfolio(doc: PDFKit.PDFDocument, assets: PreparedAsset[], opts: 
   }
   doc.font("Body").fontSize(14).fillColor(HEX(BRAND.granite)).text("Cascadia Oceanic Gallery", { align: "center" });
 
+  // Cascadia logo — centered below the title block
+  const logoBuffer = opts.brandLogo ?? null;
+  if (logoBuffer) {
+    doc.moveDown(1.2);
+    const logoMaxW = 160;
+    const logoMaxH = 80;
+    const dims = imageDimensions(logoBuffer);
+    const ratio = dims ? Math.min(logoMaxW / dims.width, logoMaxH / dims.height) : 1;
+    const lw = dims ? dims.width * ratio : logoMaxW;
+    const lh = dims ? dims.height * ratio : logoMaxH;
+    const logoX = doc.page.margins.left + (cw - lw) / 2;
+    doc.image(logoBuffer, logoX, doc.y, { width: lw, height: lh });
+    doc.y += lh;
+  }
+
   // Contact block on the cover page
   drawCoverContact(doc);
 

@@ -4448,10 +4448,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       };
 
+      // Load brand logo for both modes: signage cards use it in the bottom row;
+      // portfolio uses it on the cover page title block.
       const brandLogoBuf =
-        mode === "signage"
-          ? decodeLogo(brandLogo) || (useBrandLogo ? readBrandLogoBuffer() : null)
-          : null;
+        decodeLogo(brandLogo) || (useBrandLogo !== false ? readBrandLogoBuffer() : null);
       const showLogoBuf = mode === "signage" ? decodeLogo(showLogo) : null;
 
       const docTitle = title || (mode === "signage" ? "Cascadia Oceanic Signage" : "Cascadia Oceanic Catalog");

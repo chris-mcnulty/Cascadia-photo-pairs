@@ -37,6 +37,7 @@ import {
   insertSupplierPriceSchema,
   insertSaleSchema,
   insertInventoryItemSchema,
+  type InventoryItem,
   insertDropShipOrderSchema,
   insertExpenseCategorySchema,
   insertExpenseSchema,
@@ -3812,7 +3813,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const allowedStatuses = ["ordered", "in_stock", "on_exhibit", "sold", "shipped"];
-      const sanitized: Record<string, unknown> = {};
+      const sanitized: Partial<Pick<InventoryItem, "status" | "location">> = {};
 
       if ("status" in updates) {
         if (typeof updates.status !== "string" || !allowedStatuses.includes(updates.status)) {
@@ -3822,12 +3823,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if ("location" in updates) {
-        // Allow setting a location string or clearing it (null/empty -> null)
+        // Allow setting a location string or clearing it. Treat null, undefined,
+        // and blank/whitespace-only strings as a clear (null) so we never store
+        // empty strings that would split filtering/suggestions.
         const loc = updates.location;
-        if (loc === null || loc === "" || typeof loc === "undefined") {
+        if (loc === null || typeof loc === "undefined") {
           sanitized.location = null;
         } else if (typeof loc === "string") {
-          sanitized.location = loc.trim();
+          const trimmed = loc.trim();
+          sanitized.location = trimmed === "" ? null : trimmed;
         } else {
           return res.status(400).json({ message: "location must be a string or null" });
         }
@@ -3840,8 +3844,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updated = await storage.bulkUpdateInventoryItems(ids as string[], sanitized);
       res.json({ updatedCount: updated.length, items: updated });
     } catch (error) {
+      // Validation problems are returned as 400 above; reaching here means an
+      // unexpected server-side failure (e.g. DB connectivity).
       console.error('Error bulk updating inventory:', error);
-      res.status(400).json({ message: "Failed to bulk update inventory items" });
+      res.status(500).json({ message: "Failed to bulk update inventory items" });
     }
   });
 

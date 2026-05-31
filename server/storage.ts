@@ -3198,10 +3198,12 @@ export class DatabaseStorage implements IStorage {
       .selectDistinct({ location: inventoryItems.location })
       .from(inventoryItems)
       .where(isNotNull(inventoryItems.location));
-    return rows
-      .map(r => r.location)
-      .filter((loc): loc is string => Boolean(loc && loc.trim()))
-      .sort((a, b) => a.localeCompare(b));
+    // Trim stored values and dedupe so historical rows with stray whitespace
+    // don't surface as near-duplicate suggestions.
+    const trimmed = rows
+      .map(r => (r.location ?? "").trim())
+      .filter(loc => loc !== "");
+    return Array.from(new Set(trimmed)).sort((a, b) => a.localeCompare(b));
   }
 
   // ============================================

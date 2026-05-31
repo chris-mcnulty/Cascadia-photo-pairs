@@ -647,7 +647,7 @@ function BulkEditDialog({ open, onClose, count, knownLocations, onApply }: BulkE
 
           <div className="space-y-2">
             <Label>Location</Label>
-            <Select value={locationMode} onValueChange={(v: any) => setLocationMode(v)}>
+            <Select value={locationMode} onValueChange={(v) => setLocationMode(v as "keep" | "set" | "clear")}>
               <SelectTrigger data-testid="select-bulk-location-mode">
                 <SelectValue />
               </SelectTrigger>
@@ -680,7 +680,7 @@ function BulkEditDialog({ open, onClose, count, knownLocations, onApply }: BulkE
           </Button>
           <Button
             onClick={handleApply}
-            disabled={submitting || (locationMode === "set" && !location.trim() && !status)}
+            disabled={submitting || (locationMode === "set" && !location.trim())}
             data-testid="button-bulk-apply"
           >
             Apply to {count}

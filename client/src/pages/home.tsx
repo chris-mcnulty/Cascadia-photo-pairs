@@ -33,13 +33,13 @@ function AnnouncementTopBar() {
 
   return (
     <div className="bg-green-600 text-white text-sm px-4 py-2">
-      <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
-        <span className="font-medium leading-snug">
+      <div className="max-w-7xl mx-auto relative flex items-center justify-center">
+        <span className="font-medium leading-snug text-center px-8">
           <strong>Announcement:</strong> {data.announcementText}
         </span>
         <button
           onClick={() => setDismissed(true)}
-          className="shrink-0 p-0.5 rounded hover:bg-green-700 transition-colors"
+          className="absolute right-0 p-0.5 rounded hover:bg-green-700 transition-colors"
           aria-label="Dismiss announcement"
         >
           <X className="h-4 w-4" />

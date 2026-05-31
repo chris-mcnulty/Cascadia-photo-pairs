@@ -334,7 +334,7 @@ function drawCoverContact(doc: PDFKit.PDFDocument) {
     .font("Body")
     .fontSize(11)
     .fillColor(HEX(BRAND.midtone))
-    .text("Photography by Christopher F McNulty", leftM, contactY, {
+    .text("Photography by Chris McNulty", leftM, contactY, {
       width: cw,
       align: "center",
       lineBreak: false,
@@ -344,17 +344,7 @@ function drawCoverContact(doc: PDFKit.PDFDocument) {
     .font("Light")
     .fontSize(10)
     .fillColor(HEX(BRAND.granite))
-    .text("www.chrismcnulty.net", leftM, contactY + 16, {
-      width: cw,
-      align: "center",
-      lineBreak: false,
-    });
-
-  doc
-    .font("Light")
-    .fontSize(9)
-    .fillColor(HEX(BRAND.granite))
-    .text("To purchase prints or make an inquiry, visit our website.", leftM, contactY + 30, {
+    .text("www.chrismcnulty.net", leftM, contactY + 18, {
       width: cw,
       align: "center",
       lineBreak: false,
@@ -367,9 +357,29 @@ function drawCoverContact(doc: PDFKit.PDFDocument) {
 
 function buildPortfolio(doc: PDFKit.PDFDocument, assets: PreparedAsset[], opts: PdfOptions) {
   const cw = contentWidth(doc);
+  const pageH = doc.page.height;
 
-  // Cover page
-  doc.y = doc.page.height / 2 - 80;
+  // Cover page — logo sits above the title block
+  const logoBuffer = opts.brandLogo ?? null;
+  const logoMaxW = 120;
+  const logoMaxH = 120;
+  let logoH = 0;
+
+  if (logoBuffer) {
+    const dims = imageDimensions(logoBuffer);
+    const ratio = dims ? Math.min(logoMaxW / dims.width, logoMaxH / dims.height) : 1;
+    const lw = dims ? dims.width * ratio : logoMaxW;
+    const lh = dims ? dims.height * ratio : logoMaxH;
+    logoH = lh;
+    // Start the whole block (logo + gap + title) centered vertically
+    const blockStartY = pageH * 0.28;
+    const logoX = doc.page.margins.left + (cw - lw) / 2;
+    doc.image(logoBuffer, logoX, blockStartY, { width: lw, height: lh });
+    doc.y = blockStartY + lh + 18; // gap below logo before title
+  } else {
+    doc.y = pageH / 2 - 80;
+  }
+
   doc.font("Heading").fontSize(48).fillColor(HEX(BRAND.evergreen)).text(opts.title, { align: "center" });
   doc.moveDown(0.4);
   if (opts.subtitle) {
@@ -377,21 +387,6 @@ function buildPortfolio(doc: PDFKit.PDFDocument, assets: PreparedAsset[], opts: 
     doc.moveDown(0.4);
   }
   doc.font("Body").fontSize(14).fillColor(HEX(BRAND.granite)).text("Cascadia Oceanic Gallery", { align: "center" });
-
-  // Cascadia logo — centered below the title block
-  const logoBuffer = opts.brandLogo ?? null;
-  if (logoBuffer) {
-    doc.moveDown(1.2);
-    const logoMaxW = 160;
-    const logoMaxH = 80;
-    const dims = imageDimensions(logoBuffer);
-    const ratio = dims ? Math.min(logoMaxW / dims.width, logoMaxH / dims.height) : 1;
-    const lw = dims ? dims.width * ratio : logoMaxW;
-    const lh = dims ? dims.height * ratio : logoMaxH;
-    const logoX = doc.page.margins.left + (cw - lw) / 2;
-    doc.image(logoBuffer, logoX, doc.y, { width: lw, height: lh });
-    doc.y += lh;
-  }
 
   // Contact block on the cover page
   drawCoverContact(doc);

@@ -241,17 +241,25 @@ function drawPageFooter(
   let leftM: number;
   let cw: number;
 
+  // ── Measure actual line height BEFORE computing footerY ─────────────────
+  // LineWrapper.wrap() checks: doc.y + lineHeight > page.maxY() → new page.
+  // We must ensure footerY + lineHeight ≤ maxY() or every footer draw creates
+  // a spurious overflow page. Measuring with the real font+size avoids guessing.
+  doc.font("Light").fontSize(7);
+  const footerLineH = doc.currentLineHeight(true);
+
   if (mode === "signage") {
-    // Signage: 72 pt of white space below the bottom card — center everything there
+    // Signage: 72 pt of white space below the bottom card — center everything there.
+    // maxY() = pageH (margins.bottom = 0), so any Y below the cards is safe.
     leftM = 20;
     cw = pageW - leftM * 2;
     footerY = CARD_Y_POS[1] + CARD_H + (pageH - (CARD_Y_POS[1] + CARD_H)) / 2 - 8;
   } else {
     leftM = doc.page.margins.left;
     cw = pageW - leftM - doc.page.margins.right;
-    // Stay inside PDFKit's maxY() boundary (pageH - margins.bottom).
-    // Drawing past maxY() triggers continueOnNewPage → creates spurious blank pages.
-    footerY = pageH - doc.page.margins.bottom - 8;
+    // maxY() = pageH - margins.bottom. Keep footerY + lineHeight safely ≤ maxY().
+    const maxY = pageH - doc.page.margins.bottom;
+    footerY = maxY - footerLineH - 3; // 3 pt gap above the hard boundary
 
     // Thin separator line just above the footer text
     doc.save()

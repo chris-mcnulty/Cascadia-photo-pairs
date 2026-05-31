@@ -249,7 +249,9 @@ function drawPageFooter(
   } else {
     leftM = doc.page.margins.left;
     cw = pageW - leftM - doc.page.margins.right;
-    footerY = pageH - doc.page.margins.bottom + 10;
+    // Stay inside PDFKit's maxY() boundary (pageH - margins.bottom).
+    // Drawing past maxY() triggers continueOnNewPage → creates spurious blank pages.
+    footerY = pageH - doc.page.margins.bottom - 8;
 
     // Thin separator line just above the footer text
     doc.save()
@@ -438,6 +440,10 @@ export async function generateCatalogPdf(entries: CatalogEntry[], opts: PdfOptio
         const isPortfolioCover = opts.mode === "portfolio" && i === 0;
         if (!isPortfolioCover) {
           doc.switchToPage(i);
+          // Reset cursor to top margin — after switchToPage, doc.y retains the
+          // last content position on that page which may be past maxY(), causing
+          // doc.text() to immediately trigger continueOnNewPage() before drawing.
+          doc.y = isSignage ? 0 : doc.page.margins.top;
           // Content page number: portfolio page index 1 = display "1"; signage index 0 = display "1"
           const displayNum = opts.mode === "portfolio" ? i : i + 1;
           drawPageFooter(doc, displayNum, opts.mode);

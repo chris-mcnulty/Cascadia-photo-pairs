@@ -45,6 +45,7 @@ interface InventoryItem {
   acquisitionCost: number;
   listPrice: number;
   status: string;
+  location?: string | null;
   purchaseDate?: string | null;
   soldDate?: string | null;
   notes?: string;
@@ -64,6 +65,7 @@ const inventorySchema = z.object({
   acquisitionCost: z.string().min(1, "Acquisition cost is required"),
   listPrice: z.string().min(1, "List price is required"),
   status: z.string().min(1, "Status is required"),
+  location: z.string().optional(),
   purchaseDate: z.string().optional(),
   soldDate: z.string().optional(),
   notes: z.string().optional(),
@@ -96,6 +98,11 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
     enabled: open,
   });
 
+  const { data: locations } = useQuery<string[]>({
+    queryKey: ["/api/admin/inventory/locations"],
+    enabled: open,
+  });
+
   // Initialize form first, before using form.watch
   const form = useForm<InventoryFormData>({
     resolver: zodResolver(inventorySchema),
@@ -107,6 +114,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
       acquisitionCost: "",
       listPrice: "",
       status: "ordered",
+      location: "",
       purchaseDate: "",
       soldDate: "",
       notes: "",
@@ -149,6 +157,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
         acquisitionCost: (editingItem.acquisitionCost / 100).toFixed(2),
         listPrice: (editingItem.listPrice / 100).toFixed(2),
         status: editingItem.status,
+        location: editingItem.location || "",
         purchaseDate: editingItem.purchaseDate ? new Date(editingItem.purchaseDate).toISOString().split('T')[0] : "",
         soldDate: editingItem.soldDate ? new Date(editingItem.soldDate).toISOString().split('T')[0] : "",
         notes: editingItem.notes || "",
@@ -173,6 +182,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
         acquisitionCost: "",
         listPrice: "",
         status: "ordered",
+        location: "",
         purchaseDate: "",
         soldDate: "",
         notes: "",
@@ -254,6 +264,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
         ...data,
         acquisitionCost: Math.round(parseFloat(data.acquisitionCost) * 100),
         listPrice: Math.round(parseFloat(data.listPrice) * 100),
+        location: data.location && data.location.trim() !== "" ? data.location.trim() : null,
         purchaseDate: data.purchaseDate && data.purchaseDate.trim() !== "" ? data.purchaseDate : undefined,
         soldDate: data.soldDate && data.soldDate.trim() !== "" ? data.soldDate : undefined,
       };
@@ -468,6 +479,7 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
                       <SelectContent>
                         <SelectItem value="ordered">Ordered</SelectItem>
                         <SelectItem value="in_stock">In Stock</SelectItem>
+                        <SelectItem value="on_exhibit">On Exhibit</SelectItem>
                         <SelectItem value="sold">Sold</SelectItem>
                         <SelectItem value="shipped">Shipped</SelectItem>
                       </SelectContent>
@@ -477,6 +489,30 @@ export default function InventoryFormDialog({ open, onClose, editingItem }: Inve
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="location"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Exhibit Location (Optional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      list="inventory-location-options"
+                      placeholder="e.g., Texaco, Beaumont Cellars"
+                      data-testid="input-location"
+                    />
+                  </FormControl>
+                  <datalist id="inventory-location-options">
+                    {(locations || []).map((loc) => (
+                      <option key={loc} value={loc} />
+                    ))}
+                  </datalist>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <FormField

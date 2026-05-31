@@ -640,12 +640,13 @@ export const inventoryItems = pgTable("inventory_items", {
   listPrice: integer("list_price").notNull(), // List price in cents
   
   // Status tracking
-  status: varchar("status").notNull().default("ordered"), // "ordered", "in_stock", "sold", "shipped"
+  status: varchar("status").notNull().default("ordered"), // "ordered", "in_stock", "on_exhibit", "sold", "shipped"
+  location: varchar("location"), // Where the piece is being shown when on exhibit (e.g. "Texaco", "Beaumont Cellars")
   purchaseDate: timestamp("purchase_date"), // When we ordered/bought it
   receivedDate: timestamp("received_date"), // When we received it
   soldDate: timestamp("sold_date"), // When it sold
   shippedDate: timestamp("shipped_date"), // When we shipped it
-  
+
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -654,6 +655,7 @@ export const inventoryItems = pgTable("inventory_items", {
   index("idx_inventory_items_product").on(table.productId),
   index("idx_inventory_items_supplier").on(table.supplierId),
   index("idx_inventory_items_status").on(table.status),
+  index("idx_inventory_items_location").on(table.location),
   index("idx_inventory_items_order_item").on(table.orderItemId),
 ]);
 

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,11 +6,37 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Edit, Trash2, Download } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Plus, Edit, Trash2, Download, Frame, X } from "lucide-react";
 import InventoryFormDialog from "./inventory-form-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { InventoryItem } from "@shared/schema";
+
+const STATUS_LABELS: Record<string, string> = {
+  ordered: "Ordered",
+  in_stock: "In Stock",
+  on_exhibit: "On Exhibit",
+  sold: "Sold",
+  shipped: "Shipped",
+};
+
+const statusBadgeClass = (status: string) => {
+  switch (status) {
+    case "in_stock":
+      return "bg-green-100 text-green-800";
+    case "on_exhibit":
+      return "bg-amber-100 text-amber-800";
+    case "sold":
+      return "bg-blue-100 text-blue-800";
+    case "shipped":
+      return "bg-purple-100 text-purple-800";
+    default:
+      return "bg-yellow-100 text-yellow-800";
+  }
+};
 
 // Extended inventory item with additional display fields
 interface InventoryItemWithDetails extends InventoryItem {
@@ -23,15 +49,22 @@ export default function InventoryManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [mediaTypeFilter, setMediaTypeFilter] = useState<string>("all");
   const [sizeFilter, setSizeFilter] = useState<string>("all");
+  const [locationFilter, setLocationFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [sortBy, setSortBy] = useState<"title" | "cost" | "price" | "status">("title");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItemWithDetails | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const { data: inventoryData, isLoading } = useQuery<InventoryItemWithDetails[]>({
     queryKey: ["/api/admin/inventory/details"],
+  });
+
+  const { data: knownLocations } = useQuery<string[]>({
+    queryKey: ["/api/admin/inventory/locations"],
   });
   
   // Filter and sort inventory
@@ -52,7 +85,12 @@ export default function InventoryManagement() {
     if (sizeFilter !== "all") {
       filtered = filtered.filter(item => item.sizeLabel === sizeFilter);
     }
-    
+
+    // Location filter
+    if (locationFilter !== "all") {
+      filtered = filtered.filter(item => (item.location || "") === locationFilter);
+    }
+
     // Search filter (by product title)
     if (searchTerm) {
       const search = searchTerm.toLowerCase();
@@ -84,7 +122,7 @@ export default function InventoryManagement() {
     });
     
     return sorted;
-  }, [inventoryData, statusFilter, mediaTypeFilter, sizeFilter, searchTerm, sortBy, sortOrder]);
+  }, [inventoryData, statusFilter, mediaTypeFilter, sizeFilter, locationFilter, searchTerm, sortBy, sortOrder]);
 
   // Get unique media types and sizes
   const availableMediaTypes = useMemo(() => {
@@ -96,6 +134,64 @@ export default function InventoryManagement() {
     const sizes = new Set(inventoryData?.map(item => item.sizeLabel) || []);
     return Array.from(sizes).filter((size): size is string => Boolean(size)).sort();
   }, [inventoryData]);
+
+  // Locations currently in use (from inventory data) merged with any known locations
+  const availableLocations = useMemo(() => {
+    const locs = new Set<string>(knownLocations || []);
+    inventoryData?.forEach(item => {
+      if (item.location && item.location.trim()) locs.add(item.location);
+    });
+    return Array.from(locs).sort((a, b) => a.localeCompare(b));
+  }, [inventoryData, knownLocations]);
+
+  // Selection helpers
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const allFilteredSelected = filteredInventory.length > 0 &&
+    filteredInventory.every(item => selectedIds.has(item.id));
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredInventory.map(item => item.id)));
+    }
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const applyBulkUpdate = async (updates: { status?: string; location?: string | null }) => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    try {
+      const res = await apiRequest("PATCH", "/api/admin/inventory/bulk", { ids, updates });
+      const result = await res.json();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory/details"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory/locations"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory/available"] }),
+      ]);
+      toast({
+        title: "Success",
+        description: `Updated ${result.updatedCount ?? ids.length} inventory item(s)`,
+      });
+      clearSelection();
+      setBulkDialogOpen(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update selected inventory items",
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this inventory item?")) return;
@@ -142,7 +238,7 @@ export default function InventoryManagement() {
 
   const handleExportCSV = () => {
     const headers = [
-      "Title", "Size", "Media Type", "Status",
+      "Title", "Size", "Media Type", "Status", "Location",
       "Cost (USD)", "List Price (USD)",
       "Purchase Date", "Received Date", "Sold Date", "Shipped Date",
       "Notes",
@@ -152,7 +248,8 @@ export default function InventoryManagement() {
       item.productTitle || "",
       item.sizeLabel || "",
       item.mediaType || "",
-      item.status.replace("_", " "),
+      STATUS_LABELS[item.status] || item.status.replace("_", " "),
+      item.location || "",
       (item.acquisitionCost / 100).toFixed(2),
       (item.listPrice / 100).toFixed(2),
       formatDate(item.purchaseDate),
@@ -173,6 +270,7 @@ export default function InventoryManagement() {
       statusFilter !== "all" ? statusFilter : "",
       mediaTypeFilter !== "all" ? mediaTypeFilter : "",
       sizeFilter !== "all" ? sizeFilter : "",
+      locationFilter !== "all" ? locationFilter : "",
     ].filter(Boolean).join("-");
     link.href = url;
     link.download = `inventory${activeFilters ? `-${activeFilters}` : ""}-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -210,7 +308,7 @@ export default function InventoryManagement() {
             </div>
             
             {/* Filters */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
               <Input
                 type="text"
                 placeholder="Search by title..."
@@ -227,8 +325,22 @@ export default function InventoryManagement() {
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="ordered">Ordered</SelectItem>
                   <SelectItem value="in_stock">In Stock</SelectItem>
+                  <SelectItem value="on_exhibit">On Exhibit</SelectItem>
                   <SelectItem value="sold">Sold</SelectItem>
                   <SelectItem value="shipped">Shipped</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={locationFilter} onValueChange={setLocationFilter}>
+                <SelectTrigger data-testid="select-location-filter">
+                  <SelectValue placeholder="Location" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {availableLocations.map(loc => (
+                    <SelectItem key={loc} value={loc}>
+                      {loc}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={mediaTypeFilter} onValueChange={setMediaTypeFilter}>
@@ -283,6 +395,45 @@ export default function InventoryManagement() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Bulk Actions Toolbar */}
+            {selectedIds.size > 0 && (
+              <div
+                className="flex flex-wrap items-center gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3"
+                data-testid="bulk-actions-toolbar"
+              >
+                <span className="text-sm font-medium text-amber-900" data-testid="text-selected-count">
+                  {selectedIds.size} selected
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setBulkDialogOpen(true)}
+                  data-testid="button-bulk-edit"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Bulk Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => applyBulkUpdate({ status: "in_stock", location: null })}
+                  data-testid="button-end-exhibit"
+                >
+                  <Frame className="w-4 h-4 mr-2" />
+                  End Exhibit (return to stock)
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={clearSelection}
+                  data-testid="button-clear-selection"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Clear
+                </Button>
+              </div>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -296,11 +447,20 @@ export default function InventoryManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={allFilteredSelected}
+                      onCheckedChange={toggleSelectAll}
+                      aria-label="Select all"
+                      data-testid="checkbox-select-all"
+                    />
+                  </TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide">Photo</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide">Title</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide">Size</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide">Media Type</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide">Status</TableHead>
+                  <TableHead className="text-sm font-semibold uppercase tracking-wide">Location</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide text-right">Cost</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide text-right">List Price</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide text-right">Actions</TableHead>
@@ -309,7 +469,19 @@ export default function InventoryManagement() {
               <TableBody>
                 {filteredInventory.length > 0 ? (
                   filteredInventory.map((item) => (
-                    <TableRow key={item.id} data-testid={`row-inventory-${item.id}`}>
+                    <TableRow
+                      key={item.id}
+                      data-state={selectedIds.has(item.id) ? "selected" : undefined}
+                      data-testid={`row-inventory-${item.id}`}
+                    >
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(item.id)}
+                          onCheckedChange={() => toggleSelect(item.id)}
+                          aria-label={`Select ${item.productTitle || "item"}`}
+                          data-testid={`checkbox-select-${item.id}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         {item.photoImageUrl ? (
                           <img
@@ -329,19 +501,14 @@ export default function InventoryManagement() {
                       <TableCell className="text-sm">{item.mediaType}</TableCell>
                       <TableCell className="text-sm">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            item.status === "in_stock"
-                              ? "bg-green-100 text-green-800"
-                              : item.status === "sold"
-                              ? "bg-blue-100 text-blue-800"
-                              : item.status === "shipped"
-                              ? "bg-purple-100 text-purple-800"
-                              : "bg-yellow-100 text-yellow-800"
-                          }`}
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass(item.status)}`}
                           data-testid={`status-${item.id}`}
                         >
-                          {item.status.replace("_", " ")}
+                          {STATUS_LABELS[item.status] || item.status.replace("_", " ")}
                         </span>
+                      </TableCell>
+                      <TableCell className="text-sm" data-testid={`location-${item.id}`}>
+                        {item.location || <span className="text-gray-400">—</span>}
                       </TableCell>
                       <TableCell className="text-sm text-right">{formatCurrency(item.acquisitionCost)}</TableCell>
                       <TableCell className="text-sm text-right font-medium">{formatCurrency(item.listPrice)}</TableCell>
@@ -369,7 +536,7 @@ export default function InventoryManagement() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={10} className="text-center text-gray-500 py-8">
                       No inventory items found
                     </TableCell>
                   </TableRow>
@@ -393,9 +560,133 @@ export default function InventoryManagement() {
           acquisitionCost: editingItem.acquisitionCost,
           listPrice: editingItem.listPrice,
           status: editingItem.status,
+          location: editingItem.location ?? undefined,
           notes: editingItem.notes ?? undefined,
         } : null}
       />
+
+      <BulkEditDialog
+        open={bulkDialogOpen}
+        onClose={() => setBulkDialogOpen(false)}
+        count={selectedIds.size}
+        knownLocations={availableLocations}
+        onApply={applyBulkUpdate}
+      />
     </div>
+  );
+}
+
+interface BulkEditDialogProps {
+  open: boolean;
+  onClose: () => void;
+  count: number;
+  knownLocations: string[];
+  onApply: (updates: { status?: string; location?: string | null }) => Promise<void>;
+}
+
+function BulkEditDialog({ open, onClose, count, knownLocations, onApply }: BulkEditDialogProps) {
+  // "" means leave the field unchanged
+  const [status, setStatus] = useState<string>("");
+  const [locationMode, setLocationMode] = useState<"keep" | "set" | "clear">("keep");
+  const [location, setLocation] = useState<string>("");
+  const [submitting, setSubmitting] = useState(false);
+
+  // Reset local state whenever the dialog (re)opens
+  useEffect(() => {
+    if (open) {
+      setStatus("");
+      setLocationMode("keep");
+      setLocation("");
+    }
+  }, [open]);
+
+  const handleApply = async () => {
+    const updates: { status?: string; location?: string | null } = {};
+    if (status) updates.status = status;
+    if (locationMode === "set") updates.location = location.trim();
+    else if (locationMode === "clear") updates.location = null;
+
+    if (Object.keys(updates).length === 0) {
+      onClose();
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await onApply(updates);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Bulk Edit Inventory</DialogTitle>
+          <DialogDescription>
+            Apply changes to {count} selected item{count === 1 ? "" : "s"}. Leave a field unchanged to keep current values.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger data-testid="select-bulk-status">
+                <SelectValue placeholder="Keep current status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ordered">Ordered</SelectItem>
+                <SelectItem value="in_stock">In Stock</SelectItem>
+                <SelectItem value="on_exhibit">On Exhibit</SelectItem>
+                <SelectItem value="sold">Sold</SelectItem>
+                <SelectItem value="shipped">Shipped</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Location</Label>
+            <Select value={locationMode} onValueChange={(v) => setLocationMode(v as "keep" | "set" | "clear")}>
+              <SelectTrigger data-testid="select-bulk-location-mode">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="keep">Keep current location</SelectItem>
+                <SelectItem value="set">Set location…</SelectItem>
+                <SelectItem value="clear">Clear location</SelectItem>
+              </SelectContent>
+            </Select>
+            {locationMode === "set" && (
+              <Input
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                list="bulk-location-options"
+                placeholder="e.g., Texaco, Beaumont Cellars"
+                data-testid="input-bulk-location"
+              />
+            )}
+            <datalist id="bulk-location-options">
+              {knownLocations.map((loc) => (
+                <option key={loc} value={loc} />
+              ))}
+            </datalist>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} data-testid="button-bulk-cancel">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleApply}
+            disabled={submitting || (locationMode === "set" && !location.trim())}
+            data-testid="button-bulk-apply"
+          >
+            Apply to {count}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -458,7 +458,7 @@ export default function TrafficDashboard({ onCreateRedirect }: { onCreateRedirec
                     <td className="py-1 text-right">{fmt(r.views)}</td>
                     <td className="py-1 text-right">{fmt(r.sessions)}</td>
                     <td className="py-1 text-right">{fmt(r.visitors)}</td>
-                    <td className="py-1 text-right">{(r.avgViewsPerSession ?? 0).toFixed(2)}</td>
+                    <td className="py-1 text-right">{Number(r.avgViewsPerSession ?? 0).toFixed(2)}</td>
                   </tr>
                 ))}
                 {!topPages?.rows?.length && (

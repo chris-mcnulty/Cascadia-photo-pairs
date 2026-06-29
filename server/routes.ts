@@ -3334,6 +3334,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Normalize empty strings to null for unique-constrained fields
       if (validatedData.externalId === "") validatedData.externalId = null;
+
+      // Auto-generate slug from title if missing
+      if (!validatedData.slug && validatedData.title) {
+        validatedData.slug = validatedData.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      }
       
       // Ensure aspectRatios array always includes the primary aspectRatio
       if (validatedData.aspectRatio) {
@@ -3395,6 +3400,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Auto-generate slug from title if the product currently has none
+      if (!validatedData.slug) {
+        const currentProduct = await storage.getProduct(id);
+        if (currentProduct && !currentProduct.slug) {
+          const titleForSlug = validatedData.title || currentProduct.title;
+          if (titleForSlug) {
+            validatedData.slug = titleForSlug.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+          }
+        }
+      }
+
       // If a photoId is being updated and title/description/originalDate are not provided, copy from photo
       let finalData = { ...validatedData };
       if (validatedData.photoId) {

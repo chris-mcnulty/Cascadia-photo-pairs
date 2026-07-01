@@ -14,6 +14,7 @@ import { format } from "date-fns";
 
 interface Sale {
   id: string;
+  orderNumber?: string | null;
   productId: string | null;
   channelId: string;
   saleDate: string;
@@ -24,6 +25,8 @@ interface Sale {
   buyerPhone?: string | null;
   shippingAddress?: string | null;
   notes?: string | null;
+  saleType?: "inventory" | "dropship";
+  supplierId?: string | null;
   acquisitionCost?: number | null;
   profit?: number | null;
   marginPercent?: number | null;
@@ -364,6 +367,7 @@ export default function SalesManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="text-sm font-semibold uppercase tracking-wide">Order #</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide">Date</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide">Channel</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide">Buyer</TableHead>
@@ -380,6 +384,9 @@ export default function SalesManagement() {
                     const channel = channels?.find(c => c.id === sale.channelId);
                     return (
                       <TableRow key={sale.id} data-testid={`row-sale-${sale.id}`}>
+                        <TableCell className="text-sm font-mono" data-testid={`text-order-number-${sale.id}`}>
+                          {sale.orderNumber || "—"}
+                        </TableCell>
                         <TableCell className="text-sm">
                           {format(new Date(sale.saleDate), "MM/dd/yyyy")}
                         </TableCell>
@@ -435,7 +442,7 @@ export default function SalesManagement() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={9} className="text-center text-gray-500 py-8">
                       {allSales?.length === 0 ? "No sales recorded yet" : "No sales match your filters"}
                     </TableCell>
                   </TableRow>

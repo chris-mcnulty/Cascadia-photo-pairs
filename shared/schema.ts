@@ -594,6 +594,7 @@ export const orderItems = pgTable("order_items", {
 // Sales records with buyer information (LEGACY - will be replaced by orders + order_items)
 export const sales = pgTable("sales", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  orderNumber: varchar("order_number").unique(), // Editable, auto-incrementing order number starting at 10010
   productId: varchar("product_id").references(() => products.id), // Changed from photoId
   channelId: varchar("channel_id").notNull().references(() => salesChannels.id),
   customerId: varchar("customer_id").references(() => customers.id), // Reference to customers table
@@ -605,6 +606,7 @@ export const sales = pgTable("sales", {
   saleType: varchar("sale_type").default("inventory"), // "inventory" or "dropship"
   inventoryItemId: varchar("inventory_item_id"), // Reference to specific inventory item (for inventory sales)
   supplierId: varchar("supplier_id").references(() => suppliers.id), // Supplier reference (for dropship sales)
+  acquisitionCost: integer("acquisition_cost"), // Supplier cost in cents (used directly for dropship sales, since they have no inventory item)
   
   // Legacy buyer information (for backward compatibility)
   buyerName: varchar("buyer_name"),
@@ -621,6 +623,7 @@ export const sales = pgTable("sales", {
   index("idx_sales_date").on(table.saleDate),
   index("idx_sales_inventory_item").on(table.inventoryItemId),
   index("idx_sales_supplier").on(table.supplierId),
+  index("idx_sales_order_number").on(table.orderNumber),
 ]);
 
 // Individual inventory items (each physical print)

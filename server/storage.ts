@@ -172,6 +172,7 @@ export interface IStorage {
     salesWithoutCostCount: number;
   }>;
   getSale(id: string): Promise<Sale | undefined>;
+  getNextOrderNumber(): Promise<string>;
   createSale(sale: InsertSale): Promise<Sale>;
   updateSale(id: string, updates: Partial<Sale>): Promise<Sale | undefined>;
   deleteSale(id: string): Promise<boolean>;
@@ -907,6 +908,7 @@ export class MemStorage implements IStorage {
     };
   }
   async getSale(id: string): Promise<Sale | undefined> { return undefined; }
+  async getNextOrderNumber(): Promise<string> { return "10010"; }
   async createSale(sale: InsertSale): Promise<Sale> { throw new Error('Not implemented in MemStorage'); }
   async updateSale(id: string, updates: Partial<Sale>): Promise<Sale | undefined> { return undefined; }
   async deleteSale(id: string): Promise<boolean> { return false; }
@@ -2744,7 +2746,7 @@ export class DatabaseStorage implements IStorage {
       const cost =
         sale.saleType === "inventory" && sale.inventoryItemId
           ? costsById.get(sale.inventoryItemId) ?? null
-          : null;
+          : sale.acquisitionCost ?? null;
       const profit = cost !== null ? sale.soldPrice - cost : null;
       const marginPercent =
         profit !== null && sale.soldPrice > 0
@@ -2809,6 +2811,23 @@ export class DatabaseStorage implements IStorage {
   async getSale(id: string): Promise<Sale | undefined> {
     const [sale] = await db.select().from(sales).where(eq(sales.id, id));
     return sale;
+  }
+
+  async getNextOrderNumber(): Promise<string> {
+    const STARTING_NUMBER = 10010;
+    const rows = await db
+      .select({ orderNumber: sales.orderNumber })
+      .from(sales)
+      .where(isNotNull(sales.orderNumber));
+
+    let maxNumeric = STARTING_NUMBER - 1;
+    for (const row of rows) {
+      if (row.orderNumber && /^\d+$/.test(row.orderNumber)) {
+        const n = parseInt(row.orderNumber, 10);
+        if (n > maxNumeric) maxNumeric = n;
+      }
+    }
+    return String(maxNumeric + 1);
   }
 
   async createSale(sale: InsertSale): Promise<Sale> {
@@ -3018,7 +3037,8 @@ export class DatabaseStorage implements IStorage {
         buyerName: sales.buyerName,
         saleType: sales.saleType,
         inventoryItemId: sales.inventoryItemId,
-        acquisitionCost: inventoryItems.acquisitionCost,
+        directAcquisitionCost: sales.acquisitionCost,
+        inventoryAcquisitionCost: inventoryItems.acquisitionCost,
       })
       .from(sales)
       .leftJoin(products, eq(sales.productId, products.id))
@@ -3035,8 +3055,8 @@ export class DatabaseStorage implements IStorage {
     const mapped = results.map(row => {
       const cost =
         row.saleType === "inventory" && row.inventoryItemId
-          ? row.acquisitionCost ?? null
-          : null;
+          ? row.inventoryAcquisitionCost ?? null
+          : row.directAcquisitionCost ?? null;
       const profit = cost !== null ? row.soldPrice - cost : null;
       const marginPercent =
         profit !== null && row.soldPrice > 0

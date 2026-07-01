@@ -3084,6 +3084,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get next available order number (editable suggestion, starts at 10010)
+  app.get("/api/admin/sales/next-order-number", isAuthenticated, async (req, res) => {
+    try {
+      const nextOrderNumber = await storage.getNextOrderNumber();
+      res.json({ nextOrderNumber });
+    } catch (error) {
+      console.error('Error getting next order number:', error);
+      res.status(500).json({ message: "Failed to get next order number" });
+    }
+  });
+
   // Get single sale
   app.get("/api/admin/sales/:id", isAuthenticated, async (req, res) => {
     try {

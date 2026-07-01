@@ -44,6 +44,7 @@ interface InventoryItem {
 
 interface Sale {
   id: string;
+  orderNumber?: string | null;
   productId: string | null;
   channelId: string;
   saleDate: string;
@@ -57,6 +58,7 @@ interface Sale {
   saleType?: "inventory" | "dropship";
   inventoryItemId?: string | null;
   supplierId?: string | null;
+  acquisitionCost?: number | null;
 }
 
 interface SalesFormDialogProps {
@@ -66,10 +68,12 @@ interface SalesFormDialogProps {
 }
 
 const salesSchema = z.object({
+  orderNumber: z.string().optional(),
   saleType: z.enum(["inventory", "dropship"]).default("inventory"),
   productId: z.string().optional(),
   inventoryItemId: z.string().optional(),
   supplierId: z.string().optional(),
+  acquisitionCost: z.string().optional(),
   channelId: z.string().min(1, "Sales channel is required"),
   saleDate: z.string().min(1, "Sale date is required"),
   soldPrice: z.string().min(1, "Sale price is required"),
@@ -120,13 +124,20 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
     enabled: open && saleType === "dropship",
   });
 
+  const { data: nextOrderNumberData } = useQuery<{ nextOrderNumber: string }>({
+    queryKey: ["/api/admin/sales/next-order-number"],
+    enabled: open && !editingSale,
+  });
+
   const form = useForm<SalesFormData>({
     resolver: zodResolver(salesSchema),
     defaultValues: {
+      orderNumber: "",
       saleType: "inventory",
       productId: "",
       inventoryItemId: "",
       supplierId: "",
+      acquisitionCost: "",
       channelId: "",
       saleDate: new Date().toISOString().split('T')[0],
       soldPrice: "",
@@ -142,10 +153,12 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
   useEffect(() => {
     if (editingSale) {
       form.reset({
+        orderNumber: editingSale.orderNumber || "",
         saleType: editingSale.saleType || "inventory",
         productId: editingSale.productId || "",
         inventoryItemId: editingSale.inventoryItemId || "",
         supplierId: editingSale.supplierId || "",
+        acquisitionCost: editingSale.acquisitionCost != null ? (editingSale.acquisitionCost / 100).toFixed(2) : "",
         channelId: editingSale.channelId,
         saleDate: editingSale.saleDate.split('T')[0],
         soldPrice: (editingSale.soldPrice / 100).toFixed(2),
@@ -159,10 +172,12 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
       setSaleType(editingSale.saleType || "inventory");
     } else {
       form.reset({
+        orderNumber: nextOrderNumberData?.nextOrderNumber || "",
         saleType: "inventory",
         productId: "",
         inventoryItemId: "",
         supplierId: "",
+        acquisitionCost: "",
         channelId: "",
         saleDate: new Date().toISOString().split('T')[0],
         soldPrice: "",
@@ -175,7 +190,7 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
       });
       setSaleType("inventory");
     }
-  }, [editingSale, form, open]);
+  }, [editingSale, form, open, nextOrderNumberData]);
 
   // Watch sale type changes
   const watchedSaleType = form.watch("saleType");
@@ -205,10 +220,14 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
   const createSaleMutation = useMutation({
     mutationFn: async (data: SalesFormData) => {
       const saleData = {
+        orderNumber: data.orderNumber || null,
         saleType: data.saleType,
         productId: data.productId || null,
         inventoryItemId: data.inventoryItemId || null,
         supplierId: data.supplierId || null,
+        acquisitionCost: data.saleType === "dropship" && data.acquisitionCost
+          ? Math.round(parseFloat(data.acquisitionCost) * 100)
+          : null,
         channelId: data.channelId,
         saleDate: new Date(data.saleDate).toISOString(),
         soldPrice: Math.round(parseFloat(data.soldPrice) * 100),
@@ -232,6 +251,7 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
       queryClient.invalidateQueries({ queryKey: ["/api/admin/business/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory/details"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/inventory/available"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/sales/next-order-number"] });
       onClose();
     },
     onError: (error: Error) => {
@@ -248,10 +268,14 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
       if (!editingSale) throw new Error("No sale to update");
 
       const saleData = {
+        orderNumber: data.orderNumber || null,
         saleType: data.saleType,
         productId: data.productId || null,
         inventoryItemId: data.inventoryItemId || null,
         supplierId: data.supplierId || null,
+        acquisitionCost: data.saleType === "dropship" && data.acquisitionCost
+          ? Math.round(parseFloat(data.acquisitionCost) * 100)
+          : null,
         channelId: data.channelId,
         saleDate: new Date(data.saleDate).toISOString(),
         soldPrice: Math.round(parseFloat(data.soldPrice) * 100),
@@ -305,6 +329,27 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="orderNumber"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Order Number</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="10010"
+                      {...field}
+                      data-testid="input-order-number"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Auto-filled with the next available number; edit if needed.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             {/* Sale Type Selection */}
             <FormField
               control={form.control}
@@ -423,6 +468,28 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
                         </Select>
                         <FormDescription>
                           Supplier for drop shipment
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="acquisitionCost"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Supplier Cost</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder="0.00"
+                            {...field}
+                            data-testid="input-acquisition-cost"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          What the supplier charged for this item, used to calculate profit
                         </FormDescription>
                         <FormMessage />
                       </FormItem>

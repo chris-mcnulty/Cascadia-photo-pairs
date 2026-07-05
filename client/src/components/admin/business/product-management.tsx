@@ -615,7 +615,7 @@ export default function ProductManagement() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>
               {editingProduct ? "Edit Product" : "Add New Product"}
@@ -627,7 +627,8 @@ export default function ProductManagement() {
             </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col overflow-hidden flex-1">
+              <div className="overflow-y-auto flex-1 space-y-4 pr-1">
               <FormField
                 control={form.control}
                 name="title"
@@ -891,7 +892,8 @@ export default function ProductManagement() {
                 )}
               />
 
-              <DialogFooter>
+              </div>
+              <DialogFooter className="pt-4">
                 <Button
                   type="button"
                   variant="outline"

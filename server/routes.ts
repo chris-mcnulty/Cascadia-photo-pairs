@@ -4572,21 +4572,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // photo category values.
   app.get("/api/public/photos", async (req, res) => {
     try {
-      const collection = String(req.query.collection || '').toLowerCase();
-      const collectionToCategories: Record<string, string[]> = {
-        seascapes: ['Seascapes', 'Seascape', 'Ocean', 'Oceans'],
-        landscapes: ['Landscapes', 'Landscape', 'Mountain', 'Mountain ', 'Trees', 'SunriseSunset'],
-        cityscapes: ['Cityscapes', 'City', 'Neon', 'Sign', 'Night', 'Highway', 'Transit', 'Houses'],
-      };
-      const categories = collectionToCategories[collection] || [];
-      const rows = categories.length
+      const collectionSlug = String(req.query.collection || '').toLowerCase();
+      const rows = collectionSlug
         ? await db.execute(sql`
-            SELECT id, title, description, image_url AS "imageUrl", category,
-                   original_date AS "originalDate", custom_purchase_url AS "customPurchaseUrl"
-            FROM photos
-            WHERE archived = false AND hidden = false
-              AND category IN (${sql.join(categories.map((c) => sql`${c}`), sql`, `)})
-            ORDER BY original_date DESC NULLS LAST, created_at DESC
+            SELECT p.id, p.title, p.description, p.image_url AS "imageUrl", p.category,
+                   p.original_date AS "originalDate", p.custom_purchase_url AS "customPurchaseUrl"
+            FROM photos p
+            JOIN collections c ON c.id = p.collection_id
+            WHERE p.archived = false AND p.hidden = false
+              AND c.slug = ${collectionSlug}
+            ORDER BY p.original_date DESC NULLS LAST, p.created_at DESC
             LIMIT 200
           `)
         : await db.execute(sql`

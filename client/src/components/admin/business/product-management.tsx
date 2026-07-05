@@ -56,13 +56,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Product, Photo, ProductSKU, ProductSize } from "@shared/schema";
+import type { Product, Photo, ProductSKU, ProductSize, Collection } from "@shared/schema";
 import { cn } from "@/lib/utils";
 
 // Form schema for product creation/editing
 const productFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
   photoId: z.string().nullable(),
+  collectionId: z.string().nullable(),
   aspectRatio: z.string().min(1, "A primary aspect ratio is required"),
   aspectRatios: z.array(z.string()).min(1, "At least one aspect ratio is required"),
   description: z.string().optional(),
@@ -105,11 +106,17 @@ export default function ProductManagement() {
     queryKey: ["/api/admin/product-sizes"],
   });
 
+  // Fetch collections for the collection dropdown
+  const { data: collections = [] } = useQuery<Collection[]>({
+    queryKey: ["/api/collections"],
+  });
+
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
       title: "",
       photoId: null,
+      collectionId: null,
       aspectRatio: "3x2",
       aspectRatios: ["3x2"],
       description: "",
@@ -195,6 +202,7 @@ export default function ProductManagement() {
     form.reset({
       title: product.title,
       photoId: product.photoId,
+      collectionId: product.collectionId ?? null,
       aspectRatio: product.aspectRatio,
       aspectRatios: ratios.includes(product.aspectRatio) ? ratios : [product.aspectRatio, ...ratios],
       description: product.description || "",
@@ -707,6 +715,38 @@ export default function ProductManagement() {
                     </Popover>
                     <FormDescription>
                       Link this product to a specific photo from your gallery
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="collectionId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Store Collection</FormLabel>
+                    <Select
+                      value={field.value ?? "none"}
+                      onValueChange={(v) => field.onChange(v === "none" ? null : v)}
+                    >
+                      <FormControl>
+                        <SelectTrigger data-testid="select-collection">
+                          <SelectValue placeholder="No collection" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">No collection</SelectItem>
+                        {collections.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Assigns this product to a store category (e.g. Landscapes, Seascapes)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

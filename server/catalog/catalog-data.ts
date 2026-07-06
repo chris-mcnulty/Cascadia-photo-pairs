@@ -128,7 +128,6 @@ export async function getCatalogEntries(
     WHERE p.is_active = true
       AND p.show_on_store = true
       AND p.slug IS NOT NULL
-      AND ph.never_for_sale = false
       AND ph.archived = false
     ORDER BY p.photo_id, p.created_at ASC
   `);

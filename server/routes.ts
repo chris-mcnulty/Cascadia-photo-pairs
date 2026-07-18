@@ -3115,12 +3115,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create sale (LEGACY - dropship now handled by orders system; inventory sales mark the item sold)
   app.post("/api/admin/sales", isAuthenticated, async (req, res) => {
     try {
+      const { overrideInventoryGuard, ...rest } = req.body;
       const dataWithDate = {
-        ...req.body,
-        saleDate: req.body.saleDate ? new Date(req.body.saleDate) : new Date(),
+        ...rest,
+        saleDate: rest.saleDate ? new Date(rest.saleDate) : new Date(),
       };
 
-      const sale = await storage.createSale(dataWithDate);
+      const sale = await storage.createSale(dataWithDate, overrideInventoryGuard === true);
 
       res.status(201).json(sale);
     } catch (error) {
@@ -3794,6 +3795,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching inventory details:', error);
       res.status(500).json({ message: "Failed to fetch inventory details" });
+    }
+  });
+
+  // Get ALL inventory items regardless of status (for backfill / cleanup override)
+  app.get("/api/admin/inventory/all", isAuthenticated, async (req, res) => {
+    try {
+      const items = await storage.getInventoryWithDetails();
+      res.json(items);
+    } catch (error) {
+      console.error('Error fetching all inventory:', error);
+      res.status(500).json({ message: "Failed to fetch inventory" });
     }
   });
 

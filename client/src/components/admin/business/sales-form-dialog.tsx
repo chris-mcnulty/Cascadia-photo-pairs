@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Loader2, Package, Truck } from "lucide-react";
@@ -103,6 +105,7 @@ type SalesFormData = z.infer<typeof salesSchema>;
 export default function SalesFormDialog({ open, onClose, editingSale }: SalesFormDialogProps) {
   const { toast } = useToast();
   const [saleType, setSaleType] = useState<"inventory" | "dropship">("inventory");
+  const [showAllInventory, setShowAllInventory] = useState(false);
 
   const { data: products } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -114,8 +117,12 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
     enabled: open,
   });
 
+  const inventoryQueryKey = showAllInventory
+    ? "/api/admin/inventory/all"
+    : "/api/admin/inventory/available";
+
   const { data: inventoryItems } = useQuery<InventoryItem[]>({
-    queryKey: ["/api/admin/inventory/available"],
+    queryKey: [inventoryQueryKey],
     enabled: open && saleType === "inventory",
   });
 
@@ -170,6 +177,7 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
         notes: editingSale.notes || "",
       });
       setSaleType(editingSale.saleType || "inventory");
+      setShowAllInventory(false);
     } else {
       form.reset({
         orderNumber: nextOrderNumberData?.nextOrderNumber || "",
@@ -189,6 +197,7 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
         notes: "",
       });
       setSaleType("inventory");
+      setShowAllInventory(false);
     }
   }, [editingSale, form, open, nextOrderNumberData]);
 
@@ -237,6 +246,7 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
         buyerPhone: data.buyerPhone || null,
         shippingAddress: data.shippingAddress || null,
         notes: data.notes || null,
+        overrideInventoryGuard: showAllInventory,
       };
 
       return apiRequest("POST", "/api/admin/sales", saleData);
@@ -393,33 +403,56 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
             <div className="grid grid-cols-2 gap-4">
               {/* Conditional fields based on sale type */}
               {saleType === "inventory" ? (
-                <FormField
-                  control={form.control}
-                  name="inventoryItemId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Inventory Item *</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger data-testid="select-inventory-item">
-                            <SelectValue placeholder="Select inventory item" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {inventoryItems?.filter(item => item.status === "in_stock").map((item) => (
-                            <SelectItem key={item.id} value={item.id}>
-                              {item.productTitle} - {item.mediaType} {item.sizeLabel} (${(item.listPrice / 100).toFixed(2)})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        Select from available inventory
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
+                <div className="col-span-2 space-y-2">
+                  <FormField
+                    control={form.control}
+                    name="inventoryItemId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Inventory Item *</FormLabel>
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <FormControl>
+                            <SelectTrigger data-testid="select-inventory-item">
+                              <SelectValue placeholder="Select inventory item" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {inventoryItems?.map((item) => (
+                              <SelectItem key={item.id} value={item.id}>
+                                <span className="flex items-center gap-2">
+                                  {item.productTitle} — {item.mediaType} {item.sizeLabel} (${(item.listPrice / 100).toFixed(2)})
+                                  {item.status !== "in_stock" && item.status !== "on_exhibit" && (
+                                    <span className="ml-1 text-xs text-amber-600 font-medium">[{item.status}]</span>
+                                  )}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex items-center gap-2 pt-1">
+                    <Checkbox
+                      id="showAllInventory"
+                      checked={showAllInventory}
+                      onCheckedChange={(v) => {
+                        setShowAllInventory(!!v);
+                        form.setValue("inventoryItemId", "");
+                      }}
+                      data-testid="checkbox-show-all-inventory"
+                    />
+                    <label htmlFor="showAllInventory" className="text-sm text-gray-600 cursor-pointer select-none">
+                      Show all inventory items (including already sold) — cleanup override
+                    </label>
+                  </div>
+                  {showAllInventory && (
+                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+                      Override active — item status will be set to <strong>sold</strong> even if already marked sold. Use this to backfill missing sale records.
+                    </p>
                   )}
-                />
+                </div>
               ) : (
                 <>
                   <FormField

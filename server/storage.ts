@@ -175,7 +175,7 @@ export interface IStorage {
   }>;
   getSale(id: string): Promise<Sale | undefined>;
   getNextOrderNumber(): Promise<string>;
-  createSale(sale: InsertSale): Promise<Sale>;
+  createSale(sale: InsertSale, overrideInventoryGuard?: boolean): Promise<Sale>;
   updateSale(id: string, updates: Partial<Sale>): Promise<Sale | undefined>;
   deleteSale(id: string): Promise<boolean>;
   getSalesByChannel(channelId: string): Promise<Sale[]>;
@@ -911,7 +911,7 @@ export class MemStorage implements IStorage {
   }
   async getSale(id: string): Promise<Sale | undefined> { return undefined; }
   async getNextOrderNumber(): Promise<string> { return "10010"; }
-  async createSale(sale: InsertSale): Promise<Sale> { throw new Error('Not implemented in MemStorage'); }
+  async createSale(sale: InsertSale, _overrideInventoryGuard?: boolean): Promise<Sale> { throw new Error('Not implemented in MemStorage'); }
   async updateSale(id: string, updates: Partial<Sale>): Promise<Sale | undefined> { return undefined; }
   async deleteSale(id: string): Promise<boolean> { return false; }
   async getSalesByChannel(channelId: string): Promise<Sale[]> { return []; }
@@ -2852,31 +2852,44 @@ export class DatabaseStorage implements IStorage {
     return String(maxNumeric + 1);
   }
 
-  async createSale(sale: InsertSale): Promise<Sale> {
+  async createSale(sale: InsertSale, overrideInventoryGuard = false): Promise<Sale> {
     return await db.transaction(async (tx) => {
       const [newSale] = await tx.insert(sales).values(sale).returning();
 
       if (newSale.saleType === "inventory" && newSale.inventoryItemId) {
-        // Only allow transitioning an available item to "sold". A 0-row update
-        // means the item is missing or already sold/shipped — abort the sale.
-        const result = await tx
-          .update(inventoryItems)
-          .set({
-            status: "sold",
-            soldDate: newSale.saleDate,
-            updatedAt: new Date(),
-          })
-          .where(
-            and(
-              eq(inventoryItems.id, newSale.inventoryItemId),
-              inArray(inventoryItems.status, ["in_stock", "ordered", "on_exhibit"])
-            )
-          );
+        if (overrideInventoryGuard) {
+          // Cleanup/backfill mode: mark item sold regardless of current status.
+          // If it's already "sold" this is a no-op status-wise; we still refresh soldDate.
+          await tx
+            .update(inventoryItems)
+            .set({
+              status: "sold",
+              soldDate: newSale.saleDate,
+              updatedAt: new Date(),
+            })
+            .where(eq(inventoryItems.id, newSale.inventoryItemId));
+        } else {
+          // Normal path: only allow transitioning an available item to "sold".
+          // A 0-row update means the item is missing or already sold/shipped — abort.
+          const result = await tx
+            .update(inventoryItems)
+            .set({
+              status: "sold",
+              soldDate: newSale.saleDate,
+              updatedAt: new Date(),
+            })
+            .where(
+              and(
+                eq(inventoryItems.id, newSale.inventoryItemId),
+                inArray(inventoryItems.status, ["in_stock", "ordered", "on_exhibit"])
+              )
+            );
 
-        if ((result.rowCount || 0) === 0) {
-          throw new Error(
-            `Inventory item ${newSale.inventoryItemId} is not available for sale`
-          );
+          if ((result.rowCount || 0) === 0) {
+            throw new Error(
+              `Inventory item ${newSale.inventoryItemId} is not available for sale`
+            );
+          }
         }
       }
 

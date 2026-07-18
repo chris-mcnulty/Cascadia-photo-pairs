@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Edit, Trash2, DollarSign, Receipt, TrendingUp, ShoppingBag } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Edit, Trash2, DollarSign, Receipt, TrendingUp, ShoppingBag, RefreshCw } from "lucide-react";
 import SalesFormDialog from "./sales-form-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -53,6 +54,19 @@ interface SalesChannel {
   isActive: boolean;
 }
 
+interface InventoryItemWithDetails {
+  id: string;
+  productId: string;
+  mediaType: string;
+  status: string;
+  acquisitionCost: number;
+  listPrice: number;
+  soldDate?: string | null;
+  productTitle?: string;
+  photoImageUrl?: string;
+  sizeLabel?: string;
+}
+
 export default function SalesManagement() {
   const [channelFilter, setChannelFilter] = useState<string>("all");
   const [startDate, setStartDate] = useState<string>("");
@@ -93,6 +107,12 @@ export default function SalesManagement() {
   const { data: channels } = useQuery<SalesChannel[]>({
     queryKey: ["/api/admin/sales-channels"],
   });
+
+  const { data: allInventory } = useQuery<InventoryItemWithDetails[]>({
+    queryKey: ["/api/admin/inventory/details"],
+  });
+
+  const soldItems = (allInventory ?? []).filter(i => i.status === "sold" || i.status === "shipped");
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this sale? This action cannot be undone.")) return;
@@ -467,6 +487,99 @@ export default function SalesManagement() {
                     </TableCell>
                   </TableRow>
                 )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Sold Items — Reorder Reference */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl font-semibold flex items-center gap-2">
+                <RefreshCw className="w-5 h-5 text-gray-500" />
+                Sold Inventory — Reorder Reference
+              </CardTitle>
+              <p className="text-sm text-gray-500 mt-1">
+                Every inventory item marked sold or shipped. Use this to decide what to reorder.
+              </p>
+            </div>
+            <Badge variant="secondary">{soldItems.length} items</Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {!allInventory ? (
+            <div className="space-y-3">
+              {[1,2,3].map(i => <Skeleton key={i} className="h-10 w-full" />)}
+            </div>
+          ) : soldItems.length === 0 ? (
+            <p className="text-sm text-gray-400 py-4 text-center">No sold inventory items yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Photo</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Media / Size</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Status</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide">Sold Date</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-right">Cost</TableHead>
+                  <TableHead className="text-xs font-semibold uppercase tracking-wide text-right">List Price</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {soldItems
+                  .slice()
+                  .sort((a, b) => {
+                    const da = a.soldDate ? new Date(a.soldDate).getTime() : 0;
+                    const db = b.soldDate ? new Date(b.soldDate).getTime() : 0;
+                    return db - da;
+                  })
+                  .map(item => (
+                    <TableRow key={item.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-2 min-w-[160px]">
+                          {item.photoImageUrl ? (
+                            <img
+                              src={item.photoImageUrl}
+                              alt={item.productTitle || ""}
+                              className="w-10 h-10 object-cover rounded shrink-0"
+                              loading="lazy"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded bg-gray-100 shrink-0" />
+                          )}
+                          <span className="text-sm text-gray-800 leading-tight">
+                            {item.productTitle || <span className="text-gray-400 italic">Unknown</span>}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {item.mediaType}
+                        {item.sizeLabel && <span className="text-gray-500 ml-1">· {item.sizeLabel}</span>}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={item.status === "shipped" ? "default" : "secondary"}
+                          className="text-xs capitalize"
+                        >
+                          {item.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-600">
+                        {item.soldDate
+                          ? format(new Date(item.soldDate), "MM/dd/yyyy")
+                          : <span className="text-gray-400">—</span>}
+                      </TableCell>
+                      <TableCell className="text-sm text-right">
+                        {formatCurrency(item.acquisitionCost)}
+                      </TableCell>
+                      <TableCell className="text-sm text-right font-medium">
+                        {formatCurrency(item.listPrice)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
           )}

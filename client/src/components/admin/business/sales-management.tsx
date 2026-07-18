@@ -30,6 +30,8 @@ interface Sale {
   acquisitionCost?: number | null;
   profit?: number | null;
   marginPercent?: number | null;
+  photoTitle?: string | null;
+  imageUrl?: string | null;
 }
 
 interface SaleWithDetails {
@@ -368,6 +370,7 @@ export default function SalesManagement() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide">Order #</TableHead>
+                  <TableHead className="text-sm font-semibold uppercase tracking-wide">Photo</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide">Date</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide">Channel</TableHead>
                   <TableHead className="text-sm font-semibold uppercase tracking-wide">Buyer</TableHead>
@@ -386,6 +389,23 @@ export default function SalesManagement() {
                       <TableRow key={sale.id} data-testid={`row-sale-${sale.id}`}>
                         <TableCell className="text-sm font-mono" data-testid={`text-order-number-${sale.id}`}>
                           {sale.orderNumber || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2 min-w-[140px]">
+                            {sale.imageUrl ? (
+                              <img
+                                src={sale.imageUrl}
+                                alt={sale.photoTitle || ""}
+                                className="w-10 h-10 object-cover rounded shrink-0"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded bg-gray-100 shrink-0" />
+                            )}
+                            <span className="text-sm text-gray-800 leading-tight">
+                              {sale.photoTitle || <span className="text-gray-400 italic">Unknown</span>}
+                            </span>
+                          </div>
                         </TableCell>
                         <TableCell className="text-sm">
                           {format(new Date(sale.saleDate), "MM/dd/yyyy")}
@@ -442,7 +462,7 @@ export default function SalesManagement() {
                   })
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center text-gray-500 py-8">
+                    <TableCell colSpan={10} className="text-center text-gray-500 py-8">
                       {allSales?.length === 0 ? "No sales recorded yet" : "No sales match your filters"}
                     </TableCell>
                   </TableRow>

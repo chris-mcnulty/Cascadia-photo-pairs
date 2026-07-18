@@ -22,6 +22,8 @@ export type SaleWithProfit = Sale & {
   acquisitionCost: number | null;
   profit: number | null;
   marginPercent: number | null;
+  photoTitle: string | null;
+  imageUrl: string | null;
 };
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -2742,6 +2744,23 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
+    // Enrich with photo title + thumbnail from products → photos chain
+    const productIds = Array.from(new Set(allSales.map(s => s.productId).filter((id): id is string => !!id)));
+    const photoInfoById = new Map<string, { title: string | null; imageUrl: string | null }>();
+    if (productIds.length > 0) {
+      const rows = await db.execute(sql`
+        SELECT p.id AS "productId",
+               COALESCE(p.title, ph.title) AS title,
+               COALESCE(p.hero_image_url, ph.image_url) AS "imageUrl"
+        FROM products p
+        LEFT JOIN photos ph ON ph.id = p.photo_id
+        WHERE p.id IN (${sql.join(productIds.map(id => sql`${id}`), sql`, `)})
+      `);
+      for (const r of rows.rows as any[]) {
+        photoInfoById.set(r.productId, { title: r.title ?? null, imageUrl: r.imageUrl ?? null });
+      }
+    }
+
     return allSales.map(sale => {
       const cost =
         sale.saleType === "inventory" && sale.inventoryItemId
@@ -2752,11 +2771,14 @@ export class DatabaseStorage implements IStorage {
         profit !== null && sale.soldPrice > 0
           ? Math.round((profit / sale.soldPrice) * 100)
           : null;
+      const photoInfo = sale.productId ? photoInfoById.get(sale.productId) : null;
       return {
         ...sale,
         acquisitionCost: cost,
         profit,
         marginPercent,
+        photoTitle: photoInfo?.title ?? null,
+        imageUrl: photoInfo?.imageUrl ?? null,
       };
     });
   }

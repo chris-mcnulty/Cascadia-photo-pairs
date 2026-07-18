@@ -37,25 +37,59 @@ import { Link } from "wouter";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
 
+type ActiveTab = "analytics" | "traffic" | "photos" | "pairs" | "users" | "communication" | "social" | "site" | "settings" | "business";
 type BusinessSubTab = "dashboard" | "products" | "skus" | "inventory" | "suppliers" | "sizes" | "sales" | "expenses" | "import" | "catalog";
 
+const VALID_TABS: ActiveTab[] = ["analytics", "traffic", "photos", "pairs", "users", "communication", "social", "site", "settings", "business"];
+const VALID_SUBTABS: BusinessSubTab[] = ["dashboard", "products", "skus", "inventory", "suppliers", "sizes", "sales", "expenses", "import", "catalog"];
+
+function parseHash(): { tab: ActiveTab; subTab: BusinessSubTab } {
+  const hash = window.location.hash.slice(1);
+  const [tabPart, subPart] = hash.split("/");
+  if (tabPart === "business" && VALID_SUBTABS.includes(subPart as BusinessSubTab)) {
+    return { tab: "business", subTab: subPart as BusinessSubTab };
+  }
+  if (VALID_TABS.includes(tabPart as ActiveTab)) {
+    return { tab: tabPart as ActiveTab, subTab: "dashboard" };
+  }
+  return { tab: "analytics", subTab: "dashboard" };
+}
+
 function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState<"analytics" | "traffic" | "photos" | "pairs" | "users" | "communication" | "social" | "site" | "settings" | "business">("analytics");
-  const [businessSubTab, setBusinessSubTab] = useState<BusinessSubTab>("dashboard");
+  const { tab: initTab, subTab: initSubTab } = parseHash();
+  const [activeTab, setActiveTabState] = useState<ActiveTab>(initTab);
+  const [businessSubTab, setBusinessSubTabState] = useState<BusinessSubTab>(initSubTab);
   const [siteRedirectPrefill, setSiteRedirectPrefill] = useState<string | undefined>();
+
+  const navigateTo = (tab: ActiveTab, subTab?: BusinessSubTab) => {
+    const sub = tab === "business" ? (subTab ?? businessSubTab) : undefined;
+    const hash = sub ? `#business/${sub}` : `#${tab}`;
+    window.history.replaceState(null, "", hash);
+    setActiveTabState(tab);
+    if (subTab) setBusinessSubTabState(subTab);
+  };
+
+  useEffect(() => {
+    const onHash = () => {
+      const { tab, subTab } = parseHash();
+      setActiveTabState(tab);
+      setBusinessSubTabState(subTab);
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
 
   function handleCreateRedirectFromTraffic(path: string) {
     setSiteRedirectPrefill(undefined);
     setTimeout(() => {
       setSiteRedirectPrefill(path);
-      setActiveTab("site");
+      navigateTo("site");
     }, 0);
   }
   const { logout, isAuthenticated, sessionId } = useAuth();
-  
+
   const handleBusinessTabClick = (subTab: BusinessSubTab) => {
-    setBusinessSubTab(subTab);
-    setActiveTab("business");
+    navigateTo("business", subTab);
   };
 
   const { data: stats } = useQuery<{
@@ -161,7 +195,7 @@ function AdminDashboard() {
         <div className="flex flex-wrap gap-2 mb-8">
           <Button
             variant={activeTab === "analytics" ? "default" : "outline"}
-            onClick={() => setActiveTab("analytics")}
+            onClick={() => navigateTo("analytics")}
             className="flex items-center text-sm"
             size="sm"
           >
@@ -171,7 +205,7 @@ function AdminDashboard() {
           </Button>
           <Button
             variant={activeTab === "traffic" ? "default" : "outline"}
-            onClick={() => setActiveTab("traffic")}
+            onClick={() => navigateTo("traffic")}
             className="flex items-center text-sm"
             size="sm"
             data-testid="button-traffic-tab"
@@ -181,7 +215,7 @@ function AdminDashboard() {
           </Button>
           <Button
             variant={activeTab === "photos" ? "default" : "outline"}
-            onClick={() => setActiveTab("photos")}
+            onClick={() => navigateTo("photos")}
             className="flex items-center text-sm"
             size="sm"
           >
@@ -190,7 +224,7 @@ function AdminDashboard() {
           </Button>
           <Button
             variant={activeTab === "pairs" ? "default" : "outline"}
-            onClick={() => setActiveTab("pairs")}
+            onClick={() => navigateTo("pairs")}
             className="flex items-center text-sm"
             size="sm"
           >
@@ -199,7 +233,7 @@ function AdminDashboard() {
           </Button>
           <Button
             variant={activeTab === "users" ? "default" : "outline"}
-            onClick={() => setActiveTab("users")}
+            onClick={() => navigateTo("users")}
             className="flex items-center text-sm"
             size="sm"
           >
@@ -209,7 +243,7 @@ function AdminDashboard() {
           </Button>
           <Button
             variant={activeTab === "communication" ? "default" : "outline"}
-            onClick={() => setActiveTab("communication")}
+            onClick={() => navigateTo("communication")}
             className="flex items-center text-sm"
             size="sm"
           >
@@ -219,7 +253,7 @@ function AdminDashboard() {
           </Button>
           <Button
             variant={activeTab === "social" ? "default" : "outline"}
-            onClick={() => setActiveTab("social")}
+            onClick={() => navigateTo("social")}
             className="flex items-center text-sm"
             size="sm"
             data-testid="button-social-tab"
@@ -229,7 +263,7 @@ function AdminDashboard() {
           </Button>
           <Button
             variant={activeTab === "site" ? "default" : "outline"}
-            onClick={() => setActiveTab("site")}
+            onClick={() => navigateTo("site")}
             className="flex items-center text-sm"
             size="sm"
             data-testid="button-site-tab"
@@ -339,7 +373,7 @@ function AdminDashboard() {
           
           <Button
             variant={activeTab === "settings" ? "default" : "outline"}
-            onClick={() => setActiveTab("settings")}
+            onClick={() => navigateTo("settings")}
             className="flex items-center text-sm"
             size="sm"
           >
@@ -372,7 +406,7 @@ function AdminDashboard() {
               </h2>
             </div>
             
-            {businessSubTab === "dashboard" && <BusinessDashboard onNavigateToTab={setBusinessSubTab} />}
+            {businessSubTab === "dashboard" && <BusinessDashboard onNavigateToTab={(sub) => navigateTo("business", sub)} />}
             {businessSubTab === "products" && <ProductManagement />}
             {businessSubTab === "skus" && <SKUManagement />}
             {businessSubTab === "inventory" && <InventoryManagement />}

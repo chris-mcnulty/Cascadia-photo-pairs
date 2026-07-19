@@ -129,8 +129,11 @@ export default function SupplierManagement() {
       const priceId = getPriceId(supplierId, sizeId, mediaType);
 
       if (priceId) {
-        await apiRequest("PUT", `/api/admin/supplier-prices/${priceId}`, {
-          basePrice: priceInCents,
+        await apiRequest("PUT", "/api/admin/supplier-prices", {
+          supplierId,
+          productSizeId: sizeId,
+          mediaType,
+          newPrice: priceInCents,
         });
       } else {
         await apiRequest("POST", "/api/admin/supplier-prices", {

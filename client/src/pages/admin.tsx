@@ -32,16 +32,17 @@ import SalesManagement from "@/components/admin/business/sales-management";
 import ExpenseTracker from "@/components/admin/business/expense-tracker";
 import { CSVImport } from "@/components/admin/business/csv-import";
 import CatalogExport from "@/components/admin/business/catalog-export";
+import PriceListExport from "@/components/admin/business/pricelist-export";
 import { ArrowLeft, BarChart3, Settings, Download, ImageIcon, LogOut, Users, Trophy, Bell, MessageSquare, Link2, Briefcase, ChevronDown, LayoutDashboard, Package, Package2, Building2, Receipt, Upload, DollarSign, Tag, Share2, Activity, FileText, Globe } from "lucide-react";
 import { Link } from "wouter";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import cascadiaLogoPath from "@assets/Cascadia-TP-Small_1754529731679.png";
 
 type ActiveTab = "analytics" | "traffic" | "photos" | "pairs" | "users" | "communication" | "social" | "site" | "settings" | "business";
-type BusinessSubTab = "dashboard" | "products" | "skus" | "inventory" | "suppliers" | "sizes" | "sales" | "expenses" | "import" | "catalog";
+type BusinessSubTab = "dashboard" | "products" | "skus" | "inventory" | "suppliers" | "sizes" | "sales" | "expenses" | "import" | "catalog" | "pricelist";
 
 const VALID_TABS: ActiveTab[] = ["analytics", "traffic", "photos", "pairs", "users", "communication", "social", "site", "settings", "business"];
-const VALID_SUBTABS: BusinessSubTab[] = ["dashboard", "products", "skus", "inventory", "suppliers", "sizes", "sales", "expenses", "import", "catalog"];
+const VALID_SUBTABS: BusinessSubTab[] = ["dashboard", "products", "skus", "inventory", "suppliers", "sizes", "sales", "expenses", "import", "catalog", "pricelist"];
 
 function parseHash(): { tab: ActiveTab; subTab: BusinessSubTab } {
   const hash = window.location.hash.slice(1);
@@ -368,6 +369,14 @@ function AdminDashboard() {
                 <FileText className="w-4 h-4 mr-2" />
                 Catalog Generator
               </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => handleBusinessTabClick("pricelist")} 
+                data-testid="menu-business-pricelist"
+                className={businessSubTab === "pricelist" ? "bg-accent" : ""}
+              >
+                <Tag className="w-4 h-4 mr-2" />
+                Price List
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
           
@@ -416,6 +425,7 @@ function AdminDashboard() {
             {businessSubTab === "expenses" && <ExpenseTracker />}
             {businessSubTab === "import" && <CSVImport />}
             {businessSubTab === "catalog" && <CatalogExport />}
+            {businessSubTab === "pricelist" && <PriceListExport />}
           </div>
         )}
         {activeTab === "social" && <SocialManagement />}

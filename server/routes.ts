@@ -4531,6 +4531,79 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============================================
+  // PRICE LIST ROUTES
+  // ============================================
+
+  app.post("/api/admin/pricelist/export", isAuthenticated, async (req, res) => {
+    try {
+      const { format, title, subtitle, discountRate, itemIds } = req.body as {
+        format: "pdf" | "docx";
+        title: string;
+        subtitle?: string;
+        discountRate: number;
+        itemIds: string[];
+      };
+
+      if (!Array.isArray(itemIds) || itemIds.length === 0) {
+        return res.status(400).json({ error: "No items selected" });
+      }
+
+      // Fetch all inventory with details, then filter to selected IDs
+      const allItems = await storage.getInventoryWithDetails();
+      const selected = allItems.filter((item) => itemIds.includes(item.id));
+
+      // Sort: by productTitle then sizeLabel
+      selected.sort((a, b) => {
+        const ta = (a.productTitle ?? "").toLowerCase();
+        const tb = (b.productTitle ?? "").toLowerCase();
+        if (ta !== tb) return ta < tb ? -1 : 1;
+        return (a.sizeLabel ?? "").localeCompare(b.sizeLabel ?? "");
+      });
+
+      // Build rows with computed show price
+      const rate = Math.max(0, Math.min(99, Number(discountRate) || 0));
+      const rows = selected.map((item) => {
+        const listPriceCents = item.listPrice;
+        const afterDiscount = listPriceCents * (1 - rate / 100);
+        const showPriceCents = Math.round(afterDiscount / 5) * 5;
+        return {
+          productTitle: item.productTitle ?? "Unknown",
+          sizeLabel: item.sizeLabel ?? "",
+          mediaType: item.mediaType,
+          listPriceCents,
+          showPriceCents,
+        };
+      });
+
+      const { generatePriceListPdf } = await import("./catalog/pricelist-pdf");
+      const { generatePriceListDocx } = await import("./catalog/pricelist-docx");
+      const { readBrandLogoBuffer } = await import("./catalog/catalog-brand");
+
+      const brandLogo = readBrandLogoBuffer();
+      const opts = { title: title || "Price List", subtitle, discountRate: rate, brandLogo };
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      const slug = (title || "pricelist").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const baseName = `${slug}-${stamp}`;
+
+      if (format === "docx") {
+        const buf = await generatePriceListDocx(rows, opts);
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        res.setHeader("Content-Disposition", `attachment; filename="${baseName}.docx"`);
+        return res.send(buf);
+      }
+
+      const buf = await generatePriceListPdf(rows, opts);
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${baseName}.pdf"`);
+      return res.send(buf);
+    } catch (e) {
+      console.error("admin/pricelist/export error:", e);
+      res.status(500).json({ error: "Failed to generate price list document" });
+    }
+  });
+
   // Single product detail with size + price options
   app.get("/api/public/products/:slug", async (req, res) => {
     try {

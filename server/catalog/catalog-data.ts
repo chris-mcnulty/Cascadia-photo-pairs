@@ -42,7 +42,8 @@ export interface CatalogFilters {
   year?: number | "all";
   sort?: CatalogSort;
   sortOrder?: "asc" | "desc";
-  inStockOnly?: boolean;
+  inStockOnly?: boolean; // legacy — maps to inventoryStatuses: ["in_stock"]
+  inventoryStatuses?: string[]; // e.g. ["in_stock", "on_exhibit", "ordered"]; empty/undefined = all
 }
 
 // The artwork year is encoded in the product slug (e.g. "trulocks-2020").
@@ -184,14 +185,23 @@ export async function getCatalogEntries(
     collections: Array.from(collectionMap.values()).sort((a, b) => a.name.localeCompare(b.name)),
   };
 
-  // In-stock filter: restrict to products that have at least one physical item
-  // currently in stock (inventory_items.status = 'in_stock').
-  if (filters.inStockOnly) {
-    const stockRows = await db.execute(sql`
-      SELECT DISTINCT product_id AS "productId" FROM inventory_items WHERE status = 'in_stock'
-    `);
-    const inStockIds = new Set((stockRows.rows as any[]).map((r) => String(r.productId)));
-    entries = entries.filter((e) => inStockIds.has(e.productId));
+  // Inventory status filter: restrict to products that have at least one physical
+  // item with one of the specified statuses.  Legacy inStockOnly maps to ["in_stock"].
+  const statuses: string[] =
+    filters.inventoryStatuses && filters.inventoryStatuses.length > 0
+      ? filters.inventoryStatuses
+      : filters.inStockOnly
+        ? ["in_stock"]
+        : [];
+  if (statuses.length > 0) {
+    const statusList = statuses.map((s) => `'${s.replace(/'/g, "''")}'`).join(", ");
+    const stockRows = await db.execute(
+      sql.raw(
+        `SELECT DISTINCT product_id AS "productId" FROM inventory_items WHERE status IN (${statusList})`,
+      ),
+    );
+    const matchIds = new Set((stockRows.rows as any[]).map((r) => String(r.productId)));
+    entries = entries.filter((e) => matchIds.has(e.productId));
   }
 
   // Collection filter

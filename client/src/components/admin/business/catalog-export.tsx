@@ -69,7 +69,7 @@ export default function CatalogExport() {
   const [collection, setCollection] = useState("all");
   const [year, setYear] = useState("all");
   const [sort, setSort] = useState("title");
-  const [inStockOnly, setInStockOnly] = useState(false);
+  const [inventoryStatuses, setInventoryStatuses] = useState<Set<string>>(new Set());
 
   // Signage-only options
   const [featuredSize, setFeaturedSize] = useState<"largest" | "smallest">("largest");
@@ -86,7 +86,8 @@ export default function CatalogExport() {
 
   const [downloading, setDownloading] = useState<null | "pdf" | "docx">(null);
 
-  const previewKey = `/api/admin/catalog/entries?collection=${collection}&year=${year}&sort=${sort}&inStockOnly=${inStockOnly}`;
+  const statusParam = inventoryStatuses.size > 0 ? Array.from(inventoryStatuses).sort().join(",") : "all";
+  const previewKey = `/api/admin/catalog/entries?collection=${collection}&year=${year}&sort=${sort}&inventoryStatuses=${statusParam}`;
   const { data, isLoading } = useQuery<PreviewResponse>({
     queryKey: [previewKey],
   });
@@ -153,7 +154,7 @@ export default function CatalogExport() {
         collection,
         year,
         sort,
-        inStockOnly,
+        inventoryStatuses: inventoryStatuses.size > 0 ? Array.from(inventoryStatuses) : [],
         featuredSize,
         includeQr,
         includePhoto: mode === "signage" ? includePhoto : true,
@@ -217,13 +218,38 @@ export default function CatalogExport() {
 
             <Separator />
 
-            {/* Filters */}
-            <div className="flex items-center justify-between rounded-md border p-3">
-              <div>
-                <Label className="cursor-pointer">In-stock prints only</Label>
-                <p className="text-xs text-muted-foreground">Limit to photos with physical inventory currently in stock.</p>
+            {/* Inventory status filter */}
+            <div className="space-y-2">
+              <Label>Inventory filter</Label>
+              <p className="text-xs text-muted-foreground">
+                Limit to photos with at least one print in the selected status(es). Leave all unchecked to show every for-sale photo regardless of inventory.
+              </p>
+              <div className="flex flex-wrap gap-4 pt-1">
+                {[
+                  { value: "in_stock", label: "In Stock" },
+                  { value: "on_exhibit", label: "On Exhibit" },
+                  { value: "ordered", label: "Ordered" },
+                ].map((s) => (
+                  <div key={s.value} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`inv-status-${s.value}`}
+                      checked={inventoryStatuses.has(s.value)}
+                      onCheckedChange={(v) =>
+                        setInventoryStatuses((prev) => {
+                          const next = new Set(prev);
+                          if (v) next.add(s.value);
+                          else next.delete(s.value);
+                          return next;
+                        })
+                      }
+                      data-testid={`checkbox-inv-status-${s.value}`}
+                    />
+                    <Label htmlFor={`inv-status-${s.value}`} className="cursor-pointer font-normal">
+                      {s.label}
+                    </Label>
+                  </div>
+                ))}
               </div>
-              <Switch checked={inStockOnly} onCheckedChange={setInStockOnly} data-testid="switch-in-stock-only" />
             </div>
 
             <div className="grid gap-4 sm:grid-cols-3">

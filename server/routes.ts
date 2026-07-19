@@ -4403,7 +4403,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const year = yearParamRaw && yearParamRaw !== "all" ? parseInt(yearParamRaw, 10) : "all";
       const sort = (req.query.sort as CatalogSort) || "title";
       const inStockOnly = req.query.inStockOnly === "true";
-      const { entries, facets } = await getCatalogEntries({ collection, year, sort, inStockOnly });
+      const inventoryStatusesParam = req.query.inventoryStatuses as string | undefined;
+      const inventoryStatuses =
+        inventoryStatusesParam && inventoryStatusesParam !== "all"
+          ? inventoryStatusesParam.split(",").map((s) => s.trim()).filter(Boolean)
+          : inStockOnly
+            ? ["in_stock"]
+            : [];
+      const { entries, facets } = await getCatalogEntries({ collection, year, sort, inventoryStatuses });
       res.json({
         count: entries.length,
         facets,
@@ -4444,14 +4451,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subtitle,
         selections, // optional: [{ productId, sizeLabel?, mediaType? }] — pick photos + per-card size
         inStockOnly = false,
+        inventoryStatuses, // string[] e.g. ["in_stock","on_exhibit","ordered"]
       } = req.body || {};
 
       const yearFilter = year && year !== "all" ? parseInt(String(year), 10) : "all";
+      const resolvedStatuses: string[] =
+        Array.isArray(inventoryStatuses) && inventoryStatuses.length > 0
+          ? inventoryStatuses
+          : inStockOnly
+            ? ["in_stock"]
+            : [];
       const { entries: allEntries } = await getCatalogEntries({
         collection: String(collection),
         year: yearFilter,
         sort: sort as CatalogSort,
-        inStockOnly: !!inStockOnly,
+        inventoryStatuses: resolvedStatuses,
       });
 
       // When explicit selections are provided, restrict to (and order by) the

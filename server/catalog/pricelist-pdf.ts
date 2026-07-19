@@ -153,61 +153,74 @@ export async function generatePriceListPdf(
       // ── Header ─────────────────────────────────────────────────────────
       let curY = M.top;
 
-      const logoMaxH = 44;
-      const logoMaxW = 120;
-      let logoH = 0;
+      // Logo — centered
       if (brandLogo) {
         const dims = imageDimensions(brandLogo);
+        const logoMaxH = 44;
+        const logoMaxW = 120;
         const ratio = dims
           ? Math.min(logoMaxW / dims.width, logoMaxH / dims.height)
           : 1;
         const lw = dims ? dims.width * ratio : logoMaxW;
         const lh = dims ? dims.height * ratio : logoMaxH;
-        logoH = lh;
-        doc.image(brandLogo, M.left, curY, { width: lw, height: lh });
+        const logoX = M.left + (CW - lw) / 2;
+        doc.image(brandLogo, logoX, curY, { width: lw, height: lh });
+        curY += lh + 10;
       }
 
-      // Title + discount note on the right side
-      const titleColX = M.left + CW * 0.35;
-      const titleColW = CW * 0.65;
-      const titleFontH = 20;
-      const titleTopY = curY + Math.max(0, (logoH - titleFontH) / 2);
+      // "Price List" — centered
       doc
         .font("Heading")
-        .fontSize(titleFontH)
+        .fontSize(22)
         .fillColor(HEX(BRAND.evergreen))
-        .text(opts.title, titleColX, titleTopY, {
-          width: titleColW,
-          align: "right",
+        .text("Price List", M.left, curY, {
+          width: CW,
+          align: "center",
           lineBreak: false,
         });
+      curY += 28;
 
-      curY = M.top + Math.max(logoH, titleFontH) + 6;
+      // "Cascadia Oceanic · Chris McNulty" — centered
+      doc
+        .font("Light")
+        .fontSize(10)
+        .fillColor(HEX(BRAND.midtone))
+        .text("Cascadia Oceanic · Chris McNulty", M.left, curY, {
+          width: CW,
+          align: "center",
+          lineBreak: false,
+        });
+      curY += 16;
 
+      // Spacer
+      curY += 8;
+
+      // Show title — centered (only if provided)
+      if (opts.title) {
+        doc
+          .font("Bold")
+          .fontSize(13)
+          .fillColor(HEX(BRAND.granite))
+          .text(opts.title, M.left, curY, {
+            width: CW,
+            align: "center",
+            lineBreak: false,
+          });
+        curY += 18;
+      }
+
+      // Discount note — centered
       if (showDiscount) {
         doc
           .font("Light")
-          .fontSize(9)
+          .fontSize(8)
           .fillColor(HEX(BRAND.midtone))
           .text(
             `${opts.discountRate}% show discount applied · prices rounded to nearest $5`,
             M.left,
             curY,
-            { width: CW, align: "right", lineBreak: false },
+            { width: CW, align: "center", lineBreak: false },
           );
-        curY += 13;
-      }
-
-      if (opts.subtitle) {
-        doc
-          .font("Light")
-          .fontSize(9)
-          .fillColor(HEX(BRAND.granite))
-          .text(opts.subtitle, M.left, curY, {
-            width: CW,
-            align: "right",
-            lineBreak: false,
-          });
         curY += 13;
       }
 
@@ -223,7 +236,7 @@ export async function generatePriceListPdf(
         .restore();
       curY += 12;
 
-      // Material note
+      // Material note — centered
       doc
         .font("Light")
         .fontSize(8)
@@ -232,7 +245,7 @@ export async function generatePriceListPdf(
           "All prints are ChromaLuxe aluminum — archival metal print process with exceptional color, depth, and durability.",
           M.left,
           curY,
-          { width: CW, lineBreak: false },
+          { width: CW, align: "center", lineBreak: false },
         );
       curY += 14;
 

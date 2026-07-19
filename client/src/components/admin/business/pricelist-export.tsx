@@ -46,7 +46,6 @@ export default function PriceListExport() {
   );
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [title, setTitle] = useState("");
-  const [subtitle, setSubtitle] = useState("");
   const [discountRate, setDiscountRate] = useState<number>(0);
   const [downloading, setDownloading] = useState<null | "pdf" | "docx">(null);
 
@@ -102,8 +101,7 @@ export default function PriceListExport() {
     try {
       const res = await apiRequest("POST", "/api/admin/pricelist/export", {
         format,
-        title: title || "Price List",
-        subtitle: subtitle || undefined,
+        title: title || "",
         discountRate,
         itemIds: selectedItems.map((i) => i.id),
       });
@@ -151,28 +149,19 @@ export default function PriceListExport() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Title & Subtitle */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="pl-title">Show / Event Title</Label>
-                <Input
-                  id="pl-title"
-                  placeholder="e.g. Bellevue Arts Fair 2026"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  data-testid="input-pricelist-title"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pl-subtitle">Subtitle (optional)</Label>
-                <Input
-                  id="pl-subtitle"
-                  placeholder="e.g. ChromaLuxe Metal Prints"
-                  value={subtitle}
-                  onChange={(e) => setSubtitle(e.target.value)}
-                  data-testid="input-pricelist-subtitle"
-                />
-              </div>
+            {/* Show Title */}
+            <div className="space-y-2">
+              <Label htmlFor="pl-title">Show / Event Title</Label>
+              <Input
+                id="pl-title"
+                placeholder="e.g. Bellevue Arts Fair 2026"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                data-testid="input-pricelist-title"
+              />
+              <p className="text-xs text-muted-foreground">
+                Appears below "Price List / Cascadia Oceanic · Chris McNulty" on the document. Leave blank for no show title.
+              </p>
             </div>
 
             <Separator />

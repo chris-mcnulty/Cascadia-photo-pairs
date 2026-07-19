@@ -4595,7 +4595,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { readBrandLogoBuffer } = await import("./catalog/catalog-brand");
 
       const brandLogo = readBrandLogoBuffer();
-      const opts = { title: title || "Price List", subtitle, discountRate: rate, brandLogo };
+      const opts = { title: title || "", subtitle: undefined, discountRate: rate, brandLogo };
 
       const stamp = new Date().toISOString().slice(0, 10);
       const slug = (title || "pricelist").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

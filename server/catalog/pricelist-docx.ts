@@ -133,11 +133,12 @@ export async function generatePriceListDocx(
   const children: (Paragraph | Table)[] = [];
 
   // ── Header ─────────────────────────────────────────────────────────────
+  // Logo — centered
   if (brandLogoBuf) {
     const d = scaleToFit(imageDimensions(brandLogoBuf), 110, 60);
     children.push(
       new Paragraph({
-        alignment: AlignmentType.LEFT,
+        alignment: AlignmentType.CENTER,
         spacing: { after: 120 },
         children: [
           new ImageRun({
@@ -150,14 +151,14 @@ export async function generatePriceListDocx(
     );
   }
 
-  // Title
+  // "Price List" — centered
   children.push(
     new Paragraph({
-      alignment: AlignmentType.LEFT,
+      alignment: AlignmentType.CENTER,
       spacing: { after: 80 },
       children: [
         new TextRun({
-          text: opts.title,
+          text: "Price List",
           font: FONT_HEADING,
           bold: true,
           size: 44,
@@ -167,11 +168,49 @@ export async function generatePriceListDocx(
     }),
   );
 
-  // Discount note
+  // "Cascadia Oceanic · Chris McNulty" — centered
+  children.push(
+    new Paragraph({
+      alignment: AlignmentType.CENTER,
+      spacing: { after: 60 },
+      children: [
+        new TextRun({
+          text: "Cascadia Oceanic · Chris McNulty",
+          font: FONT_LIGHT,
+          size: 20,
+          color: BRAND.midtone,
+        }),
+      ],
+    }),
+  );
+
+  // Spacer
+  children.push(new Paragraph({ spacing: { after: 120 } }));
+
+  // Show title — centered (only if provided)
+  if (opts.title) {
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 80 },
+        children: [
+          new TextRun({
+            text: opts.title,
+            font: FONT_HEADING,
+            bold: true,
+            size: 28,
+            color: BRAND.granite,
+          }),
+        ],
+      }),
+    );
+  }
+
+  // Discount note — centered
   if (showDiscount) {
     children.push(
       new Paragraph({
-        alignment: AlignmentType.LEFT,
+        alignment: AlignmentType.CENTER,
         spacing: { after: 60 },
         children: [
           new TextRun({
@@ -179,23 +218,6 @@ export async function generatePriceListDocx(
             font: FONT_LIGHT,
             size: 18,
             color: BRAND.midtone,
-          }),
-        ],
-      }),
-    );
-  }
-
-  if (opts.subtitle) {
-    children.push(
-      new Paragraph({
-        alignment: AlignmentType.LEFT,
-        spacing: { after: 60 },
-        children: [
-          new TextRun({
-            text: opts.subtitle,
-            font: FONT_LIGHT,
-            size: 18,
-            color: BRAND.granite,
           }),
         ],
       }),

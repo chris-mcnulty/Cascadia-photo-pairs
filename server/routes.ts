@@ -4580,7 +4580,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const rows = selected.map((item) => {
         const listPriceCents = item.listPrice;
         const afterDiscount = listPriceCents * (1 - rate / 100);
-        const showPriceCents = Math.round(afterDiscount / 5) * 5;
+        const showPriceCents = Math.round(afterDiscount / 500) * 500;
         return {
           productTitle: item.productTitle ?? "Unknown",
           sizeLabel: item.sizeLabel ?? "",

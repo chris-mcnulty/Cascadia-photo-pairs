@@ -31,7 +31,7 @@ interface InventoryItem {
 
 function applyDiscount(listCents: number, discountRate: number): number {
   const after = listCents * (1 - discountRate / 100);
-  return Math.round(after / 5) * 5;
+  return Math.round(after / 500) * 500;
 }
 
 function fmtPrice(cents: number): string {

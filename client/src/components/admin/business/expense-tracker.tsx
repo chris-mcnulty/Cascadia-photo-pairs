@@ -39,9 +39,13 @@ export default function ExpenseTracker() {
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const { toast } = useToast();
 
-  const { data: expenses, isLoading: loadingExpenses } = useQuery<Expense[]>({
-    queryKey: ["/api/admin/expenses", categoryFilter !== "all" ? { category: categoryFilter } : {}],
+  const { data: allExpenses, isLoading: loadingExpenses } = useQuery<Expense[]>({
+    queryKey: ["/api/admin/expenses"],
   });
+
+  const expenses = categoryFilter === "all"
+    ? allExpenses
+    : allExpenses?.filter((e) => (e as any).categoryId === categoryFilter);
 
   const { data: categories } = useQuery<ExpenseCategory[]>({
     queryKey: ["/api/admin/expense-categories"],

@@ -300,14 +300,13 @@ export async function generatePriceListPdf(
           prevTitle = row.productTitle;
         }
 
-        // Size (indented slightly on continuation rows)
-        const sizeIndent = isNewGroup ? 0 : 10;
+        // Size
         doc
           .font("Body")
           .fontSize(cellSize)
           .fillColor(HEX(BRAND.textDark))
-          .text(fmtSize(row.sizeLabel), col.size + 4 + sizeIndent, cellY, {
-            width: colW.size - 8 - sizeIndent,
+          .text(fmtSize(row.sizeLabel), col.size + 4, cellY, {
+            width: colW.size - 8,
             lineBreak: false,
           });
 

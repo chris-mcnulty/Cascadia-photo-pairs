@@ -146,7 +146,7 @@ function drawSignageCard(
     if (descAvail > 10) {
       doc
         .font("Body")
-        .fontSize(9)
+        .fontSize(12)
         .fillColor(HEX(BRAND.textDark))
         .text(entry.description, innerX, curY, {
           width: innerW,
@@ -220,7 +220,16 @@ function drawSignageCard(
     const w = dims ? dims.width * ratio : logoMaxW;
     const h = dims ? dims.height * ratio : logoMaxH;
     const logoX = innerX + (innerW - w) / 2;
-    doc.image(opts.brandLogo, logoX, bottomRowY + (bottomRowH - h) / 2, { width: w, height: h });
+    // Shift logo up slightly to leave room for the wordmark beneath it
+    const wordmarkH = 11;
+    const logoY = bottomRowY + (bottomRowH - h - wordmarkH - 2) / 2;
+    doc.image(opts.brandLogo, logoX, logoY, { width: w, height: h });
+    // "Cascadia Oceanic" wordmark — bold 9pt, brand green, centered on logo
+    doc
+      .font("Bold")
+      .fontSize(9)
+      .fillColor("#92D1A9")
+      .text("Cascadia Oceanic", logoX, logoY + h + 2, { width: w, align: "center", lineBreak: false });
   }
 
   // QR code — right-aligned

@@ -73,6 +73,7 @@ export default function CatalogExport() {
 
   // Signage-only options
   const [signageDiscountRate, setSignageDiscountRate] = useState<number>(0);
+  const [includePrice, setIncludePrice] = useState(true);
   const [featuredSize, setFeaturedSize] = useState<"largest" | "smallest">("largest");
   const [includePhoto, setIncludePhoto] = useState(true);
   const [includeQr, setIncludeQr] = useState(true);
@@ -163,6 +164,7 @@ export default function CatalogExport() {
         useBrandLogo,
         showLogo: mode === "signage" ? showLogo : null,
         discountRate: mode === "signage" ? signageDiscountRate : 0,
+        includePrice: mode === "signage" ? includePrice : true,
         selections,
       });
       const blob = await res.blob();
@@ -348,6 +350,17 @@ export default function CatalogExport() {
                           : "Enter a percentage to show a discounted show price on each card."}
                       </p>
                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-md border p-3">
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <Label className="cursor-pointer">Include pricing on card</Label>
+                        <p className="text-xs text-muted-foreground">Turn off to reuse signs across shows without prices.</p>
+                      </div>
+                    </div>
+                    <Switch checked={includePrice} onCheckedChange={setIncludePrice} data-testid="switch-include-price" />
                   </div>
 
                   <div className="flex items-center justify-between rounded-md border p-3">

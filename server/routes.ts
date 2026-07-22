@@ -4450,6 +4450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         title,
         subtitle,
         discountRate, // signage: show discount %
+        includePrice, // signage: whether to show price on card (default true)
         selections, // optional: [{ productId, sizeLabel?, mediaType? }] — pick photos + per-card size
         inStockOnly = false,
         inventoryStatuses, // string[] e.g. ["in_stock","on_exhibit","ordered"]
@@ -4525,6 +4526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         brandLogo: brandLogoBuf,
         showLogo: showLogoBuf,
         discountRate: resolvedDiscountRate,
+        includePrice: mode === "signage" ? includePrice !== false : true,
       };
 
       const stamp = new Date().toISOString().slice(0, 10);

@@ -25,6 +25,7 @@ export interface PdfOptions {
   brandLogo?: Buffer | null;
   showLogo?: Buffer | null;
   discountRate?: number; // signage: 0–99, show price = round(list*(1-rate/100)/500)*500
+  includePrice?: boolean; // signage: show featured price on card (default true)
 }
 
 const HEX = (h: string) => `#${h}`;
@@ -158,9 +159,9 @@ function drawSignageCard(
     }
   }
 
-  // Featured size + price
+  // Featured size + price (omitted when includePrice is explicitly false)
   const featured = entry.featuredOverride || pickFeaturedSize(entry, opts.featuredSize || "largest");
-  if (featured) {
+  if (featured && opts.includePrice !== false) {
     const rate = opts.discountRate || 0;
     const showPrice = rate > 0
       ? Math.round(featured.priceCents * (1 - rate / 100) / 500) * 500

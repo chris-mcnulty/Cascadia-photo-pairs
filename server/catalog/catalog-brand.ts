@@ -74,12 +74,19 @@ export function formatSizeLabel(label: string): string {
 // price). Falls back to any media type if no ChromaLuxe sizes exist.
 export function pickFeaturedSize(
   entry: CatalogEntry,
-  which: "largest" | "smallest" = "largest",
+  which: "largest" | "smallest" | "largest_on_exhibit" = "largest",
 ): CatalogSize | null {
   const chroma = entry.sizes.filter((s) => /chromaluxe/i.test(s.mediaType));
   const pool = chroma.length ? chroma : entry.sizes;
   if (!pool.length) return null;
   const sorted = [...pool].sort((a, b) => a.priceCents - b.priceCents);
+  if (which === "largest_on_exhibit") {
+    const exhibitPool = sorted.filter(
+      (s) => entry.exhibitSizeLabels && entry.exhibitSizeLabels.has(s.sizeLabel),
+    );
+    // Fall back to overall largest if nothing is on exhibit
+    return exhibitPool.length ? exhibitPool[exhibitPool.length - 1] : sorted[sorted.length - 1];
+  }
   return which === "largest" ? sorted[sorted.length - 1] : sorted[0];
 }
 

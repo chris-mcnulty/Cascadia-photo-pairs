@@ -13,6 +13,7 @@ export interface CatalogEntry {
   slug: string;
   title: string;
   displayTitle: string;
+  exhibitSizeLabels?: Set<string>; // size labels with ≥1 on_exhibit inventory item
   year: number | null;
   description: string | null;
   collectionId: string | null;
@@ -135,6 +136,20 @@ export async function getCatalogEntries(
 
   const sizesByRatio = await loadSizesByAspectRatio();
 
+  // Build a map of productId → Set<sizeLabel> for on_exhibit inventory items
+  const exhibitRows = await db.execute(sql`
+    SELECT ii.product_id AS "productId", ps.size_label AS "sizeLabel"
+    FROM inventory_items ii
+    JOIN product_sizes ps ON ps.id = ii.product_size_id
+    WHERE ii.status = 'on_exhibit'
+  `);
+  const exhibitMap = new Map<string, Set<string>>();
+  for (const r of exhibitRows.rows as any[]) {
+    const pid = String(r.productId);
+    if (!exhibitMap.has(pid)) exhibitMap.set(pid, new Set());
+    exhibitMap.get(pid)!.add(String(r.sizeLabel));
+  }
+
   let entries: CatalogEntry[] = (productRows.rows as any[]).map((r) => {
     // Support comma-separated aspect ratios (e.g. "16x9,3x2" for dual-ratio products).
     const ratios = String(r.aspectRatio || "")
@@ -164,6 +179,7 @@ export async function getCatalogEntries(
       imageUrl: r.imageUrl ? String(r.imageUrl) : null,
       customPurchaseUrl: r.customPurchaseUrl ? String(r.customPurchaseUrl) : null,
       sizes: allSizes,
+      exhibitSizeLabels: exhibitMap.get(String(r.productId)),
     };
   });
 

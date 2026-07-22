@@ -74,7 +74,7 @@ export default function CatalogExport() {
   // Signage-only options
   const [signageDiscountRate, setSignageDiscountRate] = useState<number>(0);
   const [includePrice, setIncludePrice] = useState(true);
-  const [featuredSize, setFeaturedSize] = useState<"largest" | "smallest">("largest");
+  const [featuredSize, setFeaturedSize] = useState<"largest" | "smallest" | "largest_on_exhibit">("largest");
   const [includePhoto, setIncludePhoto] = useState(true);
   const [includeQr, setIncludeQr] = useState(true);
   const [useBrandLogo, setUseBrandLogo] = useState(true);
@@ -305,8 +305,9 @@ export default function CatalogExport() {
                       <Select value={featuredSize} onValueChange={(v) => setFeaturedSize(v as any)}>
                         <SelectTrigger data-testid="select-featured-size"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="largest">Largest available</SelectItem>
-                          <SelectItem value="smallest">Smallest available</SelectItem>
+                          <SelectItem value="largest">Largest (by SKU list)</SelectItem>
+                          <SelectItem value="largest_on_exhibit">Largest on exhibit</SelectItem>
+                          <SelectItem value="smallest">Smallest (by SKU list)</SelectItem>
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">

@@ -136,7 +136,7 @@ function drawSignageCard(
   doc
     .font("Heading")
     .fontSize(16)
-    .fillColor(HEX(BRAND.evergreen))
+    .fillColor("#3A7C22")
     .text(entry.displayTitle, innerX, curY, { width: innerW, align: "left", lineBreak: true });
   curY = doc.y + 4;
 

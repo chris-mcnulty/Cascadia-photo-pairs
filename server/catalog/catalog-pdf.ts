@@ -224,12 +224,12 @@ function drawSignageCard(
     const wordmarkH = 9;
     const logoY = bottomRowY + (bottomRowH - h - wordmarkH - 2) / 2;
     doc.image(opts.brandLogo, logoX, logoY, { width: w, height: h });
-    // "Cascadia Oceanic" wordmark — bold 8pt, brand green, centered on logo, single line
-    doc
-      .font("Bold")
-      .fontSize(8)
-      .fillColor("#92D1A9")
-      .text("Cascadia Oceanic", logoX, logoY + h + 2, { width: w, align: "center", lineBreak: false });
+    // "Cascadia Oceanic" wordmark — bold 8pt, Mountain Midtone, centered on logo, single line
+    doc.font("Bold").fontSize(8).fillColor("#3F8F5A");
+    const wmText = "Cascadia Oceanic";
+    const wmW = doc.widthOfString(wmText);
+    const wmX = logoX + (w - wmW) / 2;
+    doc.text(wmText, wmX, logoY + h + 2, { lineBreak: false });
   }
 
   // QR code — right-aligned

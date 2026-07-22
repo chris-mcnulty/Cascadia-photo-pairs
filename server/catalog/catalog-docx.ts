@@ -36,6 +36,7 @@ export interface DocxOptions {
   storeBaseUrl?: string;
   brandLogo?: Buffer | null;
   showLogo?: Buffer | null;
+  discountRate?: number; // signage: 0–99, show price = round(list*(1-rate/100)/500)*500
 }
 
 interface PreparedAsset {
@@ -151,13 +152,17 @@ function buildSignageChildren(assets: PreparedAsset[], opts: DocxOptions): Parag
     // Featured size + price
     const featured = entry.featuredOverride || pickFeaturedSize(entry, opts.featuredSize || "largest");
     if (featured) {
+      const rate = opts.discountRate || 0;
+      const showPrice = rate > 0
+        ? Math.round(featured.priceCents * (1 - rate / 100) / 500) * 500
+        : featured.priceCents;
       children.push(
         new Paragraph({
           alignment: AlignmentType.CENTER,
-          spacing: { after: 80 },
+          spacing: { after: rate > 0 ? 20 : 80 },
           children: [
             new TextRun({
-              text: `${formatSizeLabel(featured.sizeLabel)} — ${formatPrice(featured.priceCents)}`,
+              text: `${formatSizeLabel(featured.sizeLabel)} — ${formatPrice(showPrice)}`,
               font: FONT_HEADING,
               bold: true,
               size: 30,
@@ -166,6 +171,22 @@ function buildSignageChildren(assets: PreparedAsset[], opts: DocxOptions): Parag
           ],
         }),
       );
+      if (rate > 0) {
+        children.push(
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 80 },
+            children: [
+              new TextRun({
+                text: `${rate}% show price · list ${formatPrice(featured.priceCents)}`,
+                font: FONT_LIGHT,
+                size: 18,
+                color: BRAND.granite,
+              }),
+            ],
+          }),
+        );
+      }
     }
 
     // More sizes line

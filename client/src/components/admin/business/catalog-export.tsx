@@ -72,6 +72,7 @@ export default function CatalogExport() {
   const [inventoryStatuses, setInventoryStatuses] = useState<Set<string>>(new Set());
 
   // Signage-only options
+  const [signageDiscountRate, setSignageDiscountRate] = useState<number>(0);
   const [featuredSize, setFeaturedSize] = useState<"largest" | "smallest">("largest");
   const [includePhoto, setIncludePhoto] = useState(true);
   const [includeQr, setIncludeQr] = useState(true);
@@ -161,6 +162,7 @@ export default function CatalogExport() {
         storeBaseUrl,
         useBrandLogo,
         showLogo: mode === "signage" ? showLogo : null,
+        discountRate: mode === "signage" ? signageDiscountRate : 0,
         selections,
       });
       const blob = await res.blob();
@@ -316,6 +318,35 @@ export default function CatalogExport() {
                         onChange={(e) => setStoreBaseUrl(e.target.value)}
                         data-testid="input-store-url"
                       />
+                    </div>
+                  </div>
+
+                  {/* Show discount */}
+                  <div className="space-y-2">
+                    <Label>Show Discount</Label>
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-32">
+                        <Input
+                          type="number"
+                          min={0}
+                          max={99}
+                          step={1}
+                          value={signageDiscountRate}
+                          onChange={(e) =>
+                            setSignageDiscountRate(Math.max(0, Math.min(99, Number(e.target.value))))
+                          }
+                          className="pr-8"
+                          data-testid="input-signage-discount"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          %
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {signageDiscountRate > 0
+                          ? `Prices discounted by ${signageDiscountRate}%, rounded to the nearest $5.`
+                          : "Enter a percentage to show a discounted show price on each card."}
+                      </p>
                     </div>
                   </div>
 

@@ -24,6 +24,7 @@ export interface PdfOptions {
   storeBaseUrl?: string;
   brandLogo?: Buffer | null;
   showLogo?: Buffer | null;
+  discountRate?: number; // signage: 0–99, show price = round(list*(1-rate/100)/500)*500
 }
 
 const HEX = (h: string) => `#${h}`;
@@ -160,17 +161,34 @@ function drawSignageCard(
   // Featured size + price
   const featured = entry.featuredOverride || pickFeaturedSize(entry, opts.featuredSize || "largest");
   if (featured) {
-    const sizeY = Math.min(curY, captionY - 18);
+    const rate = opts.discountRate || 0;
+    const showPrice = rate > 0
+      ? Math.round(featured.priceCents * (1 - rate / 100) / 500) * 500
+      : featured.priceCents;
+    const priceBlockH = rate > 0 ? 32 : 18;
+    const sizeY = Math.min(curY, captionY - priceBlockH);
     doc
       .font("Bold")
       .fontSize(11)
       .fillColor(HEX(BRAND.midtone))
       .text(
-        `${formatSizeLabel(featured.sizeLabel)}  —  ${formatPrice(featured.priceCents)}`,
+        `${formatSizeLabel(featured.sizeLabel)}  —  ${formatPrice(showPrice)}`,
         innerX,
         sizeY,
-        { width: innerW, align: "left" },
+        { width: innerW, align: "left", lineBreak: false },
       );
+    if (rate > 0) {
+      doc
+        .font("Light")
+        .fontSize(8)
+        .fillColor(HEX(BRAND.granite))
+        .text(
+          `${rate}% show price · list ${formatPrice(featured.priceCents)}`,
+          innerX,
+          sizeY + 15,
+          { width: innerW, align: "left", lineBreak: false },
+        );
+    }
   }
 
   // "More sizes" caption — left-aligned just above bottom row

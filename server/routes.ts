@@ -4449,6 +4449,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         brandLogo, // optional override base64
         title,
         subtitle,
+        discountRate, // signage: show discount %
         selections, // optional: [{ productId, sizeLabel?, mediaType? }] — pick photos + per-card size
         inStockOnly = false,
         inventoryStatuses, // string[] e.g. ["in_stock","on_exhibit","ordered"]
@@ -4510,6 +4511,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const docTitle = title || (mode === "signage" ? "Cascadia Oceanic Signage" : "Cascadia Oceanic Catalog");
       const docSubtitle = subtitle || (mode === "signage" ? undefined : "Print Portfolio");
 
+      const resolvedDiscountRate =
+        mode === "signage" ? Math.max(0, Math.min(99, Number(discountRate) || 0)) : 0;
+
       const opts = {
         mode: mode as "portfolio" | "signage",
         title: docTitle,
@@ -4520,6 +4524,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         storeBaseUrl: storeBaseUrl || undefined,
         brandLogo: brandLogoBuf,
         showLogo: showLogoBuf,
+        discountRate: resolvedDiscountRate,
       };
 
       const stamp = new Date().toISOString().slice(0, 10);

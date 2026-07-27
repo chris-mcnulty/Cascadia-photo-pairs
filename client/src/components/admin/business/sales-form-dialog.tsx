@@ -12,9 +12,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, Package, Truck, PlusCircle } from "lucide-react";
+import { Loader2, Package, Truck, PlusCircle, ChevronsUpDown, Check } from "lucide-react";
 
 interface Product {
   id: string;
@@ -106,6 +108,7 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
   const { toast } = useToast();
   const [saleType, setSaleType] = useState<"inventory" | "dropship">("inventory");
   const [showAllInventory, setShowAllInventory] = useState(false);
+  const [inventoryComboOpen, setInventoryComboOpen] = useState(false);
   const [existingOrder, setExistingOrder] = useState<{
     buyerName?: string | null;
     buyerEmail?: string | null;
@@ -455,31 +458,64 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
                   <FormField
                     control={form.control}
                     name="inventoryItemId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Inventory Item *</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger data-testid="select-inventory-item">
-                              <SelectValue placeholder="Select inventory item" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {inventoryItems?.map((item) => (
-                              <SelectItem key={item.id} value={item.id}>
-                                <span className="flex items-center gap-2">
-                                  {item.productTitle} — {item.mediaType} {item.sizeLabel} (${(item.listPrice / 100).toFixed(2)})
-                                  {item.status !== "in_stock" && item.status !== "on_exhibit" && (
-                                    <span className="ml-1 text-xs text-amber-600 font-medium">[{item.status}]</span>
-                                  )}
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const sortedItems = [...(inventoryItems || [])].sort((a, b) =>
+                        (a.productTitle || "").localeCompare(b.productTitle || "")
+                      );
+                      const selectedItem = sortedItems.find(i => i.id === field.value);
+                      return (
+                        <FormItem>
+                          <FormLabel>Inventory Item *</FormLabel>
+                          <Popover open={inventoryComboOpen} onOpenChange={setInventoryComboOpen}>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  role="combobox"
+                                  data-testid="select-inventory-item"
+                                  className="w-full justify-between font-normal truncate"
+                                >
+                                  <span className="truncate">
+                                    {selectedItem
+                                      ? `${selectedItem.productTitle} — ${selectedItem.mediaType} ${selectedItem.sizeLabel} ($${(selectedItem.listPrice / 100).toFixed(2)})`
+                                      : "Select inventory item"}
+                                  </span>
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[520px] p-0" align="start">
+                              <Command>
+                                <CommandInput placeholder="Type to search…" />
+                                <CommandList>
+                                  <CommandEmpty>No items found.</CommandEmpty>
+                                  <CommandGroup>
+                                    {sortedItems.map((item) => (
+                                      <CommandItem
+                                        key={item.id}
+                                        value={`${item.productTitle} ${item.mediaType} ${item.sizeLabel}`}
+                                        onSelect={() => {
+                                          field.onChange(item.id);
+                                          setInventoryComboOpen(false);
+                                        }}
+                                      >
+                                        <Check className={`mr-2 h-4 w-4 shrink-0 ${field.value === item.id ? "opacity-100" : "opacity-0"}`} />
+                                        {item.productTitle} — {item.mediaType} {item.sizeLabel}
+                                        <span className="ml-1 text-muted-foreground">(${(item.listPrice / 100).toFixed(2)})</span>
+                                        {item.status !== "in_stock" && item.status !== "on_exhibit" && (
+                                          <span className="ml-2 text-xs text-amber-600 font-medium">[{item.status}]</span>
+                                        )}
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                   <div className="flex items-center gap-2 pt-1">
                     <Checkbox

@@ -57,7 +57,7 @@ export default function PhotoPair({ photo, onVote, isVoting, settings }: PhotoPa
           {/* Photo */}
           <div className="w-full h-96 bg-gray-100 flex items-center justify-center">
             <img 
-              src={photo.imageUrl} 
+              src={`/api/photos/${photo.id}/image?size=mid`} 
               alt={photo.title} 
               className="w-full h-full object-contain" 
             />

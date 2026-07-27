@@ -167,10 +167,11 @@ export default function FocusModeInterface({
             >
               <div className="relative w-full h-full flex items-center justify-center p-2">
                 <img 
-                  src={photoA.imageUrl} 
+                  src={`/api/photos/${photoA.id}/image?size=full`} 
                   alt={photoA.title}
                   className="w-full h-full object-contain"
                   loading="lazy"
+                  onError={(e) => { (e.target as HTMLImageElement).src = photoA.imageUrl; }}
                 />
                 {selectedPhoto?.id === photoA.id && (
                   <div className="absolute inset-0 bg-cascadia-green/20 flex items-center justify-center">
@@ -212,10 +213,11 @@ export default function FocusModeInterface({
             >
               <div className="relative w-full h-full flex items-center justify-center p-2">
                 <img 
-                  src={photoB.imageUrl} 
+                  src={`/api/photos/${photoB.id}/image?size=full`} 
                   alt={photoB.title}
                   className="w-full h-full object-contain"
                   loading="lazy"
+                  onError={(e) => { (e.target as HTMLImageElement).src = photoB.imageUrl; }}
                 />
                 {selectedPhoto?.id === photoB.id && (
                   <div className="absolute inset-0 bg-cascadia-green/20 flex items-center justify-center">

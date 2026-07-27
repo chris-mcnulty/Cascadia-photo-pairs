@@ -281,10 +281,11 @@ export default function MobileVotingInterface({
             >
               <div className="relative bg-gray-100 overflow-hidden flex items-center justify-center" style={{ height: '350px' }}>
                 <img 
-                  src={photoA.imageUrl} 
+                  src={`/api/photos/${photoA.id}/image?size=mid`} 
                   alt={photoA.title}
                   className="max-w-full max-h-full object-contain"
                   loading="lazy"
+                  onError={(e) => { (e.target as HTMLImageElement).src = photoA.imageUrl; }}
                 />
                 {selectedPhoto?.id === photoA.id && (
                   <div className="absolute inset-0 bg-cascadia-green/20 flex items-center justify-center">
@@ -344,10 +345,11 @@ export default function MobileVotingInterface({
             >
               <div className="relative bg-gray-100 overflow-hidden flex items-center justify-center" style={{ height: '350px' }}>
                 <img 
-                  src={photoB.imageUrl} 
+                  src={`/api/photos/${photoB.id}/image?size=mid`} 
                   alt={photoB.title}
                   className="max-w-full max-h-full object-contain"
                   loading="lazy"
+                  onError={(e) => { (e.target as HTMLImageElement).src = photoB.imageUrl; }}
                 />
                 {selectedPhoto?.id === photoB.id && (
                   <div className="absolute inset-0 bg-cascadia-green/20 flex items-center justify-center">

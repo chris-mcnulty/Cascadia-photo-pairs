@@ -382,14 +382,9 @@ export default function PhotoManager() {
     setShowAddForm(false);
   };
 
-  const convertFileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(new Error("Failed to read file"));
-      reader.readAsDataURL(file);
-    });
-  };
+  /** Returns the proxy URL for a photo at a given size */
+  const photoImageUrl = (id: string, size: "thumb" | "mid" | "full" = "mid") =>
+    `/api/photos/${id}/image?size=${size}`;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -460,19 +455,41 @@ export default function PhotoManager() {
     }
 
     // Add mode
-    let imageUrl = formData.imageUrl;
-
     if (uploadMethod === "file" && selectedFile) {
+      // Multipart upload → SPE
+      const fd = new FormData();
+      fd.append("file", selectedFile);
+      fd.append("title", formData.title.trim());
+      if (formData.description) fd.append("description", formData.description);
+      if (formData.collectionId) fd.append("collectionId", formData.collectionId);
+      if (formData.category) fd.append("category", formData.category);
+      fd.append("neverForSale", String(formData.neverForSale ?? true));
+      if (formData.customPurchaseUrl) fd.append("customPurchaseUrl", formData.customPurchaseUrl);
+
       try {
-        imageUrl = await convertFileToBase64(selectedFile);
+        const sessionId = localStorage.getItem('admin-session-id');
+        const token = localStorage.getItem('auth-token');
+        const headers: Record<string, string> = {};
+        if (sessionId) headers['x-session-id'] = sessionId;
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        const response = await fetch("/api/photos", { method: "POST", headers, body: fd });
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.message || "Upload failed");
+        }
+        const result = await response.json();
+        queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+        resetForm();
+        toast({ title: "Photo uploaded to SharePoint", description: result.title });
       } catch (error) {
         toast({
-          title: "File processing failed",
-          description: "Could not process the selected file.",
+          title: "Upload failed",
+          description: error instanceof Error ? error.message : "Could not upload file.",
           variant: "destructive",
         });
-        return;
       }
+      return;
     } else if (uploadMethod === "url" && !formData.imageUrl) {
       toast({
         title: "Missing image URL",
@@ -491,7 +508,7 @@ export default function PhotoManager() {
 
     addPhotoMutation.mutate({
       ...formData,
-      imageUrl,
+      imageUrl: formData.imageUrl,
     });
   };
 
@@ -899,7 +916,7 @@ export default function PhotoManager() {
                       className="flex-shrink-0"
                     />
                     <img 
-                      src={photo.imageUrl.includes('[base64-truncated]') ? 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNTYiIHZpZXdCb3g9IjAgMCA4MCA1NiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjgwIiBoZWlnaHQ9IjU2IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0yOCAyOEwzNiAyMEw0NCAyOEw0MCAzMkgzMlYzNkwyOCAzMloiIGZpbGw9IiM5Q0EzQUYiLz4KPHN2Zz4K' : photo.imageUrl} 
+                      src={photoImageUrl(photo.id, "thumb")} 
                       alt={photo.title}
                       className="w-20 h-14 object-cover rounded bg-gray-100"
                       onError={(e) => {
@@ -928,9 +945,13 @@ export default function PhotoManager() {
                         {photo.hidden && " (Hidden from voting)"}
                       </div>
                       <div className="text-xs mt-1 flex flex-wrap gap-2">
-                        {photo.imageUrl.startsWith('data:') ? (
+                        {(photo as any).storageProvider === 'sharepoint_embedded' ? (
+                          <span className="inline-flex items-center px-2 py-1 rounded text-blue-600 bg-blue-100">
+                            SharePoint
+                          </span>
+                        ) : photo.imageUrl.startsWith('data:') || (photo as any).storageProvider === 'base64' ? (
                           <span className="inline-flex items-center px-2 py-1 rounded text-orange-600 bg-orange-100">
-                            Database Stored
+                            DB Stored
                           </span>
                         ) : (
                           <span className="inline-flex items-center px-2 py-1 rounded text-green-600 bg-green-100">
@@ -1049,7 +1070,7 @@ export default function PhotoManager() {
                             <Label>Current Image Preview</Label>
                             <div className="border rounded-lg p-2 bg-gray-50">
                               <img 
-                                src={editingPhoto.imageUrl.startsWith('data:') ? editingPhoto.imageUrl : formData.imageUrl} 
+                                src={photoImageUrl(editingPhoto.id, "mid")} 
                                 alt={editingPhoto.title} 
                                 className="max-w-full max-h-48 object-contain mx-auto rounded"
                                 onError={(e) => {

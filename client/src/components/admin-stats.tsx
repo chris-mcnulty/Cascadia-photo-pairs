@@ -52,9 +52,10 @@ export default function AdminStats() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <img 
-                          src={photo.imageUrl} 
+                          src={`/api/photos/${photo.id}/image?size=thumb`} 
                           alt={photo.title}
-                          className="w-16 h-10 object-cover rounded" 
+                          className="w-16 h-10 object-cover rounded"
+                          onError={(e) => { (e.target as HTMLImageElement).src = photo.imageUrl; }}
                         />
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">

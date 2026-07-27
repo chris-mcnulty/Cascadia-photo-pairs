@@ -33,6 +33,10 @@ export const photos = pgTable("photos", {
   archived: boolean("archived").default(false).notNull(), // Archive instead of delete - hides from reports/admin unless specifically enabled
   customPurchaseUrl: text("custom_purchase_url"),
   neverForSale: boolean("never_for_sale").default(true).notNull(), // Changed default to true
+  // SharePoint Embedded storage fields
+  storageProvider: text("storage_provider").default("wix").notNull(), // "wix" | "base64" | "sharepoint_embedded"
+  spContainerId: text("sp_container_id"),
+  spFolderPath: text("sp_folder_path"),
 });
 
 // Moving users table before votes table

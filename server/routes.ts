@@ -683,6 +683,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     return res.json({ authenticated: false });
   });
 
+  // ── Image proxy: serves photos from SPE, Wix redirect, or base64 decode ──
+  app.get("/api/photos/:id/image", async (req, res) => {
+    try {
+      const photo = await storage.getPhoto(req.params.id);
+      if (!photo) return res.status(404).json({ message: "Photo not found" });
+
+      const size = (req.query.size as string) || "mid";
+      if (!["thumb", "mid", "full"].includes(size)) {
+        return res.status(400).json({ message: "Invalid size. Use thumb, mid, or full." });
+      }
+
+      const provider = photo.storageProvider || (photo.imageUrl.startsWith("data:") ? "base64" : "wix");
+
+      if (provider === "sharepoint_embedded" && photo.spContainerId && photo.spFolderPath) {
+        // Serve from SPE — never fall through to imageUrl (it points back here and would loop)
+        try {
+          const { getSpeGraphClient } = await import("./spe-graph-client");
+          const client = getSpeGraphClient();
+          const filePath = `${photo.spFolderPath}/${size}.jpg`;
+          const buffer = await client.downloadFile(photo.spContainerId, filePath);
+          res.setHeader("Content-Type", "image/jpeg");
+          res.setHeader("Cache-Control", "public, max-age=86400");
+          return res.send(buffer);
+        } catch (speErr) {
+          console.error(`SPE download failed for photo ${photo.id}:`, speErr);
+          // Return a terminal error rather than redirecting to the proxy URL (which would loop)
+          return res.status(502).json({ message: "Image temporarily unavailable — SPE storage error" });
+        }
+      }
+
+      if (provider === "base64" || photo.imageUrl.startsWith("data:")) {
+        // Decode base64 from DB
+        const match = photo.imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (!match) return res.status(422).json({ message: "Invalid base64 image" });
+        const [, mime, data] = match;
+        const buffer = Buffer.from(data, "base64");
+        res.setHeader("Content-Type", mime);
+        res.setHeader("Cache-Control", "private, max-age=3600");
+        return res.send(buffer);
+      }
+
+      // Wix or any external URL — guard against self-referential proxy URLs
+      const redirectUrl_raw = photo.imageUrl;
+      if (redirectUrl_raw.startsWith("/api/photos/") || redirectUrl_raw === "") {
+        return res.status(422).json({ message: "Photo has no valid external image URL" });
+      }
+      let redirectUrl = redirectUrl_raw;
+      // Cap Wix images by appending size hint
+      if (redirectUrl.includes("wix.com") || redirectUrl.includes("wixstatic.com")) {
+        const widthMap: Record<string, number> = { thumb: 400, mid: 1200, full: 3000 };
+        const w = widthMap[size] || 1200;
+        const sep = redirectUrl.includes("?") ? "&" : "?";
+        redirectUrl = `${redirectUrl}${sep}w=${w}`;
+      }
+      return res.redirect(302, redirectUrl);
+    } catch (error) {
+      console.error("Error in image proxy:", error);
+      res.status(500).json({ message: "Failed to serve image" });
+    }
+  });
+
   // Get all photos (optimized for admin interface)
   app.get("/api/photos", async (req, res) => {
     try {
@@ -717,32 +778,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add a new photo (admin only - temporarily without auth)
-  app.post("/api/photos", async (req, res) => {
+  // Add a new photo — supports both JSON (URL) and multipart (file upload to SPE)
+  // Auth required for multipart file uploads; URL-based path preserves existing behaviour
+  const photoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+  app.post("/api/photos", photoUpload.single("file"), async (req, res) => {
     try {
+      const file = (req as any).file as Express.Multer.File | undefined;
+
+      if (file) {
+        // ── Multipart file upload → SPE — admin only ──
+        const adminStatus = await checkAdminAuth(req);
+        if (!adminStatus.authenticated || !adminStatus.isAdmin) {
+          return res.status(401).json({ message: "Admin authentication required to upload files" });
+        }
+
+        const containerId = process.env.SPE_CONTAINER_ID;
+        if (!containerId) {
+          return res.status(503).json({ message: "SPE_CONTAINER_ID not configured. Cannot upload files." });
+        }
+
+        const title = (req.body.title || "").trim();
+        if (!title) {
+          return res.status(400).json({ message: "title is required" });
+        }
+
+        // Generate variants first — before any DB write
+        const sharp = (await import("sharp")).default;
+        const [thumbBuf, midBuf, fullBuf] = await Promise.all([
+          sharp(file.buffer).resize({ width: 800, withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer(),
+          sharp(file.buffer).resize({ width: 1600, withoutEnlargement: true }).jpeg({ quality: 88 }).toBuffer(),
+          sharp(file.buffer).resize({ width: 6000, withoutEnlargement: true }).jpeg({ quality: 90 }).toBuffer(),
+        ]);
+
+        const { getSpeGraphClient } = await import("./spe-graph-client");
+        const client = getSpeGraphClient();
+
+        // Resolve drive ID before DB write (fail fast if SPE is unavailable)
+        await client.getDriveId(containerId);
+
+        // Create DB record now that SPE is reachable
+        const newPhoto = await storage.createPhoto({
+          title,
+          description: req.body.description || null,
+          imageUrl: `/api/photos/pending`, // sentinel — updated atomically below
+          collectionId: req.body.collectionId || null,
+          category: req.body.category || "General",
+          originalDate: req.body.originalDate ? new Date(req.body.originalDate) : null,
+        });
+
+        const folderPath = `photos/${newPhoto.id}`;
+
+        try {
+          await Promise.all([
+            client.uploadFile(containerId, `${folderPath}/thumb.jpg`, thumbBuf, "image/jpeg"),
+            client.uploadFile(containerId, `${folderPath}/mid.jpg`, midBuf, "image/jpeg"),
+            client.uploadFile(containerId, `${folderPath}/full.jpg`, fullBuf, "image/jpeg"),
+          ]);
+        } catch (uploadErr) {
+          // Roll back the DB record so no orphan is left visible
+          await storage.deletePhoto(newPhoto.id).catch(() => {});
+          throw uploadErr;
+        }
+
+        // All variants uploaded — commit final metadata
+        const updated = await storage.updatePhoto(newPhoto.id, {
+          imageUrl: `/api/photos/${newPhoto.id}/image?size=mid`,
+          storageProvider: "sharepoint_embedded",
+          spContainerId: containerId,
+          spFolderPath: folderPath,
+          neverForSale: req.body.neverForSale === "true" || req.body.neverForSale === true,
+          customPurchaseUrl: req.body.customPurchaseUrl || null,
+        });
+
+        console.log(`Photo ${newPhoto.id} uploaded to SPE at ${folderPath}`);
+        return res.json(updated);
+      }
+
+      // ── JSON / URL path ──
       console.log('Photo creation request body:', req.body);
       const photoData = insertPhotoSchema.parse(req.body);
       console.log('Parsed photo data:', photoData);
-      
-      const photo = await storage.createPhoto(photoData);
+
+      // Determine storage provider for URL-based photos
+      let storageProvider = "wix";
+      if (photoData.imageUrl?.startsWith("data:")) {
+        storageProvider = "base64";
+      }
+
+      const photo = await storage.createPhoto({ ...photoData, storageProvider } as any);
       console.log('Photo created successfully:', photo);
       res.json(photo);
     } catch (error) {
       console.error('Photo creation error:', error);
       
       if (error instanceof Error) {
-        // Zod validation error
         if (error.message.includes('validation')) {
-          return res.status(400).json({ 
-            message: "Invalid photo data", 
-            details: error.message 
-          });
+          return res.status(400).json({ message: "Invalid photo data", details: error.message });
         }
-        
-        // Other errors
-        return res.status(400).json({ 
-          message: error.message || "Invalid photo data" 
-        });
+        return res.status(400).json({ message: error.message || "Invalid photo data" });
       }
       
       res.status(500).json({ message: "Failed to create photo" });
@@ -5229,6 +5362,151 @@ export async function registerRoutes(app: Express): Promise<Server> {
         (message.includes('No such') || message.toLowerCase().includes('invalid'));
       res.status(isInvalidRequest ? 404 : 500).json({ error: message });
     }
+  });
+
+  // ── SPE: Test connection ──
+  app.get("/api/admin/settings/spe-test", isAuthenticated, async (req, res) => {
+    try {
+      const containerId = process.env.SPE_CONTAINER_ID;
+      if (!containerId) {
+        return res.json({ ok: false, message: "SPE_CONTAINER_ID env var is not set." });
+      }
+      const { getSpeGraphClient } = await import("./spe-graph-client");
+      const client = getSpeGraphClient();
+      const result = await client.testConnection(containerId);
+      res.json(result);
+    } catch (err) {
+      res.json({ ok: false, message: err instanceof Error ? err.message : String(err) });
+    }
+  });
+
+  // ── SPE Migration: in-memory job state ──
+  const speJobs = new Map<string, {
+    total: number;
+    done: number;
+    failed: number;
+    running: boolean;
+    items: Array<{ id: string; title: string; status: "pending" | "done" | "failed"; error?: string }>;
+  }>();
+
+  // Start migration job
+  app.post("/api/admin/photos/migrate-to-spe", isAuthenticated, async (req, res) => {
+    try {
+      const containerId = process.env.SPE_CONTAINER_ID;
+      if (!containerId) {
+        return res.status(503).json({ message: "SPE_CONTAINER_ID env var is not set." });
+      }
+
+      const allPhotos = await storage.getAllPhotos();
+      const toMigrate = allPhotos.filter(p => {
+        const prov = p.storageProvider || (p.imageUrl.startsWith("data:") ? "base64" : "wix");
+        return prov === "wix" || prov === "base64";
+      });
+
+      const jobId = `spe-migration-${Date.now()}`;
+      const job = {
+        total: toMigrate.length,
+        done: 0,
+        failed: 0,
+        running: true,
+        items: toMigrate.map(p => ({ id: p.id, title: p.title, status: "pending" as const })),
+      };
+      speJobs.set(jobId, job);
+
+      // Run migration in background
+      (async () => {
+        const { getSpeGraphClient } = await import("./spe-graph-client");
+        const client = getSpeGraphClient();
+        const sharp = (await import("sharp")).default;
+
+        for (const photo of toMigrate) {
+          const item = job.items.find(i => i.id === photo.id)!;
+          try {
+            // Fetch image data
+            let imageBuffer: Buffer;
+            const prov = photo.storageProvider || (photo.imageUrl.startsWith("data:") ? "base64" : "wix");
+
+            if (prov === "base64" || photo.imageUrl.startsWith("data:")) {
+              const match = photo.imageUrl.match(/^data:([^;]+);base64,(.+)$/);
+              if (!match) throw new Error("Invalid base64 data");
+              imageBuffer = Buffer.from(match[2], "base64");
+            } else {
+              // External URL — SSRF guard: only allow known-trusted CDN hostnames
+              const ALLOWED_MIGRATION_HOSTS = [
+                "static.wixstatic.com",
+                "images.wix.com",
+                "img.wix.com",
+              ];
+              let parsedUrl: URL;
+              try {
+                parsedUrl = new URL(photo.imageUrl);
+              } catch {
+                throw new Error(`Invalid image URL: ${photo.imageUrl}`);
+              }
+              if (!["https:", "http:"].includes(parsedUrl.protocol)) {
+                throw new Error(`Disallowed URL scheme: ${parsedUrl.protocol}`);
+              }
+              const hostname = parsedUrl.hostname.toLowerCase();
+              const allowed = ALLOWED_MIGRATION_HOSTS.some(h => hostname === h || hostname.endsWith(`.${h}`));
+              if (!allowed) {
+                throw new Error(`Image URL hostname not in migration allowlist: ${hostname}`);
+              }
+              const fetchResp = await fetch(photo.imageUrl);
+              if (!fetchResp.ok) throw new Error(`HTTP ${fetchResp.status} fetching image`);
+              imageBuffer = Buffer.from(await fetchResp.arrayBuffer());
+            }
+
+            // Generate three variants
+            const [thumbBuf, midBuf, fullBuf] = await Promise.all([
+              sharp(imageBuffer).resize({ width: 800, withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer(),
+              sharp(imageBuffer).resize({ width: 1600, withoutEnlargement: true }).jpeg({ quality: 88 }).toBuffer(),
+              sharp(imageBuffer).resize({ width: 6000, withoutEnlargement: true }).jpeg({ quality: 90 }).toBuffer(),
+            ]);
+
+            const folderPath = `photos/${photo.id}`;
+            await Promise.all([
+              client.uploadFile(containerId, `${folderPath}/thumb.jpg`, thumbBuf, "image/jpeg"),
+              client.uploadFile(containerId, `${folderPath}/mid.jpg`, midBuf, "image/jpeg"),
+              client.uploadFile(containerId, `${folderPath}/full.jpg`, fullBuf, "image/jpeg"),
+            ]);
+
+            await storage.updatePhoto(photo.id, {
+              storageProvider: "sharepoint_embedded",
+              spContainerId: containerId,
+              spFolderPath: folderPath,
+              imageUrl: `/api/photos/${photo.id}/image?size=mid`,
+            });
+
+            item.status = "done";
+            job.done++;
+          } catch (err) {
+            item.status = "failed";
+            item.error = err instanceof Error ? err.message : String(err);
+            job.failed++;
+            console.error(`SPE migration failed for photo ${photo.id}:`, err);
+          }
+        }
+        job.running = false;
+      })();
+
+      res.json({ jobId, total: toMigrate.length, message: "Migration started" });
+    } catch (err) {
+      console.error("Migration start error:", err);
+      res.status(500).json({ message: err instanceof Error ? err.message : "Failed to start migration" });
+    }
+  });
+
+  // Migration status
+  app.get("/api/admin/photos/migration-status", isAuthenticated, async (req, res) => {
+    const jobId = req.query.jobId as string;
+    if (!jobId) {
+      return res.json({ running: false, total: 0, done: 0, failed: 0, items: [] });
+    }
+    const job = speJobs.get(jobId);
+    if (!job) {
+      return res.status(404).json({ message: "Job not found" });
+    }
+    res.json(job);
   });
 
   // Social publisher (Instagram + Facebook)

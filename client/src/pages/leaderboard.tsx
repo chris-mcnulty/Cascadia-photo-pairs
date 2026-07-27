@@ -299,10 +299,11 @@ export default function Leaderboard() {
                       <div className="col-span-3 sm:col-span-2">
                         <div className="w-full aspect-square rounded-lg overflow-hidden bg-gray-100 max-w-[80px] sm:max-w-[100px]">
                           <img
-                            src={photo.imageUrl}
+                            src={`/api/photos/${photo.id}/image?size=thumb`}
                             alt={photo.title}
                             className="w-full h-full object-cover"
                             loading="lazy"
+                            onError={(e) => { (e.target as HTMLImageElement).src = photo.imageUrl; }}
                           />
                         </div>
                       </div>

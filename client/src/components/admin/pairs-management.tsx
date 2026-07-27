@@ -357,9 +357,10 @@ export function PairsManagement() {
                   {selectedPhoto1 && (
                     <div className="mt-2">
                       <img 
-                        src={getPhotoById(selectedPhoto1)?.imageUrl} 
+                        src={`/api/photos/${selectedPhoto1}/image?size=thumb`} 
                         alt="Selected photo 1"
                         className="w-full h-32 object-cover rounded"
+                        onError={(e) => { (e.target as HTMLImageElement).src = getPhotoById(selectedPhoto1)?.imageUrl || ''; }}
                       />
                     </div>
                   )}
@@ -385,9 +386,10 @@ export function PairsManagement() {
                   {selectedPhoto2 && (
                     <div className="mt-2">
                       <img 
-                        src={getPhotoById(selectedPhoto2)?.imageUrl} 
+                        src={`/api/photos/${selectedPhoto2}/image?size=thumb`} 
                         alt="Selected photo 2"
                         className="w-full h-32 object-cover rounded"
+                        onError={(e) => { (e.target as HTMLImageElement).src = getPhotoById(selectedPhoto2)?.imageUrl || ''; }}
                       />
                     </div>
                   )}
@@ -686,9 +688,10 @@ export function PairsManagement() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <img
-                        src={photo1?.imageUrl}
+                        src={photo1 ? `/api/photos/${photo1.id}/image?size=mid` : undefined}
                         alt={photo1?.title}
                         className="w-full h-32 sm:h-48 object-cover rounded"
+                        onError={(e) => { (e.target as HTMLImageElement).src = photo1?.imageUrl || ''; }}
                       />
                       <div className="flex justify-between items-center">
                         <span className="font-medium text-sm truncate flex-1">{photo1?.title}</span>
@@ -701,9 +704,10 @@ export function PairsManagement() {
                     </div>
                     <div className="space-y-2">
                       <img
-                        src={photo2?.imageUrl}
+                        src={photo2 ? `/api/photos/${photo2.id}/image?size=mid` : undefined}
                         alt={photo2?.title}
                         className="w-full h-32 sm:h-48 object-cover rounded"
+                        onError={(e) => { (e.target as HTMLImageElement).src = photo2?.imageUrl || ''; }}
                       />
                       <div className="flex justify-between items-center">
                         <span className="font-medium text-sm truncate flex-1">{photo2?.title}</span>

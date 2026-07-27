@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
+import { ChevronDown, ChevronRight, AlertTriangle, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Settings } from "@shared/schema";
@@ -14,6 +14,15 @@ import { Settings } from "@shared/schema";
 export default function AdminSettings() {
   const { toast } = useToast();
   const [isDatabaseSectionOpen, setIsDatabaseSectionOpen] = useState(false);
+  const [isSpeSectionOpen, setIsSpeSectionOpen] = useState(false);
+  const [speTestResult, setSpeTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [speTestLoading, setSpeTestLoading] = useState(false);
+  const [migrationJobId, setMigrationJobId] = useState<string | null>(null);
+  const [migrationStatus, setMigrationStatus] = useState<{
+    running: boolean; total: number; done: number; failed: number;
+    items: Array<{ id: string; title: string; status: string; error?: string }>;
+  } | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   const { data: settings, isLoading } = useQuery<Settings>({
     queryKey: ["/api/settings"],
@@ -141,6 +150,57 @@ export default function AdminSettings() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     updateSettingsMutation.mutate(formData);
+  };
+
+  const handleSpeTest = async () => {
+    setSpeTestLoading(true);
+    setSpeTestResult(null);
+    try {
+      const sessionId = localStorage.getItem('admin-session-id');
+      const token = localStorage.getItem('auth-token');
+      const headers: Record<string, string> = {};
+      if (sessionId) headers['x-session-id'] = sessionId;
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch("/api/admin/settings/spe-test", { headers });
+      const data = await res.json();
+      setSpeTestResult(data);
+    } catch (err) {
+      setSpeTestResult({ ok: false, message: String(err) });
+    } finally {
+      setSpeTestLoading(false);
+    }
+  };
+
+  const handleStartMigration = async () => {
+    try {
+      const sessionId = localStorage.getItem('admin-session-id');
+      const token = localStorage.getItem('auth-token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (sessionId) headers['x-session-id'] = sessionId;
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch("/api/admin/photos/migrate-to-spe", { method: "POST", headers });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: "Migration failed to start", description: data.message, variant: "destructive" });
+        return;
+      }
+      setMigrationJobId(data.jobId);
+      toast({ title: "Migration started", description: `${data.total} photos queued` });
+      // Start polling
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = setInterval(async () => {
+        const pollRes = await fetch(`/api/admin/photos/migration-status?jobId=${data.jobId}`, { headers });
+        const status = await pollRes.json();
+        setMigrationStatus(status);
+        if (!status.running) {
+          clearInterval(pollRef.current!);
+          pollRef.current = null;
+          toast({ title: "Migration complete", description: `Done: ${status.done}, Failed: ${status.failed}` });
+        }
+      }, 3000);
+    } catch (err) {
+      toast({ title: "Migration error", description: String(err), variant: "destructive" });
+    }
   };
 
   if (isLoading) {
@@ -549,6 +609,109 @@ export default function AdminSettings() {
         </CardContent>
       </Card>
       
+      {/* Photo Storage (SharePoint Embedded) */}
+      <Card className="mt-6 border-blue-300">
+        <Collapsible open={isSpeSectionOpen} onOpenChange={setIsSpeSectionOpen}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="hover:bg-blue-50 cursor-pointer">
+              <CardTitle className="flex items-center justify-between text-blue-800">
+                <div className="flex items-center gap-2">
+                  📁 Photo Storage (SharePoint Embedded)
+                </div>
+                {isSpeSectionOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </CardTitle>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent className="space-y-6 pt-0">
+              {/* Container info */}
+              <div className="p-4 border border-blue-200 rounded-lg bg-blue-50 space-y-2">
+                <Label className="font-semibold text-blue-900">Container ID</Label>
+                <p className="text-sm text-blue-800 font-mono break-all">
+                  {(window as any).__SPE_CONTAINER_ID__ || "Set via SPE_CONTAINER_ID environment variable"}
+                </p>
+                <p className="text-xs text-blue-700">
+                  New file uploads go to this container. Use the Test button to verify the connection.
+                </p>
+              </div>
+
+              {/* Test connection */}
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSpeTest}
+                  disabled={speTestLoading}
+                  className="border-blue-600 text-blue-600 hover:bg-blue-50"
+                >
+                  {speTestLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Testing…</> : "Test Connection"}
+                </Button>
+                {speTestResult && (
+                  <div className={`flex items-start gap-2 p-3 rounded-lg text-sm ${speTestResult.ok ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"}`}>
+                    {speTestResult.ok
+                      ? <CheckCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                      : <XCircle className="w-4 h-4 mt-0.5 shrink-0" />}
+                    <span>{speTestResult.message}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Migration */}
+              <div className="space-y-4 border-t pt-4">
+                <div>
+                  <Label className="font-semibold text-blue-900">Migrate Photos to SharePoint</Label>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Migrates all Wix-hosted and database-stored photos to SharePoint Embedded.
+                    Three size variants (thumb/mid/full) are generated for each photo.
+                    Progress is shown below; the page stays live during migration.
+                  </p>
+                </div>
+
+                <Button
+                  type="button"
+                  onClick={handleStartMigration}
+                  disabled={migrationStatus?.running === true}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {migrationStatus?.running ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Migrating…</> : "Start Migration"}
+                </Button>
+
+                {migrationStatus && (
+                  <div className="space-y-3">
+                    {/* Progress bar */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-sm font-medium">
+                        <span>{migrationStatus.done} done / {migrationStatus.total} total · {migrationStatus.failed} failed</span>
+                        {!migrationStatus.running && <span className="text-green-700">Complete</span>}
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-blue-600 h-2 rounded-full transition-all"
+                          style={{ width: migrationStatus.total ? `${Math.round(((migrationStatus.done + migrationStatus.failed) / migrationStatus.total) * 100)}%` : "0%" }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Per-photo status list */}
+                    <div className="max-h-64 overflow-y-auto border rounded-lg divide-y text-xs">
+                      {migrationStatus.items.map(item => (
+                        <div key={item.id} className={`flex items-center gap-2 px-3 py-1.5 ${item.status === "done" ? "bg-green-50" : item.status === "failed" ? "bg-red-50" : "bg-white"}`}>
+                          {item.status === "done" && <CheckCircle className="w-3 h-3 text-green-600 shrink-0" />}
+                          {item.status === "failed" && <XCircle className="w-3 h-3 text-red-600 shrink-0" />}
+                          {item.status === "pending" && <Loader2 className="w-3 h-3 text-gray-400 shrink-0" />}
+                          <span className="truncate flex-1">{item.title}</span>
+                          {item.error && <span className="text-red-600 truncate max-w-xs">{item.error}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </CollapsibleContent>
+        </Collapsible>
+      </Card>
+
       {/* Collapsed Database Management Section */}
       <Card className="mt-6 border-orange-300">
         <Collapsible open={isDatabaseSectionOpen} onOpenChange={setIsDatabaseSectionOpen}>

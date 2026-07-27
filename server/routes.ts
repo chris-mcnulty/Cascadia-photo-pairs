@@ -63,6 +63,7 @@ import multer from "multer";
 import { importWixProducts, importWixOrders } from "./csv-import";
 import { registerSocialRoutes } from "./social/routes";
 import { startSocialScheduler } from "./social/scheduler";
+import { makeImageProxyHandler } from "./image-proxy";
 
 // Simple middleware for admin auth check (for pairs endpoints)
 const isAuthenticated = async (req: any, res: any, next: any) => {
@@ -684,97 +685,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ── Image proxy: serves photos from SPE, Wix redirect, or base64 decode ──
-  app.get("/api/photos/:id/image", async (req, res) => {
-    try {
-      const photo = await storage.getPhoto(req.params.id);
-      if (!photo) return res.status(404).json({ message: "Photo not found" });
-
-      const size = (req.query.size as string) || "mid";
-      if (!["thumb", "mid", "full"].includes(size)) {
-        return res.status(400).json({ message: "Invalid size. Use thumb, mid, or full." });
-      }
-
-      const provider = photo.storageProvider || (photo.imageUrl.startsWith("data:") ? "base64" : "wix");
-
-      if (provider === "sharepoint_embedded" && photo.spContainerId && photo.spFolderPath) {
-        // Serve from SPE — fall back to imageUrl only if it is a non-proxy external URL
-        try {
-          const { getSpeGraphClient } = await import("./spe-graph-client");
-          const client = getSpeGraphClient();
-          const filePath = `${photo.spFolderPath}/${size}.jpg`;
-          const buffer = await client.downloadFile(photo.spContainerId, filePath);
-          res.setHeader("Content-Type", "image/jpeg");
-          res.setHeader("Cache-Control", "public, max-age=86400");
-          return res.send(buffer);
-        } catch (speErr) {
-          console.error(`SPE download failed for photo ${photo.id}:`, speErr);
-
-          // Attempt graceful fallback: use imageUrl if it is a real external URL
-          const fallbackUrl = photo.imageUrl;
-          const isSelfProxy = !fallbackUrl || fallbackUrl.startsWith("/api/photos/");
-
-          if (!isSelfProxy && fallbackUrl.startsWith("data:")) {
-            // base64 fallback
-            const match = fallbackUrl.match(/^data:([^;]+);base64,(.+)$/);
-            if (match) {
-              const [, mime, data] = match;
-              const buf = Buffer.from(data, "base64");
-              res.setHeader("Content-Type", mime);
-              res.setHeader("Cache-Control", "private, max-age=300");
-              res.setHeader("X-Image-Source", "spe-fallback");
-              return res.send(buf);
-            }
-          }
-
-          if (!isSelfProxy && fallbackUrl.startsWith("http")) {
-            // Wix or other external URL fallback
-            let redirectUrl = fallbackUrl;
-            if (redirectUrl.includes("wix.com") || redirectUrl.includes("wixstatic.com")) {
-              const widthMap: Record<string, number> = { thumb: 400, mid: 1200, full: 3000 };
-              const w = widthMap[size] || 1200;
-              const sep = redirectUrl.includes("?") ? "&" : "?";
-              redirectUrl = `${redirectUrl}${sep}w=${w}`;
-            }
-            res.setHeader("X-Image-Source", "spe-fallback");
-            return res.redirect(302, redirectUrl);
-          }
-
-          // No usable fallback — return a 503 (service unavailable) instead of 500
-          res.setHeader("X-Image-Source", "spe-fallback");
-          return res.status(503).json({ message: "Image temporarily unavailable — SPE storage unreachable" });
-        }
-      }
-
-      if (provider === "base64" || photo.imageUrl.startsWith("data:")) {
-        // Decode base64 from DB
-        const match = photo.imageUrl.match(/^data:([^;]+);base64,(.+)$/);
-        if (!match) return res.status(422).json({ message: "Invalid base64 image" });
-        const [, mime, data] = match;
-        const buffer = Buffer.from(data, "base64");
-        res.setHeader("Content-Type", mime);
-        res.setHeader("Cache-Control", "private, max-age=3600");
-        return res.send(buffer);
-      }
-
-      // Wix or any external URL — guard against self-referential proxy URLs
-      const redirectUrl_raw = photo.imageUrl;
-      if (redirectUrl_raw.startsWith("/api/photos/") || redirectUrl_raw === "") {
-        return res.status(422).json({ message: "Photo has no valid external image URL" });
-      }
-      let redirectUrl = redirectUrl_raw;
-      // Cap Wix images by appending size hint
-      if (redirectUrl.includes("wix.com") || redirectUrl.includes("wixstatic.com")) {
-        const widthMap: Record<string, number> = { thumb: 400, mid: 1200, full: 3000 };
-        const w = widthMap[size] || 1200;
-        const sep = redirectUrl.includes("?") ? "&" : "?";
-        redirectUrl = `${redirectUrl}${sep}w=${w}`;
-      }
-      return res.redirect(302, redirectUrl);
-    } catch (error) {
-      console.error("Error in image proxy:", error);
-      res.status(500).json({ message: "Failed to serve image" });
-    }
-  });
+  app.get(
+    "/api/photos/:id/image",
+    makeImageProxyHandler({
+      getPhoto: (id) => storage.getPhoto(id),
+      getSpeClient: () => {
+        // Dynamic import is intentional (avoids MSAL init at startup when SPE is not configured).
+        // We call getSpeGraphClient synchronously here since the module is always pre-loaded.
+        const { getSpeGraphClient } = require("./spe-graph-client");
+        return getSpeGraphClient();
+      },
+    })
+  );
 
   // Get all photos (optimized for admin interface)
   app.get("/api/photos", async (req, res) => {

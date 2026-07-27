@@ -46,7 +46,7 @@ interface InventoryItemWithDetails extends InventoryItem {
 }
 
 export default function InventoryManagement() {
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("in_stock");
   const [mediaTypeFilter, setMediaTypeFilter] = useState<string>("all");
   const [sizeFilter, setSizeFilter] = useState<string>("all");
   const [locationFilter, setLocationFilter] = useState<string>("all");

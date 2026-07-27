@@ -271,9 +271,49 @@ export class SpeGraphClient {
   }
 
   /**
-   * Download a file from the container, returns a Buffer.
+   * Create a resumable upload session for direct browser-to-SPE uploads.
+   * Returns the pre-authenticated uploadUrl the client can PUT chunks to.
+   * The URL is valid for ~15 minutes and does not require an Authorization header.
    */
-  async downloadFile(containerId: string, filePath: string): Promise<Buffer> {
+  async createUploadSession(
+    containerId: string,
+    filePath: string
+  ): Promise<string> {
+    const driveId = await this.getDriveId(containerId);
+    const safePath = filePath
+      .split("/")
+      .map(sanitizeFileName)
+      .join("/");
+
+    const sessionUrl = `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${safePath}:/createUploadSession`;
+    const sessionResp = await this.graphRequest("POST", sessionUrl, {
+      item: { "@microsoft.graph.conflictBehavior": "replace" },
+    });
+
+    if (!sessionResp.ok) {
+      const text = await sessionResp.text();
+      throw new Error(
+        `Failed to create upload session (${sessionResp.status}): ${text}`
+      );
+    }
+
+    const session = (await sessionResp.json()) as { uploadUrl: string };
+    if (!session.uploadUrl) {
+      throw new Error("No uploadUrl in upload session response");
+    }
+    return session.uploadUrl;
+  }
+
+  /**
+   * Download a file from the container, returns a Buffer.
+   * @param timeoutMs - optional override for the fetch timeout (default: SPE_FETCH_TIMEOUT_MS).
+   *                    Use a larger value when downloading originals for variant generation.
+   */
+  async downloadFile(
+    containerId: string,
+    filePath: string,
+    timeoutMs?: number
+  ): Promise<Buffer> {
     const driveId = await this.getDriveId(containerId);
     const safePath = filePath
       .split("/")
@@ -281,6 +321,22 @@ export class SpeGraphClient {
       .join("/");
 
     const url = `https://graph.microsoft.com/v1.0/drives/${driveId}/root:/${safePath}:/content`;
+
+    if (timeoutMs !== undefined) {
+      // Use a custom timeout for large downloads
+      const token = await this.getAccessToken();
+      const response = await fetch(url, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Download failed (${response.status}): ${text}`);
+      }
+      return Buffer.from(await response.arrayBuffer());
+    }
+
     const response = await this.graphRequest("GET", url);
 
     if (!response.ok) {

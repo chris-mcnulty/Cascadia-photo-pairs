@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Photo, InsertPhoto, Collection } from "@shared/schema";
@@ -23,6 +24,57 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
+/** Max file size accepted by the upload form (200 MB). */
+const MAX_FILE_SIZE_BYTES = 200 * 1024 * 1024;
+
+/** Files larger than this go through the chunked SPE upload-session path. */
+const LARGE_FILE_THRESHOLD = 5 * 1024 * 1024;
+
+/**
+ * Upload `file` in chunks directly to a pre-authenticated SPE uploadUrl.
+ * `onProgress` receives 0–100 as each chunk is acknowledged.
+ */
+async function uploadChunksToSpe(
+  uploadUrl: string,
+  file: File,
+  chunkSize: number,
+  onProgress: (pct: number) => void
+): Promise<void> {
+  const totalSize = file.size;
+
+  for (let start = 0; start < totalSize; start += chunkSize) {
+    const end = Math.min(start + chunkSize - 1, totalSize - 1);
+    const chunk = file.slice(start, end + 1);
+
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl, true);
+      xhr.setRequestHeader("Content-Length", chunk.size.toString());
+      xhr.setRequestHeader("Content-Range", `bytes ${start}-${end}/${totalSize}`);
+      xhr.setRequestHeader("Content-Type", file.type || "image/jpeg");
+
+      xhr.upload.onprogress = (ev) => {
+        if (ev.lengthComputable) {
+          const pct = ((start + ev.loaded) / totalSize) * 90; // 0–90% for upload phase
+          onProgress(Math.round(pct));
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 202 || xhr.status === 200 || xhr.status === 201) {
+          const pct = ((end + 1) / totalSize) * 90;
+          onProgress(Math.round(pct));
+          resolve();
+        } else {
+          reject(new Error(`Chunk upload failed (HTTP ${xhr.status}): ${xhr.responseText}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error("Network error during chunk upload"));
+      xhr.send(chunk);
+    });
+  }
+}
+
 export default function PhotoManager() {
   const { toast } = useToast();
   const [showAddForm, setShowAddForm] = useState(false);
@@ -31,6 +83,8 @@ export default function PhotoManager() {
   const [uploadMethod, setUploadMethod] = useState<"url" | "file">("url");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadPhase, setUploadPhase] = useState<"uploading" | "processing" | null>(null);
   const [sortBy, setSortBy] = useState<"name" | "votes" | "created">("name");
   const [collectionFilter, setCollectionFilter] = useState<string>("all");
   const [selectedPhotos, setSelectedPhotos] = useState<Set<string>>(new Set());
@@ -306,6 +360,8 @@ export default function PhotoManager() {
     setConvertingPhoto(null);
     setSelectedFile(null);
     setPreviewUrl("");
+    setUploadProgress(null);
+    setUploadPhase(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -389,10 +445,10 @@ export default function PhotoManager() {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
+      if (file.size > MAX_FILE_SIZE_BYTES) {
         toast({
           title: "File too large",
-          description: "Please select an image smaller than 10MB.",
+          description: `Please select an image smaller than ${MAX_FILE_SIZE_BYTES / 1024 / 1024} MB.`,
           variant: "destructive",
         });
         return;
@@ -456,33 +512,102 @@ export default function PhotoManager() {
 
     // Add mode
     if (uploadMethod === "file" && selectedFile) {
-      // Multipart upload → SPE
-      const fd = new FormData();
-      fd.append("file", selectedFile);
-      fd.append("title", formData.title.trim());
-      if (formData.description) fd.append("description", formData.description);
-      if (formData.collectionId) fd.append("collectionId", formData.collectionId);
-      if (formData.category) fd.append("category", formData.category);
-      fd.append("neverForSale", String(formData.neverForSale ?? true));
-      if (formData.customPurchaseUrl) fd.append("customPurchaseUrl", formData.customPurchaseUrl);
+      const sessionId = localStorage.getItem('admin-session-id');
+      const token = localStorage.getItem('auth-token');
+      const authHeaders: Record<string, string> = {};
+      if (sessionId) authHeaders['x-session-id'] = sessionId;
+      if (token) authHeaders['Authorization'] = `Bearer ${token}`;
 
       try {
-        const sessionId = localStorage.getItem('admin-session-id');
-        const token = localStorage.getItem('auth-token');
-        const headers: Record<string, string> = {};
-        if (sessionId) headers['x-session-id'] = sessionId;
-        if (token) headers['Authorization'] = `Bearer ${token}`;
+        if (selectedFile.size > LARGE_FILE_THRESHOLD) {
+          // ── Chunked upload-session path (large files) ──
+          // Step 1: Create pending DB record + SPE upload session URL
+          setUploadPhase("uploading");
+          setUploadProgress(0);
 
-        const response = await fetch("/api/photos", { method: "POST", headers, body: fd });
-        if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.message || "Upload failed");
+          const sessionRes = await fetch("/api/photos/upload-session", {
+            method: "POST",
+            headers: { ...authHeaders, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: formData.title.trim(),
+              description: formData.description || "",
+              collectionId: formData.collectionId || null,
+              category: formData.category || "",
+              neverForSale: formData.neverForSale ?? true,
+              customPurchaseUrl: formData.customPurchaseUrl || "",
+            }),
+          });
+
+          if (!sessionRes.ok) {
+            const err = await sessionRes.json();
+            throw new Error(err.message || "Failed to create upload session");
+          }
+
+          const { uploadUrl, photoId, chunkSize } = await sessionRes.json();
+
+          // Step 2: Upload chunks directly to SPE (no server round-trip per chunk)
+          await uploadChunksToSpe(uploadUrl, selectedFile, chunkSize, (pct) => {
+            setUploadProgress(pct);
+          });
+
+          // Step 3: Finalize — server downloads original, generates variants
+          setUploadPhase("processing");
+          setUploadProgress(95);
+
+          const finalizeRes = await fetch(`/api/photos/${photoId}/finalize`, {
+            method: "POST",
+            headers: authHeaders,
+          });
+
+          if (!finalizeRes.ok) {
+            const err = await finalizeRes.json();
+            throw new Error(err.message || "Finalize failed");
+          }
+
+          const result = await finalizeRes.json();
+          queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+          resetForm();
+          toast({ title: "Photo uploaded to SharePoint", description: result.title });
+        } else {
+          // ── Small-file path: single multipart POST (unchanged) ──
+          setUploadPhase("uploading");
+          setUploadProgress(0);
+
+          const fd = new FormData();
+          fd.append("file", selectedFile);
+          fd.append("title", formData.title.trim());
+          if (formData.description) fd.append("description", formData.description);
+          if (formData.collectionId) fd.append("collectionId", formData.collectionId);
+          if (formData.category) fd.append("category", formData.category);
+          fd.append("neverForSale", String(formData.neverForSale ?? true));
+          if (formData.customPurchaseUrl) fd.append("customPurchaseUrl", formData.customPurchaseUrl);
+
+          const xhr = new XMLHttpRequest();
+          const result = await new Promise<any>((resolve, reject) => {
+            xhr.open("POST", "/api/photos", true);
+            Object.entries(authHeaders).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+            xhr.upload.onprogress = (ev) => {
+              if (ev.lengthComputable) setUploadProgress(Math.round((ev.loaded / ev.total) * 90));
+            };
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({}); }
+              } else {
+                try { reject(new Error(JSON.parse(xhr.responseText).message || "Upload failed")); }
+                catch { reject(new Error(`Upload failed (HTTP ${xhr.status})`)); }
+              }
+            };
+            xhr.onerror = () => reject(new Error("Network error"));
+            xhr.send(fd);
+          });
+
+          queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
+          resetForm();
+          toast({ title: "Photo uploaded to SharePoint", description: result.title });
         }
-        const result = await response.json();
-        queryClient.invalidateQueries({ queryKey: ["/api/photos"] });
-        resetForm();
-        toast({ title: "Photo uploaded to SharePoint", description: result.title });
       } catch (error) {
+        setUploadProgress(null);
+        setUploadPhase(null);
         toast({
           title: "Upload failed",
           description: error instanceof Error ? error.message : "Could not upload file.",
@@ -576,7 +701,8 @@ export default function PhotoManager() {
                       className="cursor-pointer"
                     />
                     <p className="text-sm text-gray-500">
-                      Select a JPG, PNG, WebP or other image file from your computer
+                      JPG, PNG, WebP or other image file — up to {MAX_FILE_SIZE_BYTES / 1024 / 1024} MB.
+                      Files over 5 MB are uploaded in chunks directly to SharePoint.
                     </p>
                   </div>
                   
@@ -590,6 +716,11 @@ export default function PhotoManager() {
                           className="max-w-full max-h-48 object-contain mx-auto rounded"
                         />
                       </div>
+                      {selectedFile && selectedFile.size > LARGE_FILE_THRESHOLD && (
+                        <p className="text-xs text-blue-600 font-medium">
+                          Large file ({(selectedFile.size / 1024 / 1024).toFixed(1)} MB) — will use chunked upload
+                        </p>
+                      )}
                     </div>
                   )}
                 </TabsContent>
@@ -675,18 +806,40 @@ export default function PhotoManager() {
                 </p>
               </div>
 
+              {/* Upload progress bar (shown for file uploads > 5 MB) */}
+              {uploadPhase !== null && uploadProgress !== null && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>
+                      {uploadPhase === "uploading"
+                        ? "Uploading to SharePoint…"
+                        : "Generating size variants…"}
+                    </span>
+                    <span>{uploadProgress}%</span>
+                  </div>
+                  <Progress value={uploadProgress} className="h-2" />
+                </div>
+              )}
+
               <div className="flex gap-2">
                 <Button 
                   type="submit" 
                   className="bg-green-700 hover:bg-green-800"
-                  disabled={addPhotoMutation.isPending}
+                  disabled={addPhotoMutation.isPending || uploadPhase !== null}
                 >
-                  {addPhotoMutation.isPending ? "Adding..." : "Add Photo"}
+                  {uploadPhase === "uploading"
+                    ? "Uploading…"
+                    : uploadPhase === "processing"
+                    ? "Processing…"
+                    : addPhotoMutation.isPending
+                    ? "Adding..."
+                    : "Add Photo"}
                 </Button>
                 <Button 
                   type="button" 
                   variant="outline"
                   onClick={resetForm}
+                  disabled={uploadPhase !== null}
                 >
                   Cancel
                 </Button>

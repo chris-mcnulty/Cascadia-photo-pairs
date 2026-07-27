@@ -920,6 +920,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ── Chunked / browser-direct upload support ──────────────────────────────
+  // Step 1: Create a pending DB record + SPE upload session URL.
+  // The browser will PUT chunks directly to `uploadUrl`; no file bytes pass
+  // through this server on the upload path.
+  app.post("/api/photos/upload-session", async (req, res) => {
+    try {
+      const adminStatus = await checkAdminAuth(req);
+      if (!adminStatus.authenticated || !adminStatus.isAdmin) {
+        return res.status(401).json({ message: "Admin authentication required" });
+      }
+
+      const containerId = process.env.SPE_CONTAINER_ID;
+      if (!containerId) {
+        return res.status(503).json({ message: "SPE_CONTAINER_ID not configured" });
+      }
+
+      const { title, description, collectionId, category, neverForSale, customPurchaseUrl } = req.body;
+      if (!title?.trim()) {
+        return res.status(400).json({ message: "title is required" });
+      }
+
+      // Create DB record (sentinel imageUrl — replaced in /finalize)
+      const newPhoto = await storage.createPhoto({
+        title: title.trim(),
+        description: description || null,
+        imageUrl: `/api/photos/pending`,
+        collectionId: collectionId || null,
+        category: category || "General",
+        originalDate: null,
+      });
+
+      const { getSpeGraphClient } = await import("./spe-graph-client");
+      const client = getSpeGraphClient();
+
+      const folderPath = `photos/${newPhoto.id}`;
+      let uploadUrl: string;
+      try {
+        uploadUrl = await client.createUploadSession(
+          containerId,
+          `${folderPath}/original.jpg`
+        );
+      } catch (err) {
+        // Roll back so no orphan is left in DB
+        await storage.deletePhoto(newPhoto.id).catch(() => {});
+        throw err;
+      }
+
+      // Persist metadata we'll need at finalize time
+      await storage.updatePhoto(newPhoto.id, {
+        storageProvider: "sharepoint_embedded",
+        spContainerId: containerId,
+        spFolderPath: folderPath,
+        neverForSale: neverForSale === "true" || neverForSale === true,
+        customPurchaseUrl: customPurchaseUrl || null,
+      } as any);
+
+      return res.json({
+        uploadUrl,
+        photoId: newPhoto.id,
+        // Fragment size: 5 × 320 KiB (Graph API requirement: must be multiple of 320 KiB)
+        chunkSize: 5 * 320 * 1024,
+      });
+    } catch (error) {
+      console.error("upload-session error:", error);
+      return res.status(500).json({
+        message: error instanceof Error ? error.message : "Failed to create upload session",
+      });
+    }
+  });
+
+  // Step 2: After the browser has PUT all chunks, finalize the photo:
+  // download original from SPE, generate variants via sharp, upload them, commit imageUrl.
+  app.post("/api/photos/:id/finalize", async (req, res) => {
+    try {
+      const adminStatus = await checkAdminAuth(req);
+      if (!adminStatus.authenticated || !adminStatus.isAdmin) {
+        return res.status(401).json({ message: "Admin authentication required" });
+      }
+
+      const { id } = req.params;
+      const [photo] = await db.select().from(photos).where(eq(photos.id, id));
+      if (!photo) {
+        return res.status(404).json({ message: "Photo not found" });
+      }
+      if (photo.storageProvider !== "sharepoint_embedded" || !photo.spContainerId || !photo.spFolderPath) {
+        return res.status(400).json({ message: "Photo is not an SPE upload-session photo" });
+      }
+
+      const { getSpeGraphClient } = await import("./spe-graph-client");
+      const client = getSpeGraphClient();
+
+      // Download original with a generous timeout (120 s) for large files
+      const FINALIZE_TIMEOUT_MS = 120_000;
+      const originalBuf = await client.downloadFile(
+        photo.spContainerId,
+        `${photo.spFolderPath}/original.jpg`,
+        FINALIZE_TIMEOUT_MS
+      );
+
+      // Generate size variants
+      const sharp = (await import("sharp")).default;
+      const [thumbBuf, midBuf, fullBuf] = await Promise.all([
+        sharp(originalBuf).resize({ width: 800, withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer(),
+        sharp(originalBuf).resize({ width: 1600, withoutEnlargement: true }).jpeg({ quality: 88 }).toBuffer(),
+        sharp(originalBuf).resize({ width: 6000, withoutEnlargement: true }).jpeg({ quality: 90 }).toBuffer(),
+      ]);
+
+      // Upload variants (original is kept for archival; variants serve display traffic)
+      await Promise.all([
+        client.uploadFile(photo.spContainerId, `${photo.spFolderPath}/thumb.jpg`, thumbBuf, "image/jpeg"),
+        client.uploadFile(photo.spContainerId, `${photo.spFolderPath}/mid.jpg`, midBuf, "image/jpeg"),
+        client.uploadFile(photo.spContainerId, `${photo.spFolderPath}/full.jpg`, fullBuf, "image/jpeg"),
+      ]);
+
+      // Commit final imageUrl
+      const updated = await storage.updatePhoto(photo.id, {
+        imageUrl: `/api/photos/${photo.id}/image?size=mid`,
+      });
+
+      console.log(`Photo ${photo.id} finalized via upload-session at ${photo.spFolderPath}`);
+      return res.json(updated);
+    } catch (error) {
+      console.error("finalize error:", error);
+      return res.status(500).json({
+        message: error instanceof Error ? error.message : "Finalize failed",
+      });
+    }
+  });
+
   // Bulk update photo sale status (admin only) - MUST come before the :id routes
   app.put("/api/photos/bulk-sale", async (req, res) => {
     try {

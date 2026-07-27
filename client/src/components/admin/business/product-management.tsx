@@ -91,9 +91,20 @@ export default function ProductManagement() {
     queryKey: ["/api/products"],
   });
 
-  // Fetch all photos for the photo selector
+  // Fetch all photos for the photo selector — send x-admin-request so the server
+  // caps Wix full-res URLs before returning them to this admin view.
   const { data: photos = [] } = useQuery<Photo[]>({
-    queryKey: ["/api/photos"],
+    queryKey: ["/api/photos", "admin"],
+    queryFn: async () => {
+      const token = localStorage.getItem("auth-token");
+      const sessionId = localStorage.getItem("admin-session-id");
+      const headers: Record<string, string> = { "x-admin-request": "true" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      if (sessionId) headers["x-session-id"] = sessionId;
+      const res = await fetch("/api/photos", { headers });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
   });
 
   // Fetch all product SKUs
@@ -478,9 +489,9 @@ export default function ProductManagement() {
                       </TableCell>
                       <TableCell className="font-medium">
                         <div className="flex items-center">
-                          {linkedPhoto?.imageUrl ? (
+                          {linkedPhoto ? (
                             <img
-                              src={linkedPhoto.imageUrl}
+                              src={`/api/photos/${linkedPhoto.id}/image?size=thumb`}
                               alt={product.title}
                               className="w-12 h-12 object-cover rounded mr-2"
                               data-testid={`img-product-${product.id}`}
@@ -492,7 +503,7 @@ export default function ProductManagement() {
                               }}
                             />
                           ) : null}
-                          <div style={{ display: linkedPhoto?.imageUrl ? 'none' : 'flex' }} className="w-12 h-12 bg-gray-100 rounded mr-2 items-center justify-center">
+                          <div style={{ display: linkedPhoto ? 'none' : 'flex' }} className="w-12 h-12 bg-gray-100 rounded mr-2 items-center justify-center">
                             {product.photoId ? (
                               <Image className="w-6 h-6 text-muted-foreground" />
                             ) : (

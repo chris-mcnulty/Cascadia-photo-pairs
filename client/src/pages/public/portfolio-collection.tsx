@@ -93,7 +93,7 @@ export default function PortfolioCollection() {
               >
                 <div className="aspect-[4/3] overflow-hidden bg-gray-100 rounded relative">
                   <img
-                    src={p.imageUrl}
+                    src={`/api/photos/${p.id}/image?size=thumb`}
                     alt={p.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     loading="lazy"
@@ -160,7 +160,7 @@ export default function PortfolioCollection() {
             onClick={(e) => e.stopPropagation()}
           >
             <img
-              src={activePhoto.imageUrl}
+              src={`/api/photos/${activePhoto.id}/image?size=mid`}
               alt={activePhoto.title}
               className="max-h-[80vh] w-auto object-contain"
               data-testid="lightbox-image"

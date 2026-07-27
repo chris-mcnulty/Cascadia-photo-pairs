@@ -25,7 +25,7 @@ import {
 } from "./catalog/catalog-data";
 import { generateCatalogDocx } from "./catalog/catalog-docx";
 import { generateCatalogPdf } from "./catalog/catalog-pdf";
-import { readBrandLogoBuffer } from "./catalog/catalog-brand";
+import { readBrandLogoBuffer, resizedImageUrl } from "./catalog/catalog-brand";
 import { 
   insertVoteSchema, 
   insertSettingsSchema, 
@@ -752,17 +752,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Check if this is an admin request that needs optimization
       const isAdmin = req.headers['x-admin-request'] === 'true';
-      const hasLargeImages = photos.some(p => p.imageUrl.startsWith('data:image') && p.imageUrl.length > 100000);
-      
-      if (isAdmin && hasLargeImages) {
-        // For admin interface, provide lighter version with image previews
-        const adminPhotos = photos.map(photo => ({
-          ...photo,
-          imageUrl: photo.imageUrl.startsWith('data:image') 
-            ? photo.imageUrl.substring(0, 200) + '...[base64-truncated]'
-            : photo.imageUrl,
-          originalImageUrl: photo.imageUrl.startsWith('data:image') ? '[stored-in-db]' : photo.imageUrl
-        }));
+
+      if (isAdmin) {
+        // For admin interface: truncate base64 blobs and cap Wix full-res URLs
+        // to ~400px so grids stay responsive during the SharePoint migration.
+        const adminPhotos = photos.map(photo => {
+          if (photo.imageUrl.startsWith('data:image') && photo.imageUrl.length > 100000) {
+            return {
+              ...photo,
+              imageUrl: photo.imageUrl.substring(0, 200) + '...[base64-truncated]',
+              originalImageUrl: '[stored-in-db]',
+            };
+          }
+          // Cap Wix URLs for legacy photos not yet migrated to SharePoint.
+          // resizedImageUrl is a no-op for non-Wix URLs (SPE proxy paths, Unsplash, etc.).
+          const capped = resizedImageUrl(photo.imageUrl, 400);
+          return capped !== photo.imageUrl ? { ...photo, imageUrl: capped } : photo;
+        });
         console.log(`Retrieved ${photos.length} photos (admin optimized)`);
         res.json(adminPhotos);
       } else {

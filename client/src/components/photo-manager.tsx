@@ -1196,7 +1196,7 @@ export default function PhotoManager() {
                             <Label>Current Image (Database)</Label>
                             <div className="border rounded-lg p-2 bg-gray-50">
                               <img 
-                                src={convertingPhoto.imageUrl} 
+                                src={`/api/photos/${convertingPhoto.id}/image?size=mid`}
                                 alt={convertingPhoto.title} 
                                 className="max-w-full max-h-32 object-contain mx-auto rounded"
                               />

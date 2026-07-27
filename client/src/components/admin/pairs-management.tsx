@@ -533,7 +533,7 @@ export function PairsManagement() {
                       <CardHeader className="pb-3">
                         <div className="flex flex-col sm:flex-row sm:items-start space-y-3 sm:space-y-0 sm:space-x-4">
                           <img
-                            src={photoPerf.photoImageUrl}
+                            src={`/api/photos/${photoPerf.photoId}/image?size=thumb`}
                             alt={photoPerf.photoTitle}
                             className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded mx-auto sm:mx-0"
                           />
@@ -569,7 +569,7 @@ export function PairsManagement() {
                               <div key={opponent.opponentId} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded space-y-2 sm:space-y-0">
                                 <div className="flex items-center space-x-3">
                                   <img
-                                    src={opponent.opponentImageUrl}
+                                    src={`/api/photos/${opponent.opponentId}/image?size=thumb`}
                                     alt={opponent.opponentTitle}
                                     className="w-8 h-8 sm:w-10 sm:h-10 object-cover rounded flex-shrink-0"
                                   />

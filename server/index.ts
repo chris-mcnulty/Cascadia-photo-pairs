@@ -51,6 +51,22 @@ function runStartupMigrations() {
       }
     }
 
+    // photos: storage_provider + SPE columns
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        await pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS storage_provider text NOT NULL DEFAULT 'wix'`);
+        await pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS sp_container_id text`);
+        await pool.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS sp_folder_path text`);
+        // Backfill any rows that somehow ended up NULL (shouldn't happen with DEFAULT, but be safe)
+        await pool.query(`UPDATE photos SET storage_provider = 'wix' WHERE storage_provider IS NULL`);
+        log("Startup migration: photos storage_provider + SPE columns ensured");
+        break;
+      } catch (err: any) {
+        const delay = Math.min(attempt * 5000, 30000);
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+
     // not_found_logs table
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {

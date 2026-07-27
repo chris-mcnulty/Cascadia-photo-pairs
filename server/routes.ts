@@ -697,7 +697,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const provider = photo.storageProvider || (photo.imageUrl.startsWith("data:") ? "base64" : "wix");
 
       if (provider === "sharepoint_embedded" && photo.spContainerId && photo.spFolderPath) {
-        // Serve from SPE — never fall through to imageUrl (it points back here and would loop)
+        // Serve from SPE — fall back to imageUrl only if it is a non-proxy external URL
         try {
           const { getSpeGraphClient } = await import("./spe-graph-client");
           const client = getSpeGraphClient();
@@ -708,8 +708,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.send(buffer);
         } catch (speErr) {
           console.error(`SPE download failed for photo ${photo.id}:`, speErr);
-          // Return a terminal error rather than redirecting to the proxy URL (which would loop)
-          return res.status(502).json({ message: "Image temporarily unavailable — SPE storage error" });
+
+          // Attempt graceful fallback: use imageUrl if it is a real external URL
+          const fallbackUrl = photo.imageUrl;
+          const isSelfProxy = !fallbackUrl || fallbackUrl.startsWith("/api/photos/");
+
+          if (!isSelfProxy && fallbackUrl.startsWith("data:")) {
+            // base64 fallback
+            const match = fallbackUrl.match(/^data:([^;]+);base64,(.+)$/);
+            if (match) {
+              const [, mime, data] = match;
+              const buf = Buffer.from(data, "base64");
+              res.setHeader("Content-Type", mime);
+              res.setHeader("Cache-Control", "private, max-age=300");
+              res.setHeader("X-Image-Source", "spe-fallback");
+              return res.send(buf);
+            }
+          }
+
+          if (!isSelfProxy && fallbackUrl.startsWith("http")) {
+            // Wix or other external URL fallback
+            let redirectUrl = fallbackUrl;
+            if (redirectUrl.includes("wix.com") || redirectUrl.includes("wixstatic.com")) {
+              const widthMap: Record<string, number> = { thumb: 400, mid: 1200, full: 3000 };
+              const w = widthMap[size] || 1200;
+              const sep = redirectUrl.includes("?") ? "&" : "?";
+              redirectUrl = `${redirectUrl}${sep}w=${w}`;
+            }
+            res.setHeader("X-Image-Source", "spe-fallback");
+            return res.redirect(302, redirectUrl);
+          }
+
+          // No usable fallback — return a 503 (service unavailable) instead of 500
+          res.setHeader("X-Image-Source", "spe-fallback");
+          return res.status(503).json({ message: "Image temporarily unavailable — SPE storage unreachable" });
         }
       }
 

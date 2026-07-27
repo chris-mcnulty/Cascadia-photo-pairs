@@ -71,9 +71,18 @@ export class SpeGraphClient {
       return this.tokenCache.token;
     }
 
-    const result = await this.clientApp.acquireTokenByClientCredential({
+    const tokenPromise = this.clientApp.acquireTokenByClientCredential({
       scopes: ["https://graph.microsoft.com/.default"],
     });
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(
+        () => reject(new Error(`MSAL token acquisition timed out after ${SPE_FETCH_TIMEOUT_MS}ms`)),
+        SPE_FETCH_TIMEOUT_MS
+      )
+    );
+
+    const result = await Promise.race([tokenPromise, timeoutPromise]);
 
     if (!result?.accessToken) {
       throw new Error("Failed to acquire access token from MSAL");
@@ -116,6 +125,7 @@ export class SpeGraphClient {
       method,
       headers,
       body: fetchBody,
+      signal: AbortSignal.timeout(SPE_FETCH_TIMEOUT_MS),
     });
   }
 
@@ -315,6 +325,9 @@ export class SpeGraphClient {
     }
   }
 }
+
+/** Timeout (ms) applied to every SPE fetch call. Override via SPE_TIMEOUT_MS env var. */
+export const SPE_FETCH_TIMEOUT_MS = parseInt(process.env.SPE_TIMEOUT_MS || "5000", 10);
 
 // Singleton instance — lazily initialised so missing env vars only throw at call time
 let _client: SpeGraphClient | null = null;

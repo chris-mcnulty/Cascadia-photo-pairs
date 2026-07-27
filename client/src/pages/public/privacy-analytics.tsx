@@ -27,6 +27,11 @@ export default function PrivacyAnalytics() {
             store your raw IP, and the hash is unrecoverable after the day rolls over.
           </li>
           <li>Whether your browser looks like a mobile, tablet, desktop or bot</li>
+          <li>
+            A <strong>coarse country code</strong> (e.g. "US", "CA") derived from your IP address via a
+            standard CDN header. We record only the two-letter country — never a city, region, or
+            precise location — and we do not store the raw IP.
+          </li>
         </ul>
 
         <h2>Google Analytics 4</h2>

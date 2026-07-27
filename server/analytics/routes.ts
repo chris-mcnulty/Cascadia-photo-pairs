@@ -592,6 +592,33 @@ export function registerAnalyticsRoutes(
     }
   });
 
+  // ---------------- Geo ----------------
+  app.get("/api/admin/analytics/geo", isAuthenticated, async (req, res) => {
+    try {
+      const { since, until, days } = rangeFromQuery(req.query);
+      const limit = clampDays(req.query.limit, 25, 100);
+      const rows = await db.execute(sql`
+        SELECT
+          coalesce(country, '(unknown)') AS country,
+          count(*)::int AS views,
+          count(distinct session_id)::int AS sessions,
+          count(distinct visitor_hash)::int AS visitors
+        FROM page_views
+        WHERE created_at >= ${since}
+          AND created_at <= ${until}
+          AND is_bot = false
+        GROUP BY country
+        ORDER BY views DESC
+        LIMIT ${limit}
+      `);
+      type GeoRow = { country: string; views: number; sessions: number; visitors: number };
+      res.json({ days, rows: (rows as unknown as { rows: GeoRow[] }).rows });
+    } catch (e) {
+      console.error("[analytics] geo error:", e);
+      res.status(500).json({ error: (e as Error).message });
+    }
+  });
+
   app.get("/api/admin/analytics/voting", isAuthenticated, async (req, res) => {
     try {
       const { since, until, days } = rangeFromQuery(req.query as Record<string, unknown>);

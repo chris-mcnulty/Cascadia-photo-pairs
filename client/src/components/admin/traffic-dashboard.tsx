@@ -59,6 +59,8 @@ type Voting = {
   returningVoterRate: number;
 };
 
+type GeoRow = { country: string; views: number; sessions: number; visitors: number };
+
 function fmt(n: number): string {
   return new Intl.NumberFormat().format(n);
 }
@@ -129,6 +131,12 @@ export default function TrafficDashboard({ onCreateRedirect }: { onCreateRedirec
   const { data: notFoundLog } = useQuery<NotFoundEntry[]>({
     queryKey: ["/api/admin/404-log", rangeKey],
     queryFn: () => fetcher<NotFoundEntry[]>(`/api/admin/404-log?${rangeQs}`),
+    refetchInterval,
+  });
+
+  const { data: geo } = useQuery<{ rows: GeoRow[] }>({
+    queryKey: ["/api/admin/analytics/geo", rangeKey],
+    queryFn: () => fetcher(`/api/admin/analytics/geo?${rangeQs}&limit=20`),
     refetchInterval,
   });
 
@@ -549,6 +557,52 @@ export default function TrafficDashboard({ onCreateRedirect }: { onCreateRedirec
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader className="flex-row items-center justify-between">
+          <CardTitle>Top countries</CardTitle>
+          <Button
+            variant="outline"
+            size="sm"
+            data-testid="button-export-geo-csv"
+            onClick={() =>
+              downloadCsv(
+                `geo-${rangeKey}.csv`,
+                ["country", "views", "sessions", "visitors"],
+                (geo?.rows || []).map((r) => [r.country, r.views, r.sessions, r.visitors]),
+              )
+            }
+          >
+            Export CSV
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {(geo?.rows || []).length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-3">No geography data yet</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="text-left text-gray-500">
+                <tr>
+                  <th className="py-1">Country</th>
+                  <th className="py-1 text-right">Views</th>
+                  <th className="py-1 text-right">Sessions</th>
+                  <th className="py-1 text-right">Visitors</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(geo?.rows || []).map((r) => (
+                  <tr key={r.country} className="border-t">
+                    <td className="py-1">{r.country}</td>
+                    <td className="py-1 text-right">{fmt(r.views)}</td>
+                    <td className="py-1 text-right">{fmt(r.sessions)}</td>
+                    <td className="py-1 text-right">{fmt(r.visitors)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import WorldMap from "./world-map";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -136,7 +137,7 @@ export default function TrafficDashboard({ onCreateRedirect }: { onCreateRedirec
 
   const { data: geo } = useQuery<{ rows: GeoRow[] }>({
     queryKey: ["/api/admin/analytics/geo", rangeKey],
-    queryFn: () => fetcher(`/api/admin/analytics/geo?${rangeQs}&limit=20`),
+    queryFn: () => fetcher(`/api/admin/analytics/geo?${rangeQs}&limit=100`),
     refetchInterval,
   });
 
@@ -576,30 +577,33 @@ export default function TrafficDashboard({ onCreateRedirect }: { onCreateRedirec
             Export CSV
           </Button>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {(geo?.rows || []).length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-3">No geography data yet</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="text-left text-gray-500">
-                <tr>
-                  <th className="py-1">Country</th>
-                  <th className="py-1 text-right">Views</th>
-                  <th className="py-1 text-right">Sessions</th>
-                  <th className="py-1 text-right">Visitors</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(geo?.rows || []).map((r) => (
-                  <tr key={r.country} className="border-t">
-                    <td className="py-1">{r.country}</td>
-                    <td className="py-1 text-right">{fmt(r.views)}</td>
-                    <td className="py-1 text-right">{fmt(r.sessions)}</td>
-                    <td className="py-1 text-right">{fmt(r.visitors)}</td>
+            <>
+              <WorldMap rows={geo!.rows} />
+              <table className="w-full text-sm">
+                <thead className="text-left text-gray-500">
+                  <tr>
+                    <th className="py-1">Country</th>
+                    <th className="py-1 text-right">Views</th>
+                    <th className="py-1 text-right">Sessions</th>
+                    <th className="py-1 text-right">Visitors</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(geo?.rows || []).map((r) => (
+                    <tr key={r.country} className="border-t">
+                      <td className="py-1">{r.country}</td>
+                      <td className="py-1 text-right">{fmt(r.views)}</td>
+                      <td className="py-1 text-right">{fmt(r.sessions)}</td>
+                      <td className="py-1 text-right">{fmt(r.visitors)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
           )}
         </CardContent>
       </Card>

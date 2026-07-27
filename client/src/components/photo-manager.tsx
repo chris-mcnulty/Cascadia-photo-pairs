@@ -1079,6 +1079,12 @@ export default function PhotoManager() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h4 className="font-medium">{photo.title}</h4>
+                        {photo.imageUrl === "/api/photos/pending" && (
+                          <span className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded font-semibold flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            Upload incomplete
+                          </span>
+                        )}
                         {photo.hidden && (
                           <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded">
                             Hidden

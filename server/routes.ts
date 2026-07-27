@@ -4070,6 +4070,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ============================================
   
   // Get all photos for inventory dropdown
+  // List photos stuck in the pending-upload sentinel state
+  app.get("/api/admin/photos/pending", isAuthenticated, async (req, res) => {
+    try {
+      const { getPendingPhotos } = await import("./pending-photo-cleanup");
+      const pending = await getPendingPhotos();
+      res.json(pending);
+    } catch (error) {
+      console.error("Error fetching pending photos:", error);
+      res.status(500).json({ message: "Failed to fetch pending photos" });
+    }
+  });
+
   app.get("/api/admin/photos", isAuthenticated, async (req, res) => {
     try {
       const photos = await storage.getAllPhotos();

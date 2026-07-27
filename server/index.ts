@@ -6,6 +6,7 @@ import { redirectMiddleware } from "./redirects";
 
 // Import Twilio to trigger configuration logging
 import "./twilio";
+import { startPendingPhotoCleanup } from "./pending-photo-cleanup";
 
 function runStartupMigrations() {
   // Fire-and-forget: runs in background so it never delays server startup
@@ -147,6 +148,7 @@ app.use((req, res, next) => {
 
 (async () => {
   runStartupMigrations(); // fire-and-forget, never blocks startup
+  startPendingPhotoCleanup(); // clean up half-uploaded photos every hour
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

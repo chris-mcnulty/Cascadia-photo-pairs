@@ -594,7 +594,7 @@ export const orderItems = pgTable("order_items", {
 // Sales records with buyer information (LEGACY - will be replaced by orders + order_items)
 export const sales = pgTable("sales", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderNumber: varchar("order_number").unique(), // Editable, auto-incrementing order number starting at 10010
+  orderNumber: varchar("order_number"), // Editable, auto-incrementing order number starting at 10010; NOT unique — multiple items can share the same order number
   productId: varchar("product_id").references(() => products.id), // Changed from photoId
   channelId: varchar("channel_id").notNull().references(() => salesChannels.id),
   customerId: varchar("customer_id").references(() => customers.id), // Reference to customers table

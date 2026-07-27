@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,7 +14,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { Loader2, Package, Truck } from "lucide-react";
+import { Loader2, Package, Truck, PlusCircle } from "lucide-react";
 
 interface Product {
   id: string;
@@ -106,6 +106,14 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
   const { toast } = useToast();
   const [saleType, setSaleType] = useState<"inventory" | "dropship">("inventory");
   const [showAllInventory, setShowAllInventory] = useState(false);
+  const [existingOrder, setExistingOrder] = useState<{
+    buyerName?: string | null;
+    buyerEmail?: string | null;
+    buyerPhone?: string | null;
+    shippingAddress?: string | null;
+    channelId?: string | null;
+  } | null>(null);
+  const orderLookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { data: products } = useQuery<Product[]>({
     queryKey: ["/api/products"],
@@ -213,6 +221,37 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
       form.setValue("inventoryItemId", "");
     }
   }, [watchedSaleType, form]);
+
+  // Watch order number — look up existing order to pre-fill buyer info
+  const watchedOrderNumber = form.watch("orderNumber");
+  useEffect(() => {
+    if (editingSale || !watchedOrderNumber || watchedOrderNumber.trim() === "") {
+      setExistingOrder(null);
+      return;
+    }
+    if (orderLookupTimer.current) clearTimeout(orderLookupTimer.current);
+    orderLookupTimer.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/admin/sales/by-order-number/${encodeURIComponent(watchedOrderNumber.trim())}`, {
+          credentials: "include",
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setExistingOrder(data);
+          // Pre-fill buyer info and channel if blank
+          if (data.buyerName && !form.getValues("buyerName")) form.setValue("buyerName", data.buyerName);
+          if (data.buyerEmail && !form.getValues("buyerEmail")) form.setValue("buyerEmail", data.buyerEmail);
+          if (data.buyerPhone && !form.getValues("buyerPhone")) form.setValue("buyerPhone", data.buyerPhone);
+          if (data.shippingAddress && !form.getValues("shippingAddress")) form.setValue("shippingAddress", data.shippingAddress);
+          if (data.channelId && !form.getValues("channelId")) form.setValue("channelId", data.channelId);
+        } else {
+          setExistingOrder(null);
+        }
+      } catch {
+        setExistingOrder(null);
+      }
+    }, 400);
+  }, [watchedOrderNumber, editingSale, form]);
 
   // Auto-fill price when inventory item is selected
   const watchedInventoryItem = form.watch("inventoryItemId");
@@ -352,9 +391,18 @@ export default function SalesFormDialog({ open, onClose, editingSale }: SalesFor
                       data-testid="input-order-number"
                     />
                   </FormControl>
-                  <FormDescription>
-                    Auto-filled with the next available number; edit if needed.
-                  </FormDescription>
+                  {existingOrder ? (
+                    <p className="text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-2 py-1 flex items-center gap-1">
+                      <PlusCircle className="h-3 w-3 shrink-0" />
+                      Adding another item to existing order #{field.value}
+                      {existingOrder.buyerName ? ` — ${existingOrder.buyerName}` : ""}
+                      . Buyer info pre-filled below.
+                    </p>
+                  ) : (
+                    <FormDescription>
+                      Auto-filled with the next available number; edit if needed. Use the same order number to add multiple items to one order.
+                    </FormDescription>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}

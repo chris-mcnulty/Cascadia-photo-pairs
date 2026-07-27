@@ -3095,6 +3095,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Look up existing order info by order number (for pre-filling multi-item orders)
+  app.get("/api/admin/sales/by-order-number/:orderNumber", isAuthenticated, async (req, res) => {
+    try {
+      const { orderNumber } = req.params;
+      const rows = await db.execute(sql`
+        SELECT buyer_name, buyer_email, buyer_phone, shipping_address, channel_id, sale_date
+        FROM sales
+        WHERE order_number = ${orderNumber}
+        ORDER BY created_at ASC
+        LIMIT 1
+      `);
+      if (rows.rows.length === 0) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      const row = rows.rows[0] as any;
+      res.json({
+        buyerName: row.buyer_name,
+        buyerEmail: row.buyer_email,
+        buyerPhone: row.buyer_phone,
+        shippingAddress: row.shipping_address,
+        channelId: row.channel_id,
+        saleDate: row.sale_date,
+      });
+    } catch (error) {
+      console.error('Error looking up order by number:', error);
+      res.status(500).json({ message: "Failed to look up order" });
+    }
+  });
+
   // Get single sale
   app.get("/api/admin/sales/:id", isAuthenticated, async (req, res) => {
     try {
